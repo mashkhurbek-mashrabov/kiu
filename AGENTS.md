@@ -27,6 +27,10 @@ Add focused tests for behavior changes. Parser tests must cover malformed and du
 
 Git history is not included in this workspace. Use Conventional Commits in imperative present tense, for example `fix(sync): accept LMS schedule container id`, and keep subjects under 72 characters. Pull requests should explain user-visible behavior, list verification commands, link issues, and include screenshots for UI or widget changes. Do not commit generated build directories.
 
+## Local Release Notes
+
+Maintain one Markdown file per app version in `.release-notes/` (for example, `.release-notes/1.2.2.md`). After every change, update current version file with concise, factual user-visible changes. Use its contents to draft GitHub release summaries. `.release-notes/` is local-only: never commit or push it.
+
 ## Security & Configuration
 
 Never embed, log, or persist credentials or cookie values. Send WebView cookies only to the exact trusted HTTPS LMS host and reject cross-host redirects. Keep JavaScript and bridge actions gated by current trusted routes and validated payloads. Persist only non-secret settings, cached lessons, IDs, timestamps, statuses, and user agent.
