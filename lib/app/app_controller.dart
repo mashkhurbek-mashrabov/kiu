@@ -85,6 +85,7 @@ class AppController extends ChangeNotifier {
     }
     exactTiming = await _notifications.canScheduleExactly();
     await _scheduler.setEnabled(settings.backgroundSyncEnabled);
+    await _refreshWidget();
     notifyListeners();
   }
 
@@ -174,6 +175,10 @@ class AppController extends ChangeNotifier {
       _reconciler.reconcile(_repository.loadLessons(), settings);
 
   Future<void> _refreshWidget() =>
-      _lessonWidgets?.publish(_repository.loadLessons(), settings) ??
+      _lessonWidgets?.publish(
+        _repository.loadLessons(),
+        settings,
+        lastSuccessfulSync: _repository.lastSuccessfulSync,
+      ) ??
       Future<void>.value();
 }

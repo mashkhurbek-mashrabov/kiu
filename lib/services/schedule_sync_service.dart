@@ -38,8 +38,9 @@ class ScheduleSyncService {
       );
       final settings = _repository.loadSettings();
       await _reconciler.reconcile(lessons, settings);
-      await _publishLessons(lessons, settings);
-      await _repository.recordSuccess(DateTime.now());
+      final syncedAt = DateTime.now();
+      await _repository.recordSuccess(syncedAt);
+      await _publishLessons(lessons, settings, syncedAt);
       return SyncResult(
         status: ScheduleSyncStatus.success,
         lessonCount: lessons.length,
@@ -61,9 +62,15 @@ class ScheduleSyncService {
   Future<void> _publishLessons(
     List<Lesson> lessons,
     AppSettings settings,
+    DateTime lastSuccessfulSync,
   ) async {
     try {
-      await _lessonWidgets?.publish(lessons, settings);
+      await _lessonWidgets?.publish(
+        lessons,
+        settings,
+        lastSuccessfulSync: lastSuccessfulSync,
+        showSuccessStatus: true,
+      );
     } catch (_) {
       // Widget failure must not turn a successful LMS sync into a failed sync.
     }

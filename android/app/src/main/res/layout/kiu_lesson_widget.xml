@@ -3,9 +3,9 @@
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFDF7"
+    android:background="@drawable/kiu_widget_background"
     android:orientation="vertical"
-    android:padding="10dp">
+    android:padding="12dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -20,20 +20,18 @@
             android:layout_weight="1"
             android:text="KIU"
             android:textColor="#176B45"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textStyle="bold" />
 
-        <TextView
+        <ImageButton
             android:id="@+id/widget_sync"
-            android:layout_width="wrap_content"
+            android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:gravity="center"
-            android:minWidth="64dp"
-            android:paddingHorizontal="8dp"
-            android:text="Sync"
-            android:textColor="#176B45"
-            android:textStyle="bold" />
+            android:background="@drawable/kiu_widget_sync_button"
+            android:contentDescription="@string/kiu_widget_sync"
+            android:padding="9dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_sync" />
     </LinearLayout>
 
     <TextView
@@ -42,17 +40,29 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="#666666"
+        android:textColor="#176B45"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_last_sync"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:layout_marginTop="2dp"
+        android:textColor="#68746D"
         android:textSize="11sp" />
 
     <ListView
         android:id="@+id/lesson_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="8dp"
         android:layout_weight="1"
+        android:clipToPadding="false"
         android:divider="@android:color/transparent"
-        android:dividerHeight="4dp" />
+        android:dividerHeight="6dp" />
 
     <TextView
         android:id="@+id/lesson_empty"
@@ -61,5 +71,5 @@
         android:layout_weight="1"
         android:gravity="center"
         android:text="No scheduled lessons"
-        android:textColor="#666666" />
+        android:textColor="#68746D" />
 </LinearLayout>

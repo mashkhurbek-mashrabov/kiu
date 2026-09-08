@@ -28,10 +28,13 @@ private class LessonFactory(private val context: Context) : RemoteViewsService.R
         return RemoteViews(context.packageName, R.layout.kiu_lesson_widget_item).apply {
             setTextViewText(R.id.lesson_title, item.optString("title"))
             setTextViewText(R.id.lesson_time, item.optString("displayStart"))
-            setInt(
-                R.id.lesson_item,
-                "setBackgroundColor",
-                if (started) Color.rgb(183, 228, 199) else Color.rgb(255, 225, 107),
+            setTextColor(
+                R.id.lesson_title,
+                if (started) Color.rgb(23, 107, 69) else Color.rgb(29, 43, 36),
+            )
+            setTextColor(
+                R.id.lesson_time,
+                if (started) Color.rgb(23, 107, 69) else Color.rgb(104, 116, 109),
             )
             if (started && meetingUrl != null) {
                 val uri = android.net.Uri.parse(meetingUrl)

@@ -3,9 +3,10 @@
     android:id="@+id/lesson_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@drawable/kiu_widget_lesson_item"
     android:minHeight="60dp"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="10dp">
 
     <TextView
         android:id="@+id/lesson_title"
@@ -13,7 +14,7 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="2"
-        android:textColor="#202020"
+        android:textColor="#1D2B24"
         android:textSize="14sp"
         android:textStyle="bold" />
 
@@ -23,6 +24,7 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="#404040"
+        android:layout_marginTop="2dp"
+        android:textColor="#68746D"
         android:textSize="11sp" />
 </LinearLayout>

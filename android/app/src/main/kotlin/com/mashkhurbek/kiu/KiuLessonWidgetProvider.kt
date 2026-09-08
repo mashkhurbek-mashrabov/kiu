@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
@@ -26,8 +27,25 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.kiu_lesson_widget).apply {
                 setRemoteAdapter(R.id.lesson_list, serviceIntent)
                 setEmptyView(R.id.lesson_list, R.id.lesson_empty)
-                setTextViewText(R.id.widget_sync, widgetData.getString("syncLabel", "Sync"))
-                setTextViewText(R.id.widget_status, widgetData.getString("widgetStatus", ""))
+                setContentDescription(R.id.widget_sync, widgetData.getString("syncLabel", "Sync"))
+                val status = widgetData.getString("widgetStatus", "") ?: ""
+                val statusVisibleUntil =
+                    widgetData.getString("widgetStatusVisibleUntil", "0")?.toLongOrNull() ?: 0L
+                setTextViewText(R.id.widget_status, status)
+                setViewVisibility(
+                    R.id.widget_status,
+                    if (status.isNotBlank() &&
+                        (statusVisibleUntil <= 0L || System.currentTimeMillis() < statusVisibleUntil)
+                    ) {
+                        View.VISIBLE
+                    } else {
+                        View.GONE
+                    },
+                )
+                setTextViewText(
+                    R.id.widget_last_sync,
+                    widgetData.getString("widgetLastSync", ""),
+                )
                 setTextViewText(
                     R.id.lesson_empty,
                     widgetData.getString("emptyLabel", "No scheduled lessons"),

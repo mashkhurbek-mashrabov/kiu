@@ -10,8 +10,9 @@ import 'support/fakes.dart';
 
 Future<AppController> createController(
   FakeNotificationGateway notifications,
-  FakeBackgroundScheduler scheduler,
-) async {
+  FakeBackgroundScheduler scheduler, {
+  FakeLessonWidgetGateway? lessonWidgets,
+}) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
   final reconciler = ReminderReconciler(
     repository: repository,
@@ -27,6 +28,7 @@ Future<AppController> createController(
     reconciler: reconciler,
     notifications: notifications,
     scheduler: scheduler,
+    lessonWidgets: lessonWidgets,
   );
 }
 
@@ -60,6 +62,26 @@ void main() {
     );
     await controller.initialize();
     expect(scheduler.enabled, isTrue);
+  });
+
+  test('publishes cached last sync to widget during initialization', () async {
+    final lastSync = DateTime.utc(2026, 9, 8, 12);
+    SharedPreferences.setMockInitialValues({
+      'kiu.lastSyncSuccess': lastSync.toIso8601String(),
+      'kiu.lessonSnapshot':
+          '[{"title":"Tafsir","websiteStart":"2026-09-09 19:00"}]',
+    });
+    final widgets = FakeLessonWidgetGateway();
+    final controller = await createController(
+      FakeNotificationGateway(),
+      FakeBackgroundScheduler(),
+      lessonWidgets: widgets,
+    );
+
+    await controller.initialize();
+
+    expect(widgets.lastSuccessfulSync, lastSync);
+    expect(widgets.lessons, hasLength(1));
   });
 
   test(

@@ -95,11 +95,20 @@ class FakeLessonWidgetGateway implements LessonWidgetGateway {
   List<Lesson>? lessons;
   AppSettings? settings;
   ScheduleSyncStatus? status;
+  DateTime? lastSuccessfulSync;
+  bool showSuccessStatus = false;
 
   @override
-  Future<void> publish(List<Lesson> value, AppSettings appSettings) async {
+  Future<void> publish(
+    List<Lesson> value,
+    AppSettings appSettings, {
+    DateTime? lastSuccessfulSync,
+    bool showSuccessStatus = false,
+  }) async {
     lessons = value;
     settings = appSettings;
+    this.lastSuccessfulSync = lastSuccessfulSync;
+    this.showSuccessStatus = showSuccessStatus;
   }
 
   @override
