@@ -42,21 +42,15 @@ void main() {
     expect(label, 'Last sync: 2026-09-09 15:00 Europe/London (GMT+01:00)');
   });
 
-  test('widget redraws when success message expires', () {
+  test('widget redraws at upcoming lesson starts', () {
     final now = DateTime.utc(2026, 9, 9, 14);
-    final expiry = lessonWidgetSuccessStatusExpiry(now);
-    final updates = buildLessonWidgetUpdateTimes(
-      [
-        {'start': now.add(const Duration(minutes: 5)).millisecondsSinceEpoch},
-      ],
-      now,
-      statusVisibleUntil: expiry,
-    );
+    final updates = buildLessonWidgetUpdateTimes([
+      {'start': now.add(const Duration(minutes: 5)).millisecondsSinceEpoch},
+    ], now);
 
-    expect(expiry, now.add(const Duration(seconds: 3)));
-    expect(updates.first, expiry);
+    expect(updates, hasLength(1));
     expect(
-      updates.last.isAtSameMomentAs(now.add(const Duration(minutes: 5))),
+      updates.single.isAtSameMomentAs(now.add(const Duration(minutes: 5))),
       isTrue,
     );
   });

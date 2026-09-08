@@ -28,7 +28,11 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 setRemoteAdapter(R.id.lesson_list, serviceIntent)
                 setEmptyView(R.id.lesson_list, R.id.lesson_empty)
                 setContentDescription(R.id.widget_sync, widgetData.getString("syncLabel", "Sync"))
+                setContentDescription(R.id.widget_sync_icon, widgetData.getString("syncLabel", "Sync"))
                 val status = widgetData.getString("widgetStatus", "") ?: ""
+                val syncing = widgetData.getString("widgetIsSyncing", "false") == "true"
+                setViewVisibility(R.id.widget_sync_icon, if (syncing) View.GONE else View.VISIBLE)
+                setViewVisibility(R.id.widget_sync_progress, if (syncing) View.VISIBLE else View.GONE)
                 val statusVisibleUntil =
                     widgetData.getString("widgetStatusVisibleUntil", "0")?.toLongOrNull() ?: 0L
                 setTextViewText(R.id.widget_status, status)
@@ -56,7 +60,7 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                     HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
                 )
                 setOnClickPendingIntent(
-                    R.id.widget_sync,
+                    R.id.widget_sync_icon,
                     HomeWidgetBackgroundIntent.getBroadcast(
                         context,
                         Uri.parse("kiu://widget-sync"),

@@ -7,7 +7,7 @@ class AppSettings {
     this.timeZoneId = 'Asia/Tashkent',
     this.remindersEnabled = false,
     this.backgroundSyncEnabled = true,
-    this.reminderOffsetsMinutes = const [60, 15, 0],
+    this.reminderOffsetsMinutes = const [60, 0],
   });
 
   final double playbackRate;

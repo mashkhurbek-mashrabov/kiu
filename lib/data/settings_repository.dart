@@ -32,7 +32,7 @@ class SettingsRepository {
     backgroundSyncEnabled: _preferences.getBool(_backgroundSync) ?? true,
     reminderOffsetsMinutes:
         _preferences.getStringList(_offsets)?.map(int.parse).toList() ??
-        const [60, 15, 0],
+        const [60, 0],
   );
 
   Future<void> saveSettings(AppSettings settings) async {

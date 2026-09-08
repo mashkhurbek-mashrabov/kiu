@@ -38,7 +38,8 @@ void main() {
       expect(repository.webViewUserAgent, 'WebView UA');
       expect(widgets.lessons, lessons);
       expect(widgets.lastSuccessfulSync, repository.lastSuccessfulSync);
-      expect(widgets.showSuccessStatus, isTrue);
+      expect(widgets.statusHistory, [ScheduleSyncStatus.syncing]);
+      expect(widgets.status, isNull);
     },
   );
 }

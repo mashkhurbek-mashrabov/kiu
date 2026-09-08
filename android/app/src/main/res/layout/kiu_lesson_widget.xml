@@ -23,15 +23,31 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <ImageButton
+        <FrameLayout
             android:id="@+id/widget_sync"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:background="@drawable/kiu_widget_sync_button"
-            android:contentDescription="@string/kiu_widget_sync"
-            android:padding="9dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_widget_sync" />
+            android:contentDescription="@string/kiu_widget_sync">
+
+            <ImageButton
+                android:id="@+id/widget_sync_icon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/kiu_widget_sync_button"
+                android:contentDescription="@string/kiu_widget_sync"
+                android:padding="9dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_widget_sync" />
+
+            <ProgressBar
+                android:id="@+id/widget_sync_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:indeterminate="true"
+                android:indeterminateTint="#176B45"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 
     <TextView

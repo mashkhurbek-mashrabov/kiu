@@ -9,14 +9,12 @@ import 'time_zone_service.dart';
 const lessonWidgetProvider = 'KiuLessonWidgetProvider';
 const lessonWidgetQualifiedProvider =
     'com.mashkhurbek.kiu.KiuLessonWidgetProvider';
-const lessonWidgetSuccessMessageDuration = Duration(seconds: 3);
 
 abstract interface class LessonWidgetGateway {
   Future<void> publish(
     List<Lesson> lessons,
     AppSettings settings, {
     DateTime? lastSuccessfulSync,
-    bool showSuccessStatus = false,
   });
   Future<void> publishStatus(ScheduleSyncStatus status, AppSettings settings);
 }
@@ -32,28 +30,17 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     List<Lesson> lessons,
     AppSettings settings, {
     DateTime? lastSuccessfulSync,
-    bool showSuccessStatus = false,
   }) async {
     final payload = buildLessonWidgetPayload(lessons, settings, _timeZones);
     final now = DateTime.now();
-    final statusVisibleUntil = showSuccessStatus
-        ? lessonWidgetSuccessStatusExpiry(now)
-        : await _readStatusVisibleUntil();
     await HomeWidget.saveWidgetData<String>('lessons', jsonEncode(payload));
     await HomeWidget.saveWidgetData<String>(
       'syncLabel',
       _label(settings.localeTag, 'sync'),
     );
-    if (showSuccessStatus) {
-      await HomeWidget.saveWidgetData<String>(
-        'widgetStatus',
-        _label(settings.localeTag, 'updated'),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        'widgetStatusVisibleUntil',
-        statusVisibleUntil!.millisecondsSinceEpoch.toString(),
-      );
-    }
+    await HomeWidget.saveWidgetData<String>('widgetStatus', '');
+    await HomeWidget.saveWidgetData<String>('widgetStatusVisibleUntil', '0');
+    await HomeWidget.saveWidgetData<String>('widgetIsSyncing', 'false');
     await HomeWidget.saveWidgetData<String>(
       'widgetLastSync',
       buildLessonWidgetLastSyncLabel(lastSuccessfulSync, settings, _timeZones),
@@ -67,11 +54,7 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       qualifiedAndroidName: lessonWidgetQualifiedProvider,
     );
     await HomeWidget.scheduleWidgetUpdates(
-      buildLessonWidgetUpdateTimes(
-        payload,
-        now,
-        statusVisibleUntil: statusVisibleUntil,
-      ),
+      buildLessonWidgetUpdateTimes(payload, now),
       qualifiedAndroidName: lessonWidgetQualifiedProvider,
     );
   }
@@ -85,13 +68,17 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       ScheduleSyncStatus.syncing => 'syncing',
       ScheduleSyncStatus.signInRequired => 'signIn',
       ScheduleSyncStatus.failed => 'failed',
-      _ => 'updated',
+      _ => '',
     };
     await HomeWidget.saveWidgetData<String>(
       'widgetStatus',
       _label(settings.localeTag, key),
     );
     await HomeWidget.saveWidgetData<String>('widgetStatusVisibleUntil', '0');
+    await HomeWidget.saveWidgetData<String>(
+      'widgetIsSyncing',
+      status == ScheduleSyncStatus.syncing ? 'true' : 'false',
+    );
     await HomeWidget.saveWidgetData<String>(
       'syncLabel',
       _label(settings.localeTag, 'sync'),
@@ -106,33 +93,16 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
   Future<void> _update() => HomeWidget.updateWidget(
     qualifiedAndroidName: lessonWidgetQualifiedProvider,
   );
-
-  Future<DateTime?> _readStatusVisibleUntil() async {
-    final raw = await HomeWidget.getWidgetData<String>(
-      'widgetStatusVisibleUntil',
-    );
-    final milliseconds = int.tryParse(raw ?? '');
-    return milliseconds == null
-        ? null
-        : DateTime.fromMillisecondsSinceEpoch(milliseconds);
-  }
 }
-
-DateTime lessonWidgetSuccessStatusExpiry(DateTime now) =>
-    now.add(lessonWidgetSuccessMessageDuration);
 
 List<DateTime> buildLessonWidgetUpdateTimes(
   List<Map<String, Object?>> payload,
-  DateTime now, {
-  DateTime? statusVisibleUntil,
-}) {
+  DateTime now,
+) {
   final times = payload
       .map((item) => DateTime.fromMillisecondsSinceEpoch(item['start']! as int))
       .where((value) => value.isAfter(now))
       .toList();
-  if (statusVisibleUntil?.isAfter(now) ?? false) {
-    times.add(statusVisibleUntil!);
-  }
   times.sort();
   return times;
 }
@@ -179,7 +149,6 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('ru', 'empty') => 'Нет запланированных уроков',
   ('ru', 'lastSync') => 'Последняя синхронизация',
   ('ru', 'never') => 'Никогда',
-  ('ru', _) => 'Обновлено',
   ('en', 'sync') => 'Sync',
   ('en', 'syncing') => 'Synchronizing…',
   ('en', 'signIn') => 'Open KIU and sign in',
@@ -187,7 +156,6 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('en', 'empty') => 'No scheduled lessons',
   ('en', 'lastSync') => 'Last sync',
   ('en', 'never') => 'Never',
-  ('en', _) => 'Updated',
   ('uz', 'sync') => 'Yangilash',
   ('uz', 'syncing') => 'Sinxronlanmoqda…',
   ('uz', 'signIn') => 'KIU ilovasini ochib tizimga kiring',
@@ -195,7 +163,6 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('uz', 'empty') => 'Rejalashtirilgan darslar yo‘q',
   ('uz', 'lastSync') => 'Oxirgi sinxronlash',
   ('uz', 'never') => 'Hali yo‘q',
-  ('uz', _) => 'Yangilandi',
   (_, 'sync') => 'Янгилаш',
   (_, 'syncing') => 'Синхронланмоқда…',
   (_, 'signIn') => 'KIU иловасини очиб тизимга киринг',
@@ -203,5 +170,5 @@ String _label(String locale, String key) => switch ((locale, key)) {
   (_, 'empty') => 'Режалаштирилган дарслар йўқ',
   (_, 'lastSync') => 'Охирги синхронлаш',
   (_, 'never') => 'Ҳали йўқ',
-  _ => 'Янгиланди',
+  _ => '',
 };

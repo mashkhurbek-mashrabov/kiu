@@ -3,6 +3,7 @@ package com.mashkhurbek.kiu
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -30,11 +31,19 @@ private class LessonFactory(private val context: Context) : RemoteViewsService.R
             setTextViewText(R.id.lesson_time, item.optString("displayStart"))
             setTextColor(
                 R.id.lesson_title,
-                if (started) Color.rgb(23, 107, 69) else Color.rgb(29, 43, 36),
+                if (started) Color.rgb(23, 107, 69) else Color.rgb(167, 120, 0),
             )
             setTextColor(
                 R.id.lesson_time,
-                if (started) Color.rgb(23, 107, 69) else Color.rgb(104, 116, 109),
+                if (started) Color.rgb(23, 107, 69) else Color.rgb(138, 101, 0),
+            )
+            setViewVisibility(
+                R.id.lesson_scheduled_accent,
+                if (started) View.GONE else View.VISIBLE,
+            )
+            setViewVisibility(
+                R.id.lesson_started_accent,
+                if (started) View.VISIBLE else View.GONE,
             )
             if (started && meetingUrl != null) {
                 val uri = android.net.Uri.parse(meetingUrl)

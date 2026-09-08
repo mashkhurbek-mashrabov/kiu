@@ -45,7 +45,7 @@ void main() {
     expect(controller.settings.timeZoneId, 'Asia/Tashkent');
     expect(controller.settings.remindersEnabled, isFalse);
     expect(controller.settings.backgroundSyncEnabled, isTrue);
-    expect(controller.settings.reminderOffsetsMinutes, [60, 15, 0]);
+    expect(controller.settings.reminderOffsetsMinutes, [60, 0]);
 
     await controller.setPlaybackRate(12);
     expect(controller.settings.playbackRate, 4);
