@@ -419,7 +419,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _openNotificationSettings() async {
     final customController = TextEditingController();
     var customUnitHours = false;
-    await showModalBottomSheet<void>(
+    final returnToMainSettings = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -444,6 +444,22 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          key: const Key('notification-settings-back'),
+                          tooltip: strings.back,
+                          onPressed: () => Navigator.pop(context, true),
+                          icon: const Icon(Icons.arrow_back),
+                        ),
+                        Expanded(
+                          child: Text(
+                            strings.notificationSettings,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                      ],
+                    ),
                     SwitchListTile(
                       title: Text(strings.reminders),
                       subtitle: Text(strings.remindersHelp),
@@ -489,7 +505,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                           ..sort((a, b) => b.compareTo(a)))
                       ListTile(
                         contentPadding: const EdgeInsets.only(left: 16),
-                        title: Text('$value ${strings.minutes}'),
+                        title: Text(_reminderOffsetLabel(value)),
                         trailing: IconButton(
                           tooltip: strings.remove,
                           onPressed: () => toggleOffset(value, false),
@@ -590,6 +606,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       ),
     );
     customController.dispose();
+    if (returnToMainSettings == true && mounted) {
+      await _openActions();
+    }
   }
 
   String _syncStatusText() {
@@ -605,6 +624,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           ? strings.never
           : DateFormat('yyyy-MM-dd HH:mm').format(date),
     );
+  }
+
+  String _reminderOffsetLabel(int minutes) {
+    if (minutes < 60) return '$minutes ${strings.minutes}';
+    final hours = minutes ~/ 60;
+    final remainder = minutes % 60;
+    return remainder == 0
+        ? '$hours ${strings.hours}'
+        : '$hours ${strings.hours} $remainder ${strings.minutes}';
   }
 
   Future<void> _selectTimeZone() async {

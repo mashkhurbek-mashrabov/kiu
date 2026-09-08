@@ -22,6 +22,7 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
         appWidgetIds.forEach { widgetId ->
             val serviceIntent = Intent(context, KiuLessonWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                // RemoteViews services are cached by Intent identity; include widget ID.
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             val views = RemoteViews(context.packageName, R.layout.kiu_lesson_widget).apply {
@@ -29,6 +30,10 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 setEmptyView(R.id.lesson_list, R.id.lesson_empty)
                 setContentDescription(R.id.widget_sync, widgetData.getString("syncLabel", "Sync"))
                 setContentDescription(R.id.widget_sync_icon, widgetData.getString("syncLabel", "Sync"))
+                setTextViewText(
+                    R.id.widget_subtitle,
+                    widgetData.getString("widgetSubtitle", "Scheduled online lessons"),
+                )
                 val status = widgetData.getString("widgetStatus", "") ?: ""
                 val syncing = widgetData.getString("widgetIsSyncing", "false") == "true"
                 setViewVisibility(R.id.widget_sync_icon, if (syncing) View.GONE else View.VISIBLE)
@@ -54,7 +59,6 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                     R.id.lesson_empty,
                     widgetData.getString("emptyLabel", "No scheduled lessons"),
                 )
-
                 setOnClickPendingIntent(
                     R.id.widget_container,
                     HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
@@ -69,10 +73,14 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 val template = Intent(context, KiuLessonWidgetProvider::class.java).apply {
                     action = ACTION_OPEN_LESSON
                 }
-                val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                 setPendingIntentTemplate(
                     R.id.lesson_list,
-                    PendingIntent.getBroadcast(context, widgetId, template, flags),
+                    PendingIntent.getBroadcast(
+                        context,
+                        widgetId,
+                        template,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+                    ),
                 )
             }
             appWidgetManager.updateAppWidget(widgetId, views)

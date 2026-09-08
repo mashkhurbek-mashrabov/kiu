@@ -26,7 +26,7 @@ void main() {
       payload.first['start'],
       DateTime.utc(2026, 9, 9, 14).millisecondsSinceEpoch,
     );
-    expect(payload.first['displayStart'], contains('Europe/London'));
+    expect(payload.first['displayStart'], '15:00 | 09-09-2026');
     expect(payload.last['meetingUrl'], 'https://meet.example/second');
   });
 
@@ -39,7 +39,50 @@ void main() {
       TimeZoneService(),
     );
 
-    expect(label, 'Last sync: 2026-09-09 15:00 Europe/London (GMT+01:00)');
+    expect(label, 'Last sync: 15:00');
+  });
+
+  test('widget groups lessons by selected time zone', () {
+    const settings = AppSettings(localeTag: 'en', timeZoneId: 'Asia/Tashkent');
+    final timeZones = TimeZoneService();
+    final now = DateTime.utc(2026, 9, 9, 19);
+
+    expect(
+      buildLessonWidgetGroupLabel(
+        DateTime.utc(2026, 9, 9, 20),
+        settings,
+        timeZones,
+        now: now,
+      ),
+      'Today',
+    );
+    expect(
+      buildLessonWidgetGroupKey(
+        DateTime.utc(2026, 9, 9, 20),
+        settings,
+        timeZones,
+        now: now,
+      ),
+      'today',
+    );
+    expect(
+      buildLessonWidgetGroupLabel(
+        DateTime.utc(2026, 9, 10, 20),
+        settings,
+        timeZones,
+        now: now,
+      ),
+      'Tomorrow',
+    );
+    expect(
+      buildLessonWidgetGroupLabel(
+        DateTime.utc(2026, 9, 11, 20),
+        settings,
+        timeZones,
+        now: now,
+      ),
+      'Others',
+    );
   });
 
   test('widget redraws at upcoming lesson starts', () {

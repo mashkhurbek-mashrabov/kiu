@@ -81,7 +81,7 @@ void main() {
     tester,
   ) async {
     final appController = await controller();
-    await appController.setReminderOffsets([75, 60, 15, 0]);
+    await appController.setReminderOffsets([75, 45, 60, 15, 0]);
     await tester.pumpWidget(
       KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
     );
@@ -90,17 +90,36 @@ void main() {
     await tester.tap(find.text('Эслатма созламалари'));
     await tester.pumpAndSettle();
 
-    final custom = find.text('75 Дақиқа');
+    final custom = find.text('1 Соат 15 Дақиқа');
     expect(custom, findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    expect(find.text('45 Дақиқа'), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
     expect(
       tester.getTopLeft(custom).dy,
       lessThan(tester.getTopLeft(find.text('Махсус вақт')).dy),
     );
-    await tester.ensureVisible(find.byIcon(Icons.delete_outline));
+    await tester.ensureVisible(find.byIcon(Icons.delete_outline).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
     await tester.pump();
     expect(appController.settings.reminderOffsetsMinutes, isNot(contains(75)));
+  });
+
+  testWidgets('notification back returns to main settings', (tester) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('notification-settings-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChoiceChip), findsNWidgets(7));
   });
 }

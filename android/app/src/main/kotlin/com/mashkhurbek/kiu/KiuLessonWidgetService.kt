@@ -3,69 +3,114 @@ package com.mashkhurbek.kiu
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import es.antonborri.home_widget.HomeWidgetPlugin
 import org.json.JSONArray
+import org.json.JSONObject
 
 class KiuLessonWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory = LessonFactory(applicationContext)
 }
 
 private class LessonFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
-    private var lessons = JSONArray()
+    private var rows: List<WidgetRow> = emptyList()
 
     override fun onCreate() = load()
-    override fun onDataSetChanged() = load()
-    override fun onDestroy() = Unit
-    override fun getCount(): Int = lessons.length()
 
-    override fun getViewAt(position: Int): RemoteViews {
-        val item = lessons.optJSONObject(position)
-            ?: return RemoteViews(context.packageName, R.layout.kiu_lesson_widget_item)
-        val started = item.optLong("start", Long.MAX_VALUE) <= System.currentTimeMillis()
-        val meetingUrl = item.optString("meetingUrl").takeIf { it.isNotBlank() }
-        return RemoteViews(context.packageName, R.layout.kiu_lesson_widget_item).apply {
-            setTextViewText(R.id.lesson_title, item.optString("title"))
-            setTextViewText(R.id.lesson_time, item.optString("displayStart"))
+    override fun onDataSetChanged() = load()
+
+    override fun onDestroy() = Unit
+
+    override fun getCount(): Int = rows.size
+
+    override fun getViewAt(position: Int): RemoteViews = when (val row = rows.getOrNull(position)) {
+        is WidgetRow.Header -> RemoteViews(context.packageName, R.layout.kiu_lesson_widget_group_header).apply {
+            setTextViewText(R.id.lesson_group_title, row.title)
+        }
+        is WidgetRow.Lesson -> lessonView(row.lesson, position)
+        null -> RemoteViews(context.packageName, R.layout.kiu_lesson_widget_group_header)
+    }
+
+    override fun getLoadingView(): RemoteViews? = null
+
+    override fun getViewTypeCount(): Int = 3
+
+    override fun getItemId(position: Int): Long = when (val row = rows.getOrNull(position)) {
+        is WidgetRow.Header -> (row.title.hashCode().toLong() shl 32) xor position.toLong()
+        is WidgetRow.Lesson -> row.lesson.optLong("start", position.toLong()).xor(position.toLong())
+        null -> position.toLong()
+    }
+
+    override fun hasStableIds(): Boolean = true
+
+    private fun load() {
+        val lessons = runCatching {
+            JSONArray(HomeWidgetPlugin.getData(context).getString("lessons", "[]") ?: "[]")
+        }.getOrDefault(JSONArray())
+        val loadedRows = mutableListOf<WidgetRow>()
+        var previousGroup: String? = null
+        for (index in 0 until lessons.length()) {
+            val lesson = lessons.optJSONObject(index) ?: continue
+            val group = lesson.optString("group", "Others")
+            if (group != previousGroup) {
+                loadedRows += WidgetRow.Header(group)
+                previousGroup = group
+            }
+            loadedRows += WidgetRow.Lesson(lesson)
+        }
+        rows = loadedRows
+    }
+
+    private fun lessonView(lesson: JSONObject, position: Int): RemoteViews {
+        val started = lesson.optLong("start", Long.MAX_VALUE) <= System.currentTimeMillis()
+        val today = lesson.optString("groupKey") == "today"
+        val layout = if (started || today) {
+            R.layout.kiu_lesson_widget_item
+        } else {
+            R.layout.kiu_lesson_widget_item_other
+        }
+        return RemoteViews(context.packageName, layout).apply {
+            setTextViewText(R.id.lesson_title, lesson.optString("title"))
+            setTextViewText(R.id.lesson_time, lesson.optString("displayStart"))
             setTextColor(
                 R.id.lesson_title,
-                if (started) Color.rgb(23, 107, 69) else Color.rgb(167, 120, 0),
+                when {
+                    started -> Color.rgb(23, 107, 69)
+                    today -> Color.rgb(167, 120, 0)
+                    else -> Color.rgb(52, 65, 58)
+                },
             )
             setTextColor(
                 R.id.lesson_time,
-                if (started) Color.rgb(23, 107, 69) else Color.rgb(138, 101, 0),
+                when {
+                    started -> Color.rgb(23, 107, 69)
+                    today -> Color.rgb(138, 101, 0)
+                    else -> Color.rgb(104, 116, 109)
+                },
             )
-            setViewVisibility(
-                R.id.lesson_scheduled_accent,
-                if (started) View.GONE else View.VISIBLE,
-            )
-            setViewVisibility(
-                R.id.lesson_started_accent,
-                if (started) View.VISIBLE else View.GONE,
-            )
-            if (started && meetingUrl != null) {
-                val uri = android.net.Uri.parse(meetingUrl)
-                if (KiuLessonWidgetProvider.isValidHttps(uri)) {
-                    setOnClickFillInIntent(
-                        R.id.lesson_item,
-                        Intent().putExtra(KiuLessonWidgetProvider.EXTRA_LINK, meetingUrl),
-                    )
-                }
+            setViewVisibility(R.id.lesson_scheduled_accent, if (!started && today) View.VISIBLE else View.GONE)
+            setViewVisibility(R.id.lesson_started_accent, if (started) View.VISIBLE else View.GONE)
+            val meetingUrl = lesson.optString("meetingUrl").takeIf { it.isNotBlank() } ?: return@apply
+            val uri = Uri.parse(meetingUrl)
+            if (started && KiuLessonWidgetProvider.isValidHttps(uri)) {
+                setOnClickFillInIntent(
+                    R.id.lesson_item,
+                    Intent().apply {
+                        data = Uri.parse("kiu://widget-lesson/$position")
+                        putExtra(KiuLessonWidgetProvider.EXTRA_LINK, meetingUrl)
+                    },
+                )
             }
         }
     }
 
-    override fun getLoadingView(): RemoteViews? = null
-    override fun getViewTypeCount(): Int = 1
-    override fun getItemId(position: Int): Long =
-        (lessons.optJSONObject(position)?.optLong("start", position.toLong())
-            ?: position.toLong()).xor(position.toLong())
-    override fun hasStableIds(): Boolean = true
+    private sealed interface WidgetRow {
+        data class Header(val title: String) : WidgetRow
 
-    private fun load() {
-        val raw = HomeWidgetPlugin.getData(context).getString("lessons", "[]") ?: "[]"
-        lessons = runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
+        data class Lesson(val lesson: JSONObject) : WidgetRow
     }
+
 }
