@@ -7,4 +7,8 @@
 , "backgroundAccessHelp": "Разрешите KIU фоновую работу в настройках батареи. Android всё ещё может отложить задачу."
 , "openSettings": "Открыть настройки"
 , "remove": "Удалить"
+, "notificationSound": "Звук уведомления"
+, "defaultSound": "Системный по умолчанию"
+, "soundSelected": "Выбран системный звук"
+, "chooseSound": "Выбрать звук"
 }

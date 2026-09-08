@@ -194,4 +194,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remove => 'Remove';
+
+  @override
+  String get notificationSound => 'Notification sound';
+
+  @override
+  String get defaultSound => 'System default';
+
+  @override
+  String get soundSelected => 'Selected system sound';
+
+  @override
+  String get chooseSound => 'Choose sound';
 }

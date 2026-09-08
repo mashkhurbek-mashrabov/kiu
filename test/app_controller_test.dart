@@ -110,4 +110,22 @@ void main() {
     await controller.setBackgroundSyncEnabled(true);
     expect(scheduler.enabled, isTrue);
   });
+
+  test('persists selected system sound for its reminder time', () async {
+    final notifications = FakeNotificationGateway()
+      ..selectedSound = 'content://media/internal/audio/media/42';
+    final controller = await createController(
+      notifications,
+      FakeBackgroundScheduler(),
+    );
+
+    await controller.selectReminderSound(60);
+
+    expect(controller.settings.reminderSoundUris, {
+      60: 'content://media/internal/audio/media/42',
+    });
+    final reloaded = SettingsRepository(await SharedPreferences.getInstance())
+        .loadSettings();
+    expect(reloaded.reminderSoundUris, controller.settings.reminderSoundUris);
+  });
 }

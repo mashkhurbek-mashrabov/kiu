@@ -7,4 +7,8 @@
 , "backgroundAccessHelp": "Ilova yopilganda sinxronlash uchun batareya sozlamalarida KIUga ruxsat bering. Android baribir vazifani kechiktirishi mumkin."
 , "openSettings": "Sozlamalarni ochish"
 , "remove": "Olib tashlash"
+, "notificationSound": "Bildirishnoma ovozi"
+, "defaultSound": "Tizim standart ovozi"
+, "soundSelected": "Tizim ovozi tanlangan"
+, "chooseSound": "Ovozni tanlash"
 }

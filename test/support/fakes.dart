@@ -9,6 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 class FakeNotificationGateway implements NotificationGateway {
   bool permission = true;
   bool exact = true;
+  String? selectedSound;
   final Map<int, ScheduledCall> scheduled = {};
   final List<int> cancelled = [];
 
@@ -31,6 +32,9 @@ class FakeNotificationGateway implements NotificationGateway {
   Future<bool> requestNotificationPermission() async => permission;
 
   @override
+  Future<String?> selectSound({String? currentSound}) async => selectedSound;
+
+  @override
   Future<void> schedule({
     required int id,
     required tz.TZDateTime when,
@@ -38,6 +42,8 @@ class FakeNotificationGateway implements NotificationGateway {
     required String body,
     required String payload,
     required bool exact,
+    required int reminderOffsetMinutes,
+    String? soundUri,
   }) async {
     scheduled[id] = ScheduledCall(
       when: when,
@@ -45,6 +51,8 @@ class FakeNotificationGateway implements NotificationGateway {
       body: body,
       payload: payload,
       exact: exact,
+      reminderOffsetMinutes: reminderOffsetMinutes,
+      soundUri: soundUri,
     );
   }
 }
@@ -56,6 +64,8 @@ class ScheduledCall {
     required this.body,
     required this.payload,
     required this.exact,
+    required this.reminderOffsetMinutes,
+    required this.soundUri,
   });
 
   final tz.TZDateTime when;
@@ -63,6 +73,8 @@ class ScheduledCall {
   final String body;
   final String payload;
   final bool exact;
+  final int reminderOffsetMinutes;
+  final String? soundUri;
 }
 
 class FakeBackgroundScheduler implements BackgroundScheduler {

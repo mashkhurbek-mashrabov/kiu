@@ -3,6 +3,7 @@ import 'package:kiu/data/settings_repository.dart';
 import 'package:kiu/domain/app_settings.dart';
 import 'package:kiu/domain/lesson.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
+import 'package:kiu/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fakes.dart';
@@ -35,6 +36,51 @@ void main() {
     expect(
       notifications.scheduled.values.first.body,
       contains('Asia/Tashkent'),
+    );
+  });
+
+  test('uses independently selected system sounds for each offset', () async {
+    final reconciler = ReminderReconciler(
+      repository: repository,
+      notifications: notifications,
+      now: () => DateTime.utc(2026, 9, 9, 12),
+    );
+    const lesson = Lesson(title: 'Tahfiz', websiteStart: '2026-09-09 19:00');
+    const settings = AppSettings(
+      remindersEnabled: true,
+      reminderOffsetsMinutes: [60, 0],
+      reminderSoundUris: {
+        60: 'content://media/internal/audio/media/1',
+        0: 'content://media/internal/audio/media/2',
+      },
+    );
+
+    await reconciler.reconcile([lesson], settings);
+
+    expect(
+      notifications.scheduled.values
+          .singleWhere((call) => call.reminderOffsetMinutes == 60)
+          .soundUri,
+      'content://media/internal/audio/media/1',
+    );
+    expect(
+      notifications.scheduled.values
+          .singleWhere((call) => call.reminderOffsetMinutes == 0)
+          .soundUri,
+      'content://media/internal/audio/media/2',
+    );
+  });
+
+  test('uses separate channels when an offset sound changes', () {
+    expect(
+      reminderNotificationChannelId(60, 'content://media/internal/audio/1'),
+      isNot(
+        reminderNotificationChannelId(60, 'content://media/internal/audio/2'),
+      ),
+    );
+    expect(
+      reminderNotificationChannelId(60, null),
+      isNot(reminderNotificationChannelId(0, null)),
     );
   });
 

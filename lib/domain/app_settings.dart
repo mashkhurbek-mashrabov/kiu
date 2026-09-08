@@ -8,6 +8,7 @@ class AppSettings {
     this.remindersEnabled = false,
     this.backgroundSyncEnabled = true,
     this.reminderOffsetsMinutes = const [60, 0],
+    this.reminderSoundUris = const {},
   });
 
   final double playbackRate;
@@ -16,6 +17,7 @@ class AppSettings {
   final bool remindersEnabled;
   final bool backgroundSyncEnabled;
   final List<int> reminderOffsetsMinutes;
+  final Map<int, String> reminderSoundUris;
 
   Locale get locale {
     final parts = localeTag.split('_');
@@ -31,6 +33,7 @@ class AppSettings {
     bool? remindersEnabled,
     bool? backgroundSyncEnabled,
     List<int>? reminderOffsetsMinutes,
+    Map<int, String>? reminderSoundUris,
   }) => AppSettings(
     playbackRate: playbackRate ?? this.playbackRate,
     localeTag: localeTag ?? this.localeTag,
@@ -39,5 +42,6 @@ class AppSettings {
     backgroundSyncEnabled: backgroundSyncEnabled ?? this.backgroundSyncEnabled,
     reminderOffsetsMinutes:
         reminderOffsetsMinutes ?? this.reminderOffsetsMinutes,
+    reminderSoundUris: reminderSoundUris ?? this.reminderSoundUris,
   );
 }

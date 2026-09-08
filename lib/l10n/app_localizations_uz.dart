@@ -194,6 +194,18 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get remove => 'Olib tashlash';
+
+  @override
+  String get notificationSound => 'Bildirishnoma ovozi';
+
+  @override
+  String get defaultSound => 'Tizim standart ovozi';
+
+  @override
+  String get soundSelected => 'Tizim ovozi tanlangan';
+
+  @override
+  String get chooseSound => 'Ovozni tanlash';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -385,4 +397,16 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get remove => 'Ўчириш';
+
+  @override
+  String get notificationSound => 'Билдиришнома овози';
+
+  @override
+  String get defaultSound => 'Тизим стандарт овози';
+
+  @override
+  String get soundSelected => 'Тизим овози танланган';
+
+  @override
+  String get chooseSound => 'Овозни танлаш';
 }

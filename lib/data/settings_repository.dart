@@ -16,6 +16,7 @@ class SettingsRepository {
   static const _reminders = 'kiu.reminders';
   static const _backgroundSync = 'kiu.backgroundSync';
   static const _offsets = 'kiu.reminderOffsets';
+  static const _soundUris = 'kiu.reminderSoundUris';
   static const _lessons = 'kiu.lessonSnapshot';
   static const _scheduledIds = 'kiu.scheduledNotificationIds';
   static const _lastAttempt = 'kiu.lastSyncAttempt';
@@ -33,7 +34,26 @@ class SettingsRepository {
     reminderOffsetsMinutes:
         _preferences.getStringList(_offsets)?.map(int.parse).toList() ??
         const [60, 0],
+    reminderSoundUris: _loadReminderSoundUris(),
   );
+
+  Map<int, String> _loadReminderSoundUris() {
+    final raw = _preferences.getString(_soundUris);
+    if (raw == null) return const {};
+    try {
+      final values = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        for (final entry in values.entries)
+          if (int.tryParse(entry.key) case final offset?)
+            if (entry.value is String && (entry.value as String).isNotEmpty)
+              offset: entry.value as String,
+      };
+    } on FormatException {
+      return const {};
+    } on TypeError {
+      return const {};
+    }
+  }
 
   Future<void> saveSettings(AppSettings settings) async {
     await Future.wait([
@@ -45,6 +65,13 @@ class SettingsRepository {
       _preferences.setStringList(
         _offsets,
         settings.reminderOffsetsMinutes.map((value) => '$value').toList(),
+      ),
+      _preferences.setString(
+        _soundUris,
+        jsonEncode({
+          for (final entry in settings.reminderSoundUris.entries)
+            '${entry.key}': entry.value,
+        }),
       ),
     ]);
   }

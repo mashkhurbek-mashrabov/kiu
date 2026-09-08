@@ -151,6 +151,18 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> selectReminderSound(int offsetMinutes) async {
+    final currentSound = settings.reminderSoundUris[offsetMinutes];
+    final sound = await _notifications.selectSound(currentSound: currentSound);
+    if (sound == null) return;
+    final sounds = Map<int, String>.from(settings.reminderSoundUris)
+      ..[offsetMinutes] = sound;
+    settings = settings.copyWith(reminderSoundUris: sounds);
+    await _repository.saveSettings(settings);
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
   Future<void> requestExactTiming() async {
     await _notifications.requestExactAlarmPermission();
     exactTiming = await _notifications.canScheduleExactly();

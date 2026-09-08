@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -6,6 +7,7 @@ abstract interface class NotificationGateway {
   Future<bool> requestNotificationPermission();
   Future<bool> requestExactAlarmPermission();
   Future<bool> canScheduleExactly();
+  Future<String?> selectSound({String? currentSound});
   Future<void> schedule({
     required int id,
     required tz.TZDateTime when,
@@ -13,6 +15,8 @@ abstract interface class NotificationGateway {
     required String body,
     required String payload,
     required bool exact,
+    required int reminderOffsetMinutes,
+    String? soundUri,
   });
   Future<void> cancel(int id);
 }
@@ -22,6 +26,7 @@ class LocalNotificationGateway implements NotificationGateway {
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
+  static const _platform = MethodChannel('com.mashkhurbek.kiu/platform');
 
   @override
   Future<void> initialize({void Function(String? payload)? onTap}) async {
@@ -52,6 +57,19 @@ class LocalNotificationGateway implements NotificationGateway {
       await _android?.canScheduleExactNotifications() ?? false;
 
   @override
+  Future<String?> selectSound({String? currentSound}) async {
+    try {
+      return await _platform.invokeMethod<String>('selectNotificationSound', {
+        'currentSound': currentSound,
+      });
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  @override
   Future<void> schedule({
     required int id,
     required tz.TZDateTime when,
@@ -59,27 +77,47 @@ class LocalNotificationGateway implements NotificationGateway {
     required String body,
     required String payload,
     required bool exact,
-  }) => _plugin.zonedSchedule(
-    id: id,
-    scheduledDate: when,
-    title: title,
-    body: body,
-    payload: payload,
-    notificationDetails: const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'kiu_lesson_reminders',
-        'KIU lesson reminders',
-        channelDescription: 'Upcoming online lesson reminders',
-        icon: 'ic_notification',
-        importance: Importance.high,
-        priority: Priority.high,
+    required int reminderOffsetMinutes,
+    String? soundUri,
+  }) {
+    final sound = soundUri == null
+        ? null
+        : UriAndroidNotificationSound(soundUri);
+    return _plugin.zonedSchedule(
+      id: id,
+      scheduledDate: when,
+      title: title,
+      body: body,
+      payload: payload,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          reminderNotificationChannelId(reminderOffsetMinutes, soundUri),
+          'KIU lesson reminders',
+          channelDescription: 'Upcoming online lesson reminders',
+          icon: 'ic_notification',
+          importance: Importance.high,
+          priority: Priority.high,
+          sound: sound,
+        ),
       ),
-    ),
-    androidScheduleMode: exact
-        ? AndroidScheduleMode.exactAllowWhileIdle
-        : AndroidScheduleMode.inexactAllowWhileIdle,
-  );
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
 
   @override
   Future<void> cancel(int id) => _plugin.cancel(id: id);
+}
+
+String reminderNotificationChannelId(int offsetMinutes, String? soundUri) =>
+    'kiu_lesson_reminder_${offsetMinutes}_${_channelSuffix(soundUri ?? 'default')}';
+
+String _channelSuffix(String value) {
+  var hash = 0x811c9dc5;
+  for (final byte in value.codeUnits) {
+    hash ^= byte;
+    hash = (hash * 0x01000193) & 0x7fffffff;
+  }
+  return hash.toRadixString(36);
 }

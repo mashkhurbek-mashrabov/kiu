@@ -9,6 +9,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_controller.dart';
 import '../core/constants.dart';
+import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../l10n/app_localizations.dart';
 import '../services/time_zone_service.dart';
@@ -490,7 +491,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       (60, strings.oneHour),
                       (15, strings.fifteenMinutes),
                       (0, strings.atStart),
-                    ])
+                    ]) ...[
                       CheckboxListTile(
                         title: Text(option.$2),
                         value: offsets.contains(option.$1),
@@ -498,11 +499,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                             ? (value) => toggleOffset(option.$1, value ?? false)
                             : null,
                       ),
+                      if (offsets.contains(option.$1))
+                        _reminderSoundTile(
+                          option.$1,
+                          settings,
+                          () => setSheetState(() {}),
+                        ),
+                    ],
                     for (final value
                         in offsets
                             .where((value) => !{180, 60, 15, 0}.contains(value))
                             .toList()
-                          ..sort((a, b) => b.compareTo(a)))
+                          ..sort((a, b) => b.compareTo(a))) ...[
                       ListTile(
                         contentPadding: const EdgeInsets.only(left: 16),
                         title: Text(_reminderOffsetLabel(value)),
@@ -512,6 +520,12 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                           icon: const Icon(Icons.delete_outline),
                         ),
                       ),
+                      _reminderSoundTile(
+                        value,
+                        settings,
+                        () => setSheetState(() {}),
+                      ),
+                    ],
                     Text(
                       strings.customReminder,
                       style: Theme.of(context).textTheme.titleMedium,
@@ -634,6 +648,29 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         ? '$hours ${strings.hours}'
         : '$hours ${strings.hours} $remainder ${strings.minutes}';
   }
+
+  Widget _reminderSoundTile(
+    int offsetMinutes,
+    AppSettings settings,
+    VoidCallback refresh,
+  ) => ListTile(
+    key: Key('notification-sound-$offsetMinutes'),
+    contentPadding: const EdgeInsets.only(left: 32, right: 8),
+    leading: const Icon(Icons.music_note_outlined),
+    title: Text(strings.notificationSound),
+    subtitle: Text(
+      settings.reminderSoundUris.containsKey(offsetMinutes)
+          ? strings.soundSelected
+          : strings.defaultSound,
+    ),
+    trailing: TextButton(
+      onPressed: () async {
+        await widget.controller.selectReminderSound(offsetMinutes);
+        refresh();
+      },
+      child: Text(strings.chooseSound),
+    ),
+  );
 
   Future<void> _selectTimeZone() async {
     final zones = TimeZoneService().availableZoneIds;

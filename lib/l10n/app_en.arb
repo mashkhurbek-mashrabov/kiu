@@ -7,4 +7,8 @@
 , "backgroundAccessHelp": "Allow KIU in battery settings so Android can synchronize after the app is closed. Android may still delay work."
 , "openSettings": "Open settings"
 , "remove": "Remove"
+, "notificationSound": "Notification sound"
+, "defaultSound": "System default"
+, "soundSelected": "Selected system sound"
+, "chooseSound": "Choose sound"
 }

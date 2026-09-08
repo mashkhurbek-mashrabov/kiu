@@ -448,6 +448,30 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Ўчириш'**
   String get remove;
+
+  /// No description provided for @notificationSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Билдиришнома овози'**
+  String get notificationSound;
+
+  /// No description provided for @defaultSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тизим стандарт овози'**
+  String get defaultSound;
+
+  /// No description provided for @soundSelected.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тизим овози танланган'**
+  String get soundSelected;
+
+  /// No description provided for @chooseSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Овозни танлаш'**
+  String get chooseSound;
 }
 
 class _AppLocalizationsDelegate

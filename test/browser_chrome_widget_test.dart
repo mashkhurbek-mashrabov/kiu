@@ -122,4 +122,22 @@ void main() {
 
     expect(find.byType(ChoiceChip), findsNWidgets(7));
   });
+
+  testWidgets('shows separate sound controls for enabled reminder times', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('notification-sound-60')), findsOneWidget);
+    expect(find.byKey(const Key('notification-sound-0')), findsOneWidget);
+  });
 }

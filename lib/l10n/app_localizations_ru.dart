@@ -194,4 +194,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get remove => 'Удалить';
+
+  @override
+  String get notificationSound => 'Звук уведомления';
+
+  @override
+  String get defaultSound => 'Системный по умолчанию';
+
+  @override
+  String get soundSelected => 'Выбран системный звук';
+
+  @override
+  String get chooseSound => 'Выбрать звук';
 }
