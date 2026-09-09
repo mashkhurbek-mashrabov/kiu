@@ -17,7 +17,9 @@ class SettingsRepository {
   static const _backgroundSync = 'kiu.backgroundSync';
   static const _offsets = 'kiu.reminderOffsets';
   static const _soundUri = 'kiu.reminderSoundUri';
+  static const _soundName = 'kiu.reminderSoundName';
   static const _soundOverrides = 'kiu.reminderSoundOverrides';
+  static const _soundOverrideNames = 'kiu.reminderSoundOverrideNames';
   static const _legacySoundUris = 'kiu.reminderSoundUris';
   static const _lessons = 'kiu.lessonSnapshot';
   static const _scheduledIds = 'kiu.scheduledNotificationIds';
@@ -37,13 +39,20 @@ class SettingsRepository {
         _preferences.getStringList(_offsets)?.map(int.parse).toList() ??
         const [60, 0],
     reminderSoundUri: _preferences.getString(_soundUri),
+    reminderSoundName: _preferences.getString(_soundName),
     reminderSoundOverrides: _loadReminderSoundOverrides(),
+    reminderSoundOverrideNames: _loadSoundNames(_soundOverrideNames),
   );
 
-  Map<int, String> _loadReminderSoundOverrides() {
+  Map<int, String> _loadReminderSoundOverrides() => _loadSoundNames(
+    _soundOverrides,
+    fallbackKey: _legacySoundUris,
+  );
+
+  Map<int, String> _loadSoundNames(String key, {String? fallbackKey}) {
     final raw =
-        _preferences.getString(_soundOverrides) ??
-        _preferences.getString(_legacySoundUris);
+        _preferences.getString(key) ??
+        (fallbackKey == null ? null : _preferences.getString(fallbackKey));
     if (raw == null) return const {};
     try {
       final values = jsonDecode(raw) as Map<String, dynamic>;
@@ -78,8 +87,17 @@ class SettingsRepository {
             '${entry.key}': entry.value,
         }),
       ),
+      _preferences.setString(
+        _soundOverrideNames,
+        jsonEncode({
+          for (final entry in settings.reminderSoundOverrideNames.entries)
+            '${entry.key}': entry.value,
+        }),
+      ),
       if (settings.reminderSoundUri != null)
         _preferences.setString(_soundUri, settings.reminderSoundUri!),
+      if (settings.reminderSoundName != null)
+        _preferences.setString(_soundName, settings.reminderSoundName!),
       _preferences.remove(_legacySoundUris),
     ]);
   }

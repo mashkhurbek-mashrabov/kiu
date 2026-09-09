@@ -35,7 +35,14 @@ class MainActivity : FlutterActivity() {
                 RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
             )
         }
-        result.success(sound?.toString())
+        if (sound == null) {
+            result.success(null)
+            return
+        }
+        val name = RingtoneManager.getRingtone(applicationContext, sound)
+            ?.getTitle(applicationContext)
+            ?: sound.lastPathSegment
+        result.success(mapOf("uri" to sound.toString(), "name" to name))
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

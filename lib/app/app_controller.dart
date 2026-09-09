@@ -158,7 +158,10 @@ class AppController extends ChangeNotifier {
       currentSound: settings.reminderSoundUri,
     );
     if (sound == null) return;
-    settings = settings.copyWith(reminderSoundUri: sound);
+    settings = settings.copyWith(
+      reminderSoundUri: sound.uri,
+      reminderSoundName: sound.name,
+    );
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();
@@ -171,8 +174,13 @@ class AppController extends ChangeNotifier {
     final sound = await _notifications.selectSound(currentSound: currentSound);
     if (sound == null) return;
     final sounds = Map<int, String>.from(settings.reminderSoundOverrides)
-      ..[offsetMinutes] = sound;
-    settings = settings.copyWith(reminderSoundOverrides: sounds);
+      ..[offsetMinutes] = sound.uri;
+    final names = Map<int, String>.from(settings.reminderSoundOverrideNames)
+      ..[offsetMinutes] = sound.name;
+    settings = settings.copyWith(
+      reminderSoundOverrides: sounds,
+      reminderSoundOverrideNames: names,
+    );
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();
@@ -181,7 +189,12 @@ class AppController extends ChangeNotifier {
   Future<void> clearReminderSoundOverride(int offsetMinutes) async {
     final sounds = Map<int, String>.from(settings.reminderSoundOverrides)
       ..remove(offsetMinutes);
-    settings = settings.copyWith(reminderSoundOverrides: sounds);
+    final names = Map<int, String>.from(settings.reminderSoundOverrideNames)
+      ..remove(offsetMinutes);
+    settings = settings.copyWith(
+      reminderSoundOverrides: sounds,
+      reminderSoundOverrideNames: names,
+    );
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();

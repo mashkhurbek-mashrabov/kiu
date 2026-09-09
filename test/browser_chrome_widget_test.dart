@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app.dart';
 import 'package:kiu/app/app_controller.dart';
 import 'package:kiu/data/settings_repository.dart';
+import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
@@ -12,12 +13,14 @@ import 'package:webview_flutter_platform_interface/webview_flutter_platform_inte
 import 'support/fake_webview_platform.dart';
 import 'support/fakes.dart';
 
-Future<AppController> controller() async {
+Future<AppController> controller(
+  [FakeNotificationGateway? notifications],
+) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
-  final notifications = FakeNotificationGateway();
+  final notificationGateway = notifications ?? FakeNotificationGateway();
   final reconciler = ReminderReconciler(
     repository: repository,
-    notifications: notifications,
+    notifications: notificationGateway,
   );
   return AppController(
     repository: repository,
@@ -27,7 +30,7 @@ Future<AppController> controller() async {
       reconciler: reconciler,
     ),
     reconciler: reconciler,
-    notifications: notifications,
+    notifications: notificationGateway,
     scheduler: FakeBackgroundScheduler(),
   );
 }
@@ -176,5 +179,29 @@ void main() {
     expect(find.byKey(const Key('notification-sound-60')), findsOneWidget);
     expect(find.byKey(const Key('notification-sound-0')), findsOneWidget);
     expect(find.text('Асосий овоз ишлатилади'), findsNWidgets(2));
+  });
+
+  testWidgets('shows selected sound name', (tester) async {
+    final notifications = FakeNotificationGateway()
+      ..selectedSound = const NotificationSound(
+        uri: 'content://media/internal/audio/media/42',
+        name: 'Morning bell',
+      );
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(notifications),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('notification-sound-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Овозни танлаш'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Morning bell'), findsOneWidget);
   });
 }

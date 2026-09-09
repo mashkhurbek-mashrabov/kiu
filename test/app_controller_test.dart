@@ -115,14 +115,20 @@ void main() {
 
   test('persists main sound and per-reminder override', () async {
     final notifications = FakeNotificationGateway()
-      ..selectedSound = 'content://media/internal/audio/media/42';
+      ..selectedSound = const NotificationSound(
+        uri: 'content://media/internal/audio/media/42',
+        name: 'First sound',
+      );
     final controller = await createController(
       notifications,
       FakeBackgroundScheduler(),
     );
 
     await controller.selectMainReminderSound();
-    notifications.selectedSound = 'content://media/internal/audio/media/7';
+    notifications.selectedSound = const NotificationSound(
+      uri: 'content://media/internal/audio/media/7',
+      name: 'Second sound',
+    );
     await controller.selectReminderSoundOverride(60);
 
     expect(
@@ -132,6 +138,10 @@ void main() {
     expect(controller.settings.reminderSoundOverrides, {
       60: 'content://media/internal/audio/media/7',
     });
+    expect(controller.settings.reminderSoundName, 'First sound');
+    expect(controller.settings.reminderSoundOverrideNames, {
+      60: 'Second sound',
+    });
     final reloaded = SettingsRepository(await SharedPreferences.getInstance())
         .loadSettings();
     expect(reloaded.reminderSoundUri, controller.settings.reminderSoundUri);
@@ -139,9 +149,14 @@ void main() {
       reloaded.reminderSoundOverrides,
       controller.settings.reminderSoundOverrides,
     );
+    expect(
+      reloaded.reminderSoundOverrideNames,
+      controller.settings.reminderSoundOverrideNames,
+    );
 
     await controller.clearReminderSoundOverride(60);
     expect(controller.settings.reminderSoundOverrides, isEmpty);
+    expect(controller.settings.reminderSoundOverrideNames, isEmpty);
   });
 
   test('loads legacy per-reminder sounds as overrides', () async {

@@ -9,7 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 class FakeNotificationGateway implements NotificationGateway {
   bool permission = true;
   bool exact = true;
-  String? selectedSound;
+  NotificationSound? selectedSound;
   final Map<int, ScheduledCall> scheduled = {};
   final List<int> cancelled = [];
 
@@ -32,7 +32,8 @@ class FakeNotificationGateway implements NotificationGateway {
   Future<bool> requestNotificationPermission() async => permission;
 
   @override
-  Future<String?> selectSound({String? currentSound}) async => selectedSound;
+  Future<NotificationSound?> selectSound({String? currentSound}) async =>
+      selectedSound;
 
   @override
   Future<void> schedule({

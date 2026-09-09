@@ -588,7 +588,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       subtitle: Text(
                         settings.reminderSoundUri == null
                             ? strings.defaultSound
-                            : strings.soundSelected,
+                            : settings.reminderSoundName ??
+                                  strings.soundSelected,
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _openSoundSettings,
@@ -764,7 +765,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   subtitle: Text(
                     settings.reminderSoundUri == null
                         ? strings.defaultSound
-                        : strings.soundSelected,
+                        : settings.reminderSoundName ?? strings.soundSelected,
                   ),
                   trailing: TextButton(
                     onPressed: () async {
@@ -818,7 +819,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       leading: Icon(hasOverride ? Icons.music_note : Icons.music_note_outlined),
       title: Text(_reminderOffsetLabel(offsetMinutes)),
       subtitle: Text(
-        hasOverride ? strings.customSound : strings.inheritsMainSound,
+        hasOverride
+            ? settings.reminderSoundOverrideNames[offsetMinutes] ??
+                strings.customSound
+            : strings.inheritsMainSound,
       ),
       trailing: hasOverride
           ? Row(
