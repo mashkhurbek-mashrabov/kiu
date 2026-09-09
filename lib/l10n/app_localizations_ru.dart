@@ -231,4 +231,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get customizeSound => 'Изменить';
+
+  @override
+  String get scheduledLessons => 'Запланированные занятия';
+
+  @override
+  String get noScheduledLessons => 'Нет запланированных уроков';
 }

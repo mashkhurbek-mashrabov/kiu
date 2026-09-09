@@ -520,6 +520,18 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Мослаш'**
   String get customizeSound;
+
+  /// No description provided for @scheduledLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Режалаштирилган дарслар'**
+  String get scheduledLessons;
+
+  /// No description provided for @noScheduledLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Режалаштирилган дарслар йўқ'**
+  String get noScheduledLessons;
 }
 
 class _AppLocalizationsDelegate

@@ -231,4 +231,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get customizeSound => 'Customize';
+
+  @override
+  String get scheduledLessons => 'Scheduled lessons';
+
+  @override
+  String get noScheduledLessons => 'No scheduled lessons';
 }

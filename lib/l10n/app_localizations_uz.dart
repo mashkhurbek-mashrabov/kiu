@@ -231,6 +231,12 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get customizeSound => 'Moslash';
+
+  @override
+  String get scheduledLessons => 'Rejalashtirilgan darslar';
+
+  @override
+  String get noScheduledLessons => 'Rejalashtirilgan darslar yo‘q';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -459,4 +465,10 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get customizeSound => 'Мослаш';
+
+  @override
+  String get scheduledLessons => 'Режалаштирилган дарслар';
+
+  @override
+  String get noScheduledLessons => 'Режалаштирилган дарслар йўқ';
 }

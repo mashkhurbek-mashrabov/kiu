@@ -19,4 +19,6 @@
 , "customSound": "Maxsus ovoz"
 , "useMainSound": "Asosiy ovoz"
 , "customizeSound": "Moslash"
+, "scheduledLessons": "Rejalashtirilgan darslar"
+, "noScheduledLessons": "Rejalashtirilgan darslar yo‘q"
 }

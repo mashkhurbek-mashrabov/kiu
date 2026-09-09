@@ -12,6 +12,7 @@ import '../core/constants.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../l10n/app_localizations.dart';
+import '../services/lesson_widget_service.dart';
 import '../services/time_zone_service.dart';
 import '../web/js_scripts.dart';
 
@@ -382,6 +383,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   },
                 ),
                 ListTile(
+                  key: const Key('scheduled-lessons-menu'),
+                  leading: const Icon(Icons.calendar_month_outlined),
+                  title: Text(strings.scheduledLessons),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openScheduledLessons();
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.public),
                   title: Text(strings.timezone),
                   subtitle: Text(widget.controller.settings.timeZoneId),
@@ -415,6 +425,91 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  Future<void> _openScheduledLessons() async {
+    final lessons = buildLessonWidgetPayload(
+      widget.controller.scheduledLessons,
+      widget.controller.settings,
+      TimeZoneService(),
+    );
+    final returnToActions = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(context).height * .75,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 24, 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      key: const Key('scheduled-lessons-back'),
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: strings.back,
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                    Text(
+                      strings.scheduledLessons,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: lessons.isEmpty
+                    ? Center(child: Text(strings.noScheduledLessons))
+                    : ListView.builder(
+                        key: const Key('scheduled-lessons-list'),
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        itemCount: lessons.length,
+                        itemBuilder: (context, index) {
+                          final lesson = lessons[index];
+                          final startsGroup =
+                              index == 0 ||
+                              lesson['group'] != lessons[index - 1]['group'];
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (startsGroup)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    8,
+                                    16,
+                                    8,
+                                    4,
+                                  ),
+                                  child: Text(
+                                    lesson['group']! as String,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleSmall,
+                                  ),
+                                ),
+                              Card(
+                                child: ListTile(
+                                  key: Key('scheduled-lesson-$index'),
+                                  title: Text(lesson['title']! as String),
+                                  subtitle: Text(
+                                    lesson['displayStart']! as String,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (returnToActions == true && mounted) _openActions();
   }
 
   Future<void> _openNotificationSettings() async {

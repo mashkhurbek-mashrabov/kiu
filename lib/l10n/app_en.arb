@@ -19,4 +19,6 @@
 , "customSound": "Custom sound"
 , "useMainSound": "Use main"
 , "customizeSound": "Customize"
+, "scheduledLessons": "Scheduled lessons"
+, "noScheduledLessons": "No scheduled lessons"
 }

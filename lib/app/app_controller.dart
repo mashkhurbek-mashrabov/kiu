@@ -75,6 +75,8 @@ class AppController extends ChangeNotifier {
   bool exactTiming = false;
   AppVersion? appVersion;
 
+  List<Lesson> get scheduledLessons => _repository.loadLessons();
+
   Future<void> initialize() async {
     try {
       appVersion = await _appVersionProvider.read();

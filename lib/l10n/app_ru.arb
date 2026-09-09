@@ -19,4 +19,6 @@
 , "customSound": "Свой звук"
 , "useMainSound": "Основной"
 , "customizeSound": "Изменить"
+, "scheduledLessons": "Запланированные занятия"
+, "noScheduledLessons": "Нет запланированных уроков"
 }

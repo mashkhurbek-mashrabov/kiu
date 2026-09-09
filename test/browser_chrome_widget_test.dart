@@ -77,6 +77,34 @@ void main() {
     expect(find.byKey(const Key('home-selected')), findsNothing);
   });
 
+  testWidgets('shows cached scheduled lessons from More', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'kiu.lessonSnapshot':
+          '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00"}]',
+    });
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scheduled-lessons-list')), findsOneWidget);
+    expect(find.text('Aqidah'), findsOneWidget);
+    expect(find.text('19:00 | 09-09-2027'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('scheduled-lessons-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scheduled-lessons-list')), findsNothing);
+    expect(find.byKey(const Key('scheduled-lessons-menu')), findsOneWidget);
+  });
+
   testWidgets('lists custom reminder inline with remove action', (
     tester,
   ) async {
