@@ -123,7 +123,7 @@ void main() {
     expect(find.byType(ChoiceChip), findsNWidgets(7));
   });
 
-  testWidgets('shows separate sound controls for enabled reminder times', (
+  testWidgets('shows main sound and inherited reminder sounds on sound page', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -137,7 +137,12 @@ void main() {
     await tester.tap(find.text('Эслатма созламалари'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('notification-sound-settings')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('main-notification-sound')), findsOneWidget);
     expect(find.byKey(const Key('notification-sound-60')), findsOneWidget);
     expect(find.byKey(const Key('notification-sound-0')), findsOneWidget);
+    expect(find.text('Асосий овоз ишлатилади'), findsNWidgets(2));
   });
 }

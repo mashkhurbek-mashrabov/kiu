@@ -151,13 +151,35 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> selectReminderSound(int offsetMinutes) async {
-    final currentSound = settings.reminderSoundUris[offsetMinutes];
+  Future<void> selectMainReminderSound() async {
+    final sound = await _notifications.selectSound(
+      currentSound: settings.reminderSoundUri,
+    );
+    if (sound == null) return;
+    settings = settings.copyWith(reminderSoundUri: sound);
+    await _repository.saveSettings(settings);
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
+  Future<void> selectReminderSoundOverride(int offsetMinutes) async {
+    final currentSound =
+        settings.reminderSoundOverrides[offsetMinutes] ??
+        settings.reminderSoundUri;
     final sound = await _notifications.selectSound(currentSound: currentSound);
     if (sound == null) return;
-    final sounds = Map<int, String>.from(settings.reminderSoundUris)
+    final sounds = Map<int, String>.from(settings.reminderSoundOverrides)
       ..[offsetMinutes] = sound;
-    settings = settings.copyWith(reminderSoundUris: sounds);
+    settings = settings.copyWith(reminderSoundOverrides: sounds);
+    await _repository.saveSettings(settings);
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
+  Future<void> clearReminderSoundOverride(int offsetMinutes) async {
+    final sounds = Map<int, String>.from(settings.reminderSoundOverrides)
+      ..remove(offsetMinutes);
+    settings = settings.copyWith(reminderSoundOverrides: sounds);
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();

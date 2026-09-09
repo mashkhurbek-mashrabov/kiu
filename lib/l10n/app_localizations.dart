@@ -472,6 +472,54 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Овозни танлаш'**
   String get chooseSound;
+
+  /// No description provided for @soundSettings.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Овоз созламалари'**
+  String get soundSettings;
+
+  /// No description provided for @mainSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Асосий овоз'**
+  String get mainSound;
+
+  /// No description provided for @individualSounds.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Эслатма овозлари'**
+  String get individualSounds;
+
+  /// No description provided for @inheritsMainSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Асосий овоз ишлатилади'**
+  String get inheritsMainSound;
+
+  /// No description provided for @soundOverridesHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.'**
+  String get soundOverridesHelp;
+
+  /// No description provided for @customSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Махсус овоз'**
+  String get customSound;
+
+  /// No description provided for @useMainSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Асосий овоз'**
+  String get useMainSound;
+
+  /// No description provided for @customizeSound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Мослаш'**
+  String get customizeSound;
 }
 
 class _AppLocalizationsDelegate

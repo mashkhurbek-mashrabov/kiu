@@ -71,7 +71,9 @@ class ReminderReconciler {
             payload: homeUrl,
             exact: exact,
             reminderOffsetMinutes: offset,
-            soundUri: settings.reminderSoundUris[offset],
+            soundUri:
+                settings.reminderSoundOverrides[offset] ??
+                settings.reminderSoundUri,
           );
         }
       }

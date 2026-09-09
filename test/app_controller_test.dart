@@ -111,7 +111,7 @@ void main() {
     expect(scheduler.enabled, isTrue);
   });
 
-  test('persists selected system sound for its reminder time', () async {
+  test('persists main sound and per-reminder override', () async {
     final notifications = FakeNotificationGateway()
       ..selectedSound = 'content://media/internal/audio/media/42';
     final controller = await createController(
@@ -119,13 +119,43 @@ void main() {
       FakeBackgroundScheduler(),
     );
 
-    await controller.selectReminderSound(60);
+    await controller.selectMainReminderSound();
+    notifications.selectedSound = 'content://media/internal/audio/media/7';
+    await controller.selectReminderSoundOverride(60);
 
-    expect(controller.settings.reminderSoundUris, {
-      60: 'content://media/internal/audio/media/42',
+    expect(
+      controller.settings.reminderSoundUri,
+      'content://media/internal/audio/media/42',
+    );
+    expect(controller.settings.reminderSoundOverrides, {
+      60: 'content://media/internal/audio/media/7',
     });
     final reloaded = SettingsRepository(await SharedPreferences.getInstance())
         .loadSettings();
-    expect(reloaded.reminderSoundUris, controller.settings.reminderSoundUris);
+    expect(reloaded.reminderSoundUri, controller.settings.reminderSoundUri);
+    expect(
+      reloaded.reminderSoundOverrides,
+      controller.settings.reminderSoundOverrides,
+    );
+
+    await controller.clearReminderSoundOverride(60);
+    expect(controller.settings.reminderSoundOverrides, isEmpty);
+  });
+
+  test('loads legacy per-reminder sounds as overrides', () async {
+    SharedPreferences.setMockInitialValues({
+      'kiu.reminderSoundUris':
+          '{"60":"content://media/internal/audio/media/42"}',
+    });
+    final repository = SettingsRepository(
+      await SharedPreferences.getInstance(),
+    );
+
+    final settings = repository.loadSettings();
+
+    expect(settings.reminderSoundUri, isNull);
+    expect(settings.reminderSoundOverrides, {
+      60: 'content://media/internal/audio/media/42',
+    });
   });
 }

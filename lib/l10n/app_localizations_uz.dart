@@ -206,6 +206,31 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get chooseSound => 'Ovozni tanlash';
+
+  @override
+  String get soundSettings => 'Ovoz sozlamalari';
+
+  @override
+  String get mainSound => 'Asosiy ovoz';
+
+  @override
+  String get individualSounds => 'Eslatma ovozlari';
+
+  @override
+  String get inheritsMainSound => 'Asosiy ovoz ishlatiladi';
+
+  @override
+  String get soundOverridesHelp =>
+      'Boshqa ovoz tanlanmaguncha har bir eslatma asosiy ovozdan foydalanadi.';
+
+  @override
+  String get customSound => 'Maxsus ovoz';
+
+  @override
+  String get useMainSound => 'Asosiy ovoz';
+
+  @override
+  String get customizeSound => 'Moslash';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -409,4 +434,29 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get chooseSound => 'Овозни танлаш';
+
+  @override
+  String get soundSettings => 'Овоз созламалари';
+
+  @override
+  String get mainSound => 'Асосий овоз';
+
+  @override
+  String get individualSounds => 'Эслатма овозлари';
+
+  @override
+  String get inheritsMainSound => 'Асосий овоз ишлатилади';
+
+  @override
+  String get soundOverridesHelp =>
+      'Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.';
+
+  @override
+  String get customSound => 'Махсус овоз';
+
+  @override
+  String get useMainSound => 'Асосий овоз';
+
+  @override
+  String get customizeSound => 'Мослаш';
 }

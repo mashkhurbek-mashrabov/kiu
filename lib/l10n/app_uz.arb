@@ -11,4 +11,12 @@
 , "defaultSound": "Tizim standart ovozi"
 , "soundSelected": "Tizim ovozi tanlangan"
 , "chooseSound": "Ovozni tanlash"
+, "soundSettings": "Ovoz sozlamalari"
+, "mainSound": "Asosiy ovoz"
+, "individualSounds": "Eslatma ovozlari"
+, "inheritsMainSound": "Asosiy ovoz ishlatiladi"
+, "soundOverridesHelp": "Boshqa ovoz tanlanmaguncha har bir eslatma asosiy ovozdan foydalanadi."
+, "customSound": "Maxsus ovoz"
+, "useMainSound": "Asosiy ovoz"
+, "customizeSound": "Moslash"
 }

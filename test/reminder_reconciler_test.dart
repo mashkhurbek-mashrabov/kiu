@@ -39,7 +39,7 @@ void main() {
     );
   });
 
-  test('uses independently selected system sounds for each offset', () async {
+  test('uses main sound unless reminder has an override', () async {
     final reconciler = ReminderReconciler(
       repository: repository,
       notifications: notifications,
@@ -49,10 +49,8 @@ void main() {
     const settings = AppSettings(
       remindersEnabled: true,
       reminderOffsetsMinutes: [60, 0],
-      reminderSoundUris: {
-        60: 'content://media/internal/audio/media/1',
-        0: 'content://media/internal/audio/media/2',
-      },
+      reminderSoundUri: 'content://media/internal/audio/media/1',
+      reminderSoundOverrides: {0: 'content://media/internal/audio/media/2'},
     );
 
     await reconciler.reconcile([lesson], settings);

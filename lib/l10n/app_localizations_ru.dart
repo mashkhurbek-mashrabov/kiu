@@ -206,4 +206,29 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get chooseSound => 'Выбрать звук';
+
+  @override
+  String get soundSettings => 'Настройки звука';
+
+  @override
+  String get mainSound => 'Основной звук';
+
+  @override
+  String get individualSounds => 'Звуки напоминаний';
+
+  @override
+  String get inheritsMainSound => 'Использует основной звук';
+
+  @override
+  String get soundOverridesHelp =>
+      'Каждое напоминание использует основной звук, пока вы не выберете другой.';
+
+  @override
+  String get customSound => 'Свой звук';
+
+  @override
+  String get useMainSound => 'Основной';
+
+  @override
+  String get customizeSound => 'Изменить';
 }

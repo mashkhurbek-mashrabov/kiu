@@ -11,4 +11,12 @@
 , "defaultSound": "Системный по умолчанию"
 , "soundSelected": "Выбран системный звук"
 , "chooseSound": "Выбрать звук"
+, "soundSettings": "Настройки звука"
+, "mainSound": "Основной звук"
+, "individualSounds": "Звуки напоминаний"
+, "inheritsMainSound": "Использует основной звук"
+, "soundOverridesHelp": "Каждое напоминание использует основной звук, пока вы не выберете другой."
+, "customSound": "Свой звук"
+, "useMainSound": "Основной"
+, "customizeSound": "Изменить"
 }

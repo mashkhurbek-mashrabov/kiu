@@ -16,7 +16,9 @@ class SettingsRepository {
   static const _reminders = 'kiu.reminders';
   static const _backgroundSync = 'kiu.backgroundSync';
   static const _offsets = 'kiu.reminderOffsets';
-  static const _soundUris = 'kiu.reminderSoundUris';
+  static const _soundUri = 'kiu.reminderSoundUri';
+  static const _soundOverrides = 'kiu.reminderSoundOverrides';
+  static const _legacySoundUris = 'kiu.reminderSoundUris';
   static const _lessons = 'kiu.lessonSnapshot';
   static const _scheduledIds = 'kiu.scheduledNotificationIds';
   static const _lastAttempt = 'kiu.lastSyncAttempt';
@@ -34,11 +36,14 @@ class SettingsRepository {
     reminderOffsetsMinutes:
         _preferences.getStringList(_offsets)?.map(int.parse).toList() ??
         const [60, 0],
-    reminderSoundUris: _loadReminderSoundUris(),
+    reminderSoundUri: _preferences.getString(_soundUri),
+    reminderSoundOverrides: _loadReminderSoundOverrides(),
   );
 
-  Map<int, String> _loadReminderSoundUris() {
-    final raw = _preferences.getString(_soundUris);
+  Map<int, String> _loadReminderSoundOverrides() {
+    final raw =
+        _preferences.getString(_soundOverrides) ??
+        _preferences.getString(_legacySoundUris);
     if (raw == null) return const {};
     try {
       final values = jsonDecode(raw) as Map<String, dynamic>;
@@ -67,12 +72,15 @@ class SettingsRepository {
         settings.reminderOffsetsMinutes.map((value) => '$value').toList(),
       ),
       _preferences.setString(
-        _soundUris,
+        _soundOverrides,
         jsonEncode({
-          for (final entry in settings.reminderSoundUris.entries)
+          for (final entry in settings.reminderSoundOverrides.entries)
             '${entry.key}': entry.value,
         }),
       ),
+      if (settings.reminderSoundUri != null)
+        _preferences.setString(_soundUri, settings.reminderSoundUri!),
+      _preferences.remove(_legacySoundUris),
     ]);
   }
 

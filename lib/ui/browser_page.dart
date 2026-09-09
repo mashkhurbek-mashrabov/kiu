@@ -486,6 +486,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       trailing: const Icon(Icons.open_in_new),
                       onTap: widget.controller.openBatteryOptimizationSettings,
                     ),
+                    ListTile(
+                      key: const Key('notification-sound-settings'),
+                      leading: const Icon(Icons.music_note_outlined),
+                      title: Text(strings.notificationSound),
+                      subtitle: Text(
+                        settings.reminderSoundUri == null
+                            ? strings.defaultSound
+                            : strings.soundSelected,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _openSoundSettings,
+                    ),
                     for (final option in <(int, String)>[
                       (180, strings.threeHours),
                       (60, strings.oneHour),
@@ -499,12 +511,6 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                             ? (value) => toggleOffset(option.$1, value ?? false)
                             : null,
                       ),
-                      if (offsets.contains(option.$1))
-                        _reminderSoundTile(
-                          option.$1,
-                          settings,
-                          () => setSheetState(() {}),
-                        ),
                     ],
                     for (final value
                         in offsets
@@ -519,11 +525,6 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                           onPressed: () => toggleOffset(value, false),
                           icon: const Icon(Icons.delete_outline),
                         ),
-                      ),
-                      _reminderSoundTile(
-                        value,
-                        settings,
-                        () => setSheetState(() {}),
                       ),
                     ],
                     Text(
@@ -649,28 +650,120 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         : '$hours ${strings.hours} $remainder ${strings.minutes}';
   }
 
-  Widget _reminderSoundTile(
+  Future<void> _openSoundSettings() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPageState) {
+          final settings = widget.controller.settings;
+          final offsets = settings.reminderOffsetsMinutes.toSet().toList()
+            ..sort((a, b) => b.compareTo(a));
+          return Scaffold(
+            appBar: AppBar(title: Text(strings.soundSettings)),
+            body: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              children: [
+                ListTile(
+                  key: const Key('main-notification-sound'),
+                  leading: const Icon(Icons.volume_up_outlined),
+                  title: Text(strings.mainSound),
+                  subtitle: Text(
+                    settings.reminderSoundUri == null
+                        ? strings.defaultSound
+                        : strings.soundSelected,
+                  ),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      await widget.controller.selectMainReminderSound();
+                      setPageState(() {});
+                    },
+                    child: Text(strings.chooseSound),
+                  ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    strings.individualSounds,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    strings.soundOverridesHelp,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                for (final offset in offsets)
+                  _reminderSoundOverrideTile(
+                    offset,
+                    settings,
+                    () => setPageState(() {}),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+
+  Widget _reminderSoundOverrideTile(
     int offsetMinutes,
     AppSettings settings,
     VoidCallback refresh,
-  ) => ListTile(
-    key: Key('notification-sound-$offsetMinutes'),
-    contentPadding: const EdgeInsets.only(left: 32, right: 8),
-    leading: const Icon(Icons.music_note_outlined),
-    title: Text(strings.notificationSound),
-    subtitle: Text(
-      settings.reminderSoundUris.containsKey(offsetMinutes)
-          ? strings.soundSelected
-          : strings.defaultSound,
-    ),
-    trailing: TextButton(
-      onPressed: () async {
-        await widget.controller.selectReminderSound(offsetMinutes);
-        refresh();
-      },
-      child: Text(strings.chooseSound),
-    ),
-  );
+  ) {
+    final hasOverride = settings.reminderSoundOverrides.containsKey(
+      offsetMinutes,
+    );
+    return ListTile(
+      key: Key('notification-sound-$offsetMinutes'),
+      leading: Icon(hasOverride ? Icons.music_note : Icons.music_note_outlined),
+      title: Text(_reminderOffsetLabel(offsetMinutes)),
+      subtitle: Text(
+        hasOverride ? strings.customSound : strings.inheritsMainSound,
+      ),
+      trailing: hasOverride
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  key: Key('notification-sound-inherit-$offsetMinutes'),
+                  onPressed: () async {
+                    await widget.controller.clearReminderSoundOverride(
+                      offsetMinutes,
+                    );
+                    refresh();
+                  },
+                  child: Text(strings.useMainSound),
+                ),
+                IconButton(
+                  key: Key('notification-sound-edit-$offsetMinutes'),
+                  tooltip: strings.chooseSound,
+                  onPressed: () async {
+                    await widget.controller.selectReminderSoundOverride(
+                      offsetMinutes,
+                    );
+                    refresh();
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            )
+          : TextButton(
+              key: Key('notification-sound-customize-$offsetMinutes'),
+              onPressed: () async {
+                await widget.controller.selectReminderSoundOverride(
+                  offsetMinutes,
+                );
+                refresh();
+              },
+              child: Text(strings.customizeSound),
+            ),
+    );
+  }
 
   Future<void> _selectTimeZone() async {
     final zones = TimeZoneService().availableZoneIds;

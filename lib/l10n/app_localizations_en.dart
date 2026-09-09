@@ -206,4 +206,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chooseSound => 'Choose sound';
+
+  @override
+  String get soundSettings => 'Sound settings';
+
+  @override
+  String get mainSound => 'Main sound';
+
+  @override
+  String get individualSounds => 'Reminder sounds';
+
+  @override
+  String get inheritsMainSound => 'Uses main sound';
+
+  @override
+  String get soundOverridesHelp =>
+      'Each reminder uses Main sound until you customize it.';
+
+  @override
+  String get customSound => 'Custom sound';
+
+  @override
+  String get useMainSound => 'Use main';
+
+  @override
+  String get customizeSound => 'Customize';
 }

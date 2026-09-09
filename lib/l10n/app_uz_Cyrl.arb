@@ -66,4 +66,12 @@
 , "defaultSound": "Тизим стандарт овози"
 , "soundSelected": "Тизим овози танланган"
 , "chooseSound": "Овозни танлаш"
+, "soundSettings": "Овоз созламалари"
+, "mainSound": "Асосий овоз"
+, "individualSounds": "Эслатма овозлари"
+, "inheritsMainSound": "Асосий овоз ишлатилади"
+, "soundOverridesHelp": "Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади."
+, "customSound": "Махсус овоз"
+, "useMainSound": "Асосий овоз"
+, "customizeSound": "Мослаш"
 }

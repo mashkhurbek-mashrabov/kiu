@@ -11,4 +11,12 @@
 , "defaultSound": "System default"
 , "soundSelected": "Selected system sound"
 , "chooseSound": "Choose sound"
+, "soundSettings": "Sound settings"
+, "mainSound": "Main sound"
+, "individualSounds": "Reminder sounds"
+, "inheritsMainSound": "Uses main sound"
+, "soundOverridesHelp": "Each reminder uses Main sound until you customize it."
+, "customSound": "Custom sound"
+, "useMainSound": "Use main"
+, "customizeSound": "Customize"
 }
