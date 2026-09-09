@@ -337,7 +337,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
-                  children: <double>[0.5, 1, 1.5, 1.7, 2, 2.5, 3]
+                  children: <double>[1, 1.5, 1.7, 2, 2.5]
                       .map(
                         (rate) => ChoiceChip(
                           label: Text(
@@ -356,10 +356,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 const SizedBox(height: 8),
                 Text('${strings.customSpeed}: ${selected.toStringAsFixed(2)}×'),
                 Slider(
-                  value: selected.clamp(0.25, 4.0).toDouble(),
-                  min: 0.25,
+                  value: selected.clamp(0.5, 4.0).toDouble(),
+                  min: 0.5,
                   max: 4,
-                  divisions: 75,
+                  divisions: 70,
                   onChanged: (value) => setSheetState(() => selected = value),
                   onChangeEnd: _setPlaybackRate,
                 ),

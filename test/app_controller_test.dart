@@ -49,9 +49,11 @@ void main() {
 
     await controller.setPlaybackRate(12);
     expect(controller.settings.playbackRate, 4);
+    await controller.setPlaybackRate(0.25);
+    expect(controller.settings.playbackRate, 0.5);
     final reloaded = SettingsRepository(await SharedPreferences.getInstance())
         .loadSettings();
-    expect(reloaded.playbackRate, 4);
+    expect(reloaded.playbackRate, 0.5);
   });
 
   test('registers background sync by default during initialization', () async {

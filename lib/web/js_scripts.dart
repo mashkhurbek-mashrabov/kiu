@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 String playbackRateScript(double rate) {
-  final encodedRate = jsonEncode(rate.clamp(0.25, 4.0));
+  final encodedRate = jsonEncode(rate.clamp(0.5, 4.0));
   return '''
 (() => {
   const rate = $encodedRate;

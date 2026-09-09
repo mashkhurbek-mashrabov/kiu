@@ -148,7 +148,11 @@ void main() {
     await tester.tap(find.byKey(const Key('notification-settings-back')));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ChoiceChip), findsNWidgets(7));
+    expect(find.byType(ChoiceChip), findsNWidgets(5));
+    expect(find.text('0.5×'), findsNothing);
+    expect(find.text('3×'), findsNothing);
+    expect(tester.widget<Slider>(find.byType(Slider)).min, 0.5);
+    expect(tester.widget<Slider>(find.byType(Slider)).divisions, 70);
   });
 
   testWidgets('shows main sound and inherited reminder sounds on sound page', (

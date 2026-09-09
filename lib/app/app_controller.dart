@@ -92,7 +92,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setPlaybackRate(double value) async {
-    settings = settings.copyWith(playbackRate: value.clamp(0.25, 4.0));
+    settings = settings.copyWith(playbackRate: value.clamp(0.5, 4.0));
     await _repository.saveSettings(settings);
     notifyListeners();
   }

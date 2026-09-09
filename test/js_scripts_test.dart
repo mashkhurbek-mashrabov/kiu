@@ -10,6 +10,10 @@ void main() {
     expect(script, contains('ratechange'));
   });
 
+  test('playback script enforces 0.5x minimum', () {
+    expect(playbackRateScript(0.25), contains('const rate = 0.5'));
+  });
+
   test('mark watched script carries both LMS events and token support', () {
     final script = markWatchedScript('request-1');
     expect(script, contains('lessonVideoIsEnded'));
