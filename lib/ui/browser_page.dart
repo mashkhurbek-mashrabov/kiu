@@ -1091,7 +1091,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
               ),
               (
                 'Mabdaun nahv',
-                'https://uz.do-kazankiu.ru/files/upload/books/2026-04-22-22-45-55_dfac1821de910b46.pdf',
+                'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
               ),
             ])
               Card(
