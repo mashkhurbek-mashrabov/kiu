@@ -1113,7 +1113,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 child: ListTile(
                   title: Text(link.$1),
                   trailing: const Icon(Icons.picture_as_pdf_outlined),
-                  onTap: () => _launchExternal(link.$2),
+                  onTap: () => _openPdfViewer(link.$1, link.$2),
                 ),
               ),
             Padding(
@@ -1152,6 +1152,29 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
 
   Future<void> _launchExternal(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
+  /// Opens [pdfUrl] in a throwaway WebView using Google's public docs
+  /// viewer. Uses its own [WebViewController] — no cookies or trusted-host
+  /// gating needed for a public PDF rendered by Google.
+  Future<void> _openPdfViewer(
+    String title,
+    String pdfUrl,
+  ) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) {
+        final viewerUrl =
+            'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
+        final controller = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(surfaceFor(_brightness))
+          ..loadRequest(Uri.parse(viewerUrl));
+        return Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: WebViewWidget(controller: controller),
+        );
+      },
+    ),
+  );
 
   Widget _reminderSoundOverrideTile(
     int offsetMinutes,
