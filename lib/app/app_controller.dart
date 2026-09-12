@@ -73,6 +73,13 @@ class AppController extends ChangeNotifier {
   ScheduleSyncStatus syncStatus = ScheduleSyncStatus.idle;
   DateTime? lastSuccessfulSync;
   bool exactTiming = false;
+  // Cached rather than queried inline by the UI: unlike [_notifications],
+  // [_backgroundAccess] has no fake wired through the widget tests, and an
+  // unmocked platform channel call made while building UI never resolves in
+  // a widget test. Refreshed explicitly via [refreshFullScreenIntentAccess].
+  bool canUseFullScreenIntent = true;
+  // Cached for the same reason as [canUseFullScreenIntent] above.
+  bool canDrawOverlays = true;
   AppVersion? appVersion;
 
   List<Lesson> get scheduledLessons => _repository.loadLessons();
@@ -146,6 +153,72 @@ class AppController extends ChangeNotifier {
 
   Future<void> openBatteryOptimizationSettings() =>
       _backgroundAccess.openBatteryOptimizationSettings();
+
+  Future<void> openFullScreenIntentSettings() async {
+    await _backgroundAccess.openFullScreenIntentSettings();
+    await refreshFullScreenIntentAccess();
+  }
+
+  Future<void> refreshFullScreenIntentAccess() async {
+    canUseFullScreenIntent = await _backgroundAccess.canUseFullScreenIntent();
+    notifyListeners();
+  }
+
+  Future<void> openOverlaySettings() async {
+    await _backgroundAccess.openOverlaySettings();
+    await refreshOverlayAccess();
+  }
+
+  Future<void> refreshOverlayAccess() async {
+    canDrawOverlays = await _backgroundAccess.canDrawOverlays();
+    notifyListeners();
+  }
+
+  Future<bool> setCallsEnabled(bool enabled) async {
+    if (enabled && !await _notifications.requestNotificationPermission()) {
+      return false;
+    }
+    settings = settings.copyWith(callsEnabled: enabled);
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> setCallRingSeconds(int seconds) async {
+    settings = settings.copyWith(callRingSeconds: seconds.clamp(10, 300));
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
+  Future<void> selectCallRingtone() async {
+    final sound = await _notifications.selectSound(
+      currentSound: settings.callRingtoneUri,
+      ringtone: true,
+    );
+    if (sound == null) return;
+    settings = settings.copyWith(
+      callRingtoneUri: sound.uri,
+      callRingtoneName: sound.name,
+    );
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
+  Future<void> setLessonCallEnabled(Lesson lesson, bool enabled) async {
+    final overrides = Map<String, bool>.from(settings.callOverrides);
+    if (enabled == settings.callsEnabled) {
+      overrides.remove(lesson.callKey);
+    } else {
+      overrides[lesson.callKey] = enabled;
+    }
+    settings = settings.copyWith(callOverrides: overrides);
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
 
   Future<void> setReminderOffsets(List<int> values) async {
     final normalized = values.toSet().where((value) {

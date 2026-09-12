@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app_controller.dart';
 import 'package:kiu/data/settings_repository.dart';
+import 'package:kiu/domain/lesson.dart';
 import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
@@ -198,6 +199,52 @@ void main() {
     await controller.clearReminderSoundOverride(60);
     expect(controller.settings.reminderSoundOverrides, isEmpty);
     expect(controller.settings.reminderSoundOverrideNames, isEmpty);
+  });
+
+  test('setLessonCallEnabled overrides in both directions, clearing when it '
+      'matches the global switch', () async {
+    const lesson = Lesson(title: 'Tahfiz', websiteStart: '2026-09-09 19:00');
+    final controller = await createController(
+      FakeNotificationGateway(),
+      FakeBackgroundScheduler(),
+    );
+
+    // Global is off; turning this lesson on needs an explicit override.
+    await controller.setLessonCallEnabled(lesson, true);
+    expect(controller.settings.callOverrides, {lesson.callKey: true});
+
+    // Setting it back to the (still off) global value removes the entry
+    // instead of storing a redundant `false`.
+    await controller.setLessonCallEnabled(lesson, false);
+    expect(controller.settings.callOverrides, isEmpty);
+  });
+
+  test('setCallRingSeconds clamps to the 10-300 range', () async {
+    final controller = await createController(
+      FakeNotificationGateway(),
+      FakeBackgroundScheduler(),
+    );
+
+    await controller.setCallRingSeconds(1);
+    expect(controller.settings.callRingSeconds, 10);
+
+    await controller.setCallRingSeconds(1000);
+    expect(controller.settings.callRingSeconds, 300);
+  });
+
+  test('setCallsEnabled refuses and does not persist without notification '
+      'permission', () async {
+    final notifications = FakeNotificationGateway()..permission = false;
+    final controller = await createController(
+      notifications,
+      FakeBackgroundScheduler(),
+    );
+
+    expect(await controller.setCallsEnabled(true), isFalse);
+    expect(controller.settings.callsEnabled, isFalse);
+    final reloaded = SettingsRepository(await SharedPreferences.getInstance())
+        .loadSettings();
+    expect(reloaded.callsEnabled, isFalse);
   });
 
   test('loads legacy per-reminder sounds as overrides', () async {

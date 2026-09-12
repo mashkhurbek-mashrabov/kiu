@@ -173,6 +173,28 @@ void main() {
   );
 
   test(
+    'reconcile prunes call overrides for lessons no longer scheduled',
+    () async {
+      const lesson = Lesson(title: 'Tahfiz', websiteStart: '2026-09-09 19:00');
+      const stale = Lesson(title: 'Gone', websiteStart: '2026-09-08 19:00');
+      await repository.saveSettings(
+        AppSettings(
+          callOverrides: {lesson.callKey: true, stale.callKey: false},
+        ),
+      );
+      final reconciler = ReminderReconciler(
+        repository: repository,
+        notifications: notifications,
+        now: () => DateTime.utc(2026, 9, 9, 12),
+      );
+
+      await reconciler.reconcile([lesson], const AppSettings());
+
+      expect(repository.loadSettings().callOverrides, {lesson.callKey: true});
+    },
+  );
+
+  test(
     'disabled reminders cancel prior requests while preserving snapshot',
     () async {
       await repository.saveScheduledIds({101, 202});

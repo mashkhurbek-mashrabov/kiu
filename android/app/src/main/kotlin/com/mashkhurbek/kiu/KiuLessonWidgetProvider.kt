@@ -86,30 +86,36 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
             appWidgetManager.updateAppWidget(widgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(widgetId, R.id.lesson_list)
         }
+        LessonCallAlarms.rearm(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action != ACTION_OPEN_LESSON) return
-        val link = intent.getStringExtra(EXTRA_LINK) ?: return
-        val uri = Uri.parse(link)
-        if (!isValidHttps(uri)) return
-
-        val target = if (uri.host.equals(TRUSTED_HOST, ignoreCase = true)) {
-            Intent(context, MainActivity::class.java).apply {
-                action = HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
-                data = uri
-            }
-        } else {
-            Intent(Intent.ACTION_VIEW, uri)
+        when (intent.getStringExtra(EXTRA_ACTION) ?: ACTION_VALUE_OPEN) {
+            ACTION_VALUE_TOGGLE -> toggleCall(context, intent)
+            else -> LessonLinkRouter.open(context, intent.getStringExtra(EXTRA_LINK))
         }
-        target.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { context.startActivity(target) }
+    }
+
+    /** Flips a single lesson's call override; the same URI shape the Dart background isolate expects. */
+    private fun toggleCall(context: Context, intent: Intent) {
+        val key = intent.getStringExtra(EXTRA_KEY) ?: return
+        val next = !intent.getBooleanExtra(EXTRA_CALL_ENABLED, false)
+        HomeWidgetBackgroundIntent.getBroadcast(
+            context,
+            Uri.parse("kiu://widget-call-toggle/${Uri.encode(key)}?on=${if (next) "1" else "0"}"),
+        ).send()
     }
 
     companion object {
         const val ACTION_OPEN_LESSON = "com.mashkhurbek.kiu.OPEN_WIDGET_LESSON"
         const val EXTRA_LINK = "lessonLink"
+        const val EXTRA_ACTION = "action"
+        const val EXTRA_KEY = "callKey"
+        const val EXTRA_CALL_ENABLED = "callEnabled"
+        const val ACTION_VALUE_OPEN = "open"
+        const val ACTION_VALUE_TOGGLE = "toggle"
         const val TRUSTED_HOST = "uz.do-kazankiu.ru"
 
         fun isValidHttps(uri: Uri): Boolean =

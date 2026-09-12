@@ -3,6 +3,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
+    <!-- Android blocks background activity starts, so a full-screen intent only launches the
+         call screen while the device is locked or the screen is off. Holding this permission is
+         the documented exemption that lets the call screen also appear when the phone is
+         unlocked and in use, the way a real incoming call does. User-granted, and the call
+         still falls back to a heads-up notification when it is not granted. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <application
         android:label="KIU"
         android:name="${applicationName}"
@@ -68,6 +78,26 @@
             android:name=".KiuLessonWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <activity
+            android:name=".LessonCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:theme="@style/LessonCallTheme" />
+        <receiver
+            android:name=".LessonCallReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".LessonCallBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
             android:exported="true">

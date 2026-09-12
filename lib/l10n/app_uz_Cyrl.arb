@@ -76,4 +76,15 @@
 , "customizeSound": "Мослаш"
 , "scheduledLessons": "Режалаштирилган дарслар"
 , "noScheduledLessons": "Режалаштирилган дарслар йўқ"
+, "lessonCalls": "Дарс қўнғироқлари"
+, "lessonCallsHelp": "Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади"
+, "ringDuration": "Қўнғироқ давомийлиги"
+, "ringDurationValue": "{seconds} сония"
+, "@ringDurationValue": {"placeholders": {"seconds": {"type": "int"}}}
+, "callRingtone": "Қўнғироқ оҳанги"
+, "fullScreenAccess": "Тўлиқ экран рухсати"
+, "fullScreenAccessHelp": "Қулфланган экранда қўнғироқ кўрсатиш учун тизим созламаларида рухсат беринг"
+, "overlayAccess": "Бошқа иловалар устида кўрсатиш"
+, "overlayAccessHelp": "Телефондан фойдаланаётганингизда қўнғироқ экрани очилишига имкон беради. Бўлмаса, қўнғироқ фақат билдиришнома сифатида кўринади."
+, "callForThisLesson": "Ушбу дарс учун қўнғироқ"
 }

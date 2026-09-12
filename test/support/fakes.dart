@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:kiu/app/app_controller.dart';
+import 'package:kiu/services/background_access_service.dart';
 import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/lesson_widget_service.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
@@ -33,9 +34,16 @@ class FakeNotificationGateway implements NotificationGateway {
   @override
   Future<bool> requestNotificationPermission() async => permission;
 
+  bool? lastSelectSoundRingtone;
+
   @override
-  Future<NotificationSound?> selectSound({String? currentSound}) async =>
-      selectedSound;
+  Future<NotificationSound?> selectSound({
+    String? currentSound,
+    bool ringtone = false,
+  }) async {
+    lastSelectSoundRingtone = ringtone;
+    return selectedSound;
+  }
 
   @override
   Future<void> schedule({
@@ -88,6 +96,32 @@ class FakeBackgroundScheduler implements BackgroundScheduler {
 
   @override
   Future<void> setEnabled(bool value) async => enabled = value;
+}
+
+class FakeBackgroundAccessGateway implements BackgroundAccessGateway {
+  bool batteryOptimizationDisabled = true;
+  bool fullScreenIntentAllowed = true;
+  bool overlaysAllowed = true;
+  int overlaySettingsOpened = 0;
+
+  @override
+  Future<bool> isBatteryOptimizationDisabled() async =>
+      batteryOptimizationDisabled;
+
+  @override
+  Future<void> openBatteryOptimizationSettings() async {}
+
+  @override
+  Future<bool> canUseFullScreenIntent() async => fullScreenIntentAllowed;
+
+  @override
+  Future<void> openFullScreenIntentSettings() async {}
+
+  @override
+  Future<bool> canDrawOverlays() async => overlaysAllowed;
+
+  @override
+  Future<void> openOverlaySettings() async => overlaySettingsOpened++;
 }
 
 class EmptyCookieProvider implements CookieProvider {

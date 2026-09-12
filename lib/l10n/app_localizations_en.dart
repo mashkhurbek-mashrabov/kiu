@@ -237,4 +237,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noScheduledLessons => 'No scheduled lessons';
+
+  @override
+  String get lessonCalls => 'Lesson calls';
+
+  @override
+  String get lessonCallsHelp => 'Shows a full-screen call when a lesson starts';
+
+  @override
+  String get ringDuration => 'Ring duration';
+
+  @override
+  String ringDurationValue(int seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String get callRingtone => 'Call ringtone';
+
+  @override
+  String get fullScreenAccess => 'Full-screen access';
+
+  @override
+  String get fullScreenAccessHelp =>
+      'Allow full-screen calls over the lock screen in system settings';
+
+  @override
+  String get overlayAccess => 'Display over other apps';
+
+  @override
+  String get overlayAccessHelp =>
+      'Lets the call screen open while you are using the phone. Without it the call shows only as a notification banner.';
+
+  @override
+  String get callForThisLesson => 'Call for this lesson';
 }

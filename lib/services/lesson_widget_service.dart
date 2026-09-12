@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import 'reminder_reconciler.dart' show stableNotificationId;
 import 'time_zone_service.dart';
 
 const lessonWidgetProvider = 'KiuLessonWidgetProvider';
@@ -35,6 +36,41 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     final payload = buildLessonWidgetPayload(lessons, settings, _timeZones);
     final now = DateTime.now();
     await HomeWidget.saveWidgetData<String>('lessons', jsonEncode(payload));
+    final callPayload = buildLessonCallPayload(
+      lessons,
+      settings,
+      _timeZones,
+      now: now,
+    );
+    await HomeWidget.saveWidgetData<String>('calls', jsonEncode(callPayload));
+    await HomeWidget.saveWidgetData<String>(
+      'callRingSeconds',
+      '${settings.callRingSeconds}',
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callRingtoneUri',
+      settings.callRingtoneUri ?? '',
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callIncomingLabel',
+      _label(settings.localeTag, 'callIncoming'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callAnswerLabel',
+      _label(settings.localeTag, 'callAnswer'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callDeclineLabel',
+      _label(settings.localeTag, 'callDecline'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callToggleOnLabel',
+      _label(settings.localeTag, 'callToggleOn'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callToggleOffLabel',
+      _label(settings.localeTag, 'callToggleOff'),
+    );
     await HomeWidget.saveWidgetData<String>(
       'syncLabel',
       _label(settings.localeTag, 'sync'),
@@ -138,16 +174,51 @@ List<Map<String, Object?>> buildLessonWidgetPayload(
       final start = timeZones.parseWebsiteTime(lesson.websiteStart);
       final groupKey = buildLessonWidgetGroupKey(start, settings, timeZones);
       payload.add({
+        'key': lesson.callKey,
         'title': lesson.title,
         'start': start.millisecondsSinceEpoch,
         'displayStart': buildLessonWidgetLessonTime(start, settings, timeZones),
         'group': _label(settings.localeTag, groupKey),
         'groupKey': groupKey,
         'meetingUrl': lesson.meetingUrl,
+        'callEnabled': settings.callEnabledFor(lesson),
       });
     } on FormatException {
       continue;
     }
+  }
+  payload.sort((a, b) => (a['start']! as int).compareTo(b['start']! as int));
+  return payload;
+}
+
+/// Future, call-enabled occurrences only, ready for native alarm arming.
+/// `requestCode` reuses [stableNotificationId] rather than duplicating the
+/// hash on the Kotlin side.
+List<Map<String, Object?>> buildLessonCallPayload(
+  List<Lesson> lessons,
+  AppSettings settings,
+  TimeZoneService timeZones, {
+  DateTime? now,
+}) {
+  final cutoff = now ?? DateTime.now();
+  final payload = <Map<String, Object?>>[];
+  for (final lesson in lessons) {
+    if (!settings.callEnabledFor(lesson)) continue;
+    DateTime start;
+    try {
+      start = timeZones.parseWebsiteTime(lesson.websiteStart);
+    } on FormatException {
+      continue;
+    }
+    if (!start.isAfter(cutoff)) continue;
+    payload.add({
+      'key': lesson.callKey,
+      'requestCode': stableNotificationId('call|${lesson.callKey}'),
+      'title': lesson.title,
+      'displayStart': buildLessonWidgetLessonTime(start, settings, timeZones),
+      'start': start.millisecondsSinceEpoch,
+      'meetingUrl': lesson.meetingUrl,
+    });
   }
   payload.sort((a, b) => (a['start']! as int).compareTo(b['start']! as int));
   return payload;
@@ -209,6 +280,11 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('ru', 'today') => 'Сегодня',
   ('ru', 'tomorrow') => 'Завтра',
   ('ru', 'others') => 'Другие',
+  ('ru', 'callIncoming') => 'Урок начинается',
+  ('ru', 'callAnswer') => 'Ответить',
+  ('ru', 'callDecline') => 'Отклонить',
+  ('ru', 'callToggleOn') => 'Включить звонок для этого урока',
+  ('ru', 'callToggleOff') => 'Отключить звонок для этого урока',
   ('en', 'sync') => 'Sync',
   ('en', 'subtitle') => 'Scheduled online lessons',
   ('en', 'syncing') => 'Synchronizing…',
@@ -220,6 +296,11 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('en', 'today') => 'Today',
   ('en', 'tomorrow') => 'Tomorrow',
   ('en', 'others') => 'Others',
+  ('en', 'callIncoming') => 'Lesson starting',
+  ('en', 'callAnswer') => 'Join',
+  ('en', 'callDecline') => 'Dismiss',
+  ('en', 'callToggleOn') => 'Turn on the call for this lesson',
+  ('en', 'callToggleOff') => 'Turn off the call for this lesson',
   ('uz', 'sync') => 'Yangilash',
   ('uz', 'subtitle') => 'Rejalashtirilgan onlayn darslar',
   ('uz', 'syncing') => 'Sinxronlanmoqda…',
@@ -231,6 +312,11 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('uz', 'today') => 'Bugun',
   ('uz', 'tomorrow') => 'Ertaga',
   ('uz', 'others') => 'Boshqalar',
+  ('uz', 'callIncoming') => 'Dars boshlanmoqda',
+  ('uz', 'callAnswer') => 'Qo‘shilish',
+  ('uz', 'callDecline') => 'Rad etish',
+  ('uz', 'callToggleOn') => 'Bu dars uchun qo‘ng‘iroqni yoqish',
+  ('uz', 'callToggleOff') => 'Bu dars uchun qo‘ng‘iroqni o‘chirish',
   (_, 'sync') => 'Янгилаш',
   (_, 'subtitle') => 'Режалаштирилган онлайн дарслар',
   (_, 'syncing') => 'Синхронланмоқда…',
@@ -242,5 +328,10 @@ String _label(String locale, String key) => switch ((locale, key)) {
   (_, 'today') => 'Бугун',
   (_, 'tomorrow') => 'Эртага',
   (_, 'others') => 'Бошқалар',
+  (_, 'callIncoming') => 'Дарс бошланмоқда',
+  (_, 'callAnswer') => 'Қўшилиш',
+  (_, 'callDecline') => 'Рад этиш',
+  (_, 'callToggleOn') => 'Бу дарс учун қўнғироқни ёқиш',
+  (_, 'callToggleOff') => 'Бу дарс учун қўнғироқни ўчириш',
   _ => '',
 };

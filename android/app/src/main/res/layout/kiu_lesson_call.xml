@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/kiu_call_background"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="28dp"
+    android:paddingTop="56dp"
+    android:paddingBottom="56dp">
+
+    <TextView
+        android:id="@+id/call_incoming_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:alpha="0.85"
+        android:letterSpacing="0.14"
+        android:textAllCaps="true"
+        android:textColor="#7FD7AC"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <!-- Halo + avatar. The avatar carries the lesson's initial so the screen reads as a
+         call from the lesson itself rather than a generic alert. -->
+    <FrameLayout
+        android:layout_width="148dp"
+        android:layout_height="148dp"
+        android:layout_marginTop="40dp">
+
+        <View
+            android:id="@+id/call_halo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/kiu_call_halo" />
+
+        <TextView
+            android:id="@+id/call_avatar"
+            android:layout_width="104dp"
+            android:layout_height="104dp"
+            android:layout_gravity="center"
+            android:background="@drawable/kiu_call_avatar_bg"
+            android:gravity="center"
+            android:textColor="#EAF7F0"
+            android:textSize="42sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <!-- Lesson name. -->
+    <TextView
+        android:id="@+id/call_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:maxLines="3"
+        android:textColor="#FFFFFF"
+        android:textSize="27sp"
+        android:textStyle="bold" />
+
+    <!-- Lesson start, already converted to the user's selected time zone by Dart. -->
+    <TextView
+        android:id="@+id/call_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/kiu_call_time_pill"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="9dp"
+        android:textColor="#B9DCC9"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/call_countdown"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="36dp"
+        android:alpha="0.75"
+        android:drawableStart="@drawable/ic_lesson_call_timer"
+        android:drawablePadding="7dp"
+        android:gravity="center_vertical"
+        android:textColor="#8FB3A2"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageButton
+                android:id="@+id/call_decline"
+                android:layout_width="78dp"
+                android:layout_height="78dp"
+                android:background="@drawable/kiu_call_decline_bg"
+                android:contentDescription="@null"
+                android:elevation="8dp"
+                android:padding="22dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_lesson_call_decline" />
+
+            <TextView
+                android:id="@+id/call_decline_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:alpha="0.9"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageButton
+                android:id="@+id/call_answer"
+                android:layout_width="78dp"
+                android:layout_height="78dp"
+                android:background="@drawable/kiu_call_answer_bg"
+                android:contentDescription="@null"
+                android:elevation="8dp"
+                android:padding="22dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_lesson_call_answer" />
+
+            <TextView
+                android:id="@+id/call_answer_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:alpha="0.9"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

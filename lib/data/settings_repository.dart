@@ -21,6 +21,11 @@ class SettingsRepository {
   static const _soundOverrides = 'kiu.reminderSoundOverrides';
   static const _soundOverrideNames = 'kiu.reminderSoundOverrideNames';
   static const _legacySoundUris = 'kiu.reminderSoundUris';
+  static const _callsEnabled = 'kiu.callsEnabled';
+  static const _callRingSeconds = 'kiu.callRingSeconds';
+  static const _callRingtoneUri = 'kiu.callRingtoneUri';
+  static const _callRingtoneName = 'kiu.callRingtoneName';
+  static const _callOverrides = 'kiu.callOverrides';
   static const _lessons = 'kiu.lessonSnapshot';
   static const _scheduledIds = 'kiu.scheduledNotificationIds';
   static const _lastAttempt = 'kiu.lastSyncAttempt';
@@ -42,7 +47,28 @@ class SettingsRepository {
     reminderSoundName: _preferences.getString(_soundName),
     reminderSoundOverrides: _loadReminderSoundOverrides(),
     reminderSoundOverrideNames: _loadSoundNames(_soundOverrideNames),
+    callsEnabled: _preferences.getBool(_callsEnabled) ?? false,
+    callRingSeconds: _preferences.getInt(_callRingSeconds) ?? 60,
+    callRingtoneUri: _preferences.getString(_callRingtoneUri),
+    callRingtoneName: _preferences.getString(_callRingtoneName),
+    callOverrides: _loadCallOverrides(),
   );
+
+  Map<String, bool> _loadCallOverrides() {
+    final raw = _preferences.getString(_callOverrides);
+    if (raw == null) return const {};
+    try {
+      final values = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        for (final entry in values.entries)
+          if (entry.value is bool) entry.key: entry.value as bool,
+      };
+    } on FormatException {
+      return const {};
+    } on TypeError {
+      return const {};
+    }
+  }
 
   Map<int, String> _loadReminderSoundOverrides() =>
       _loadSoundNames(_soundOverrides, fallbackKey: _legacySoundUris);
@@ -97,7 +123,29 @@ class SettingsRepository {
       if (settings.reminderSoundName != null)
         _preferences.setString(_soundName, settings.reminderSoundName!),
       _preferences.remove(_legacySoundUris),
+      _preferences.setBool(_callsEnabled, settings.callsEnabled),
+      _preferences.setInt(_callRingSeconds, settings.callRingSeconds),
+      _preferences.setString(
+        _callOverrides,
+        jsonEncode(settings.callOverrides),
+      ),
+      if (settings.callRingtoneUri != null)
+        _preferences.setString(_callRingtoneUri, settings.callRingtoneUri!),
+      if (settings.callRingtoneName != null)
+        _preferences.setString(_callRingtoneName, settings.callRingtoneName!),
     ]);
+  }
+
+  /// Drops call overrides for occurrences no longer in the schedule so the
+  /// map cannot grow without bound as recurring lessons churn.
+  Future<void> pruneCallOverrides(Set<String> liveKeys) async {
+    final overrides = _loadCallOverrides();
+    final pruned = {
+      for (final entry in overrides.entries)
+        if (liveKeys.contains(entry.key)) entry.key: entry.value,
+    };
+    if (pruned.length == overrides.length) return;
+    await _preferences.setString(_callOverrides, jsonEncode(pruned));
   }
 
   List<Lesson> loadLessons() {

@@ -237,6 +237,41 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get noScheduledLessons => 'Rejalashtirilgan darslar yo‘q';
+
+  @override
+  String get lessonCalls => 'Dars qo‘ng‘iroqlari';
+
+  @override
+  String get lessonCallsHelp =>
+      'Dars boshlanganda to‘liq ekranli qo‘ng‘iroq ko‘rsatadi';
+
+  @override
+  String get ringDuration => 'Qo‘ng‘iroq davomiyligi';
+
+  @override
+  String ringDurationValue(int seconds) {
+    return '$seconds soniya';
+  }
+
+  @override
+  String get callRingtone => 'Qo‘ng‘iroq ohangi';
+
+  @override
+  String get fullScreenAccess => 'To‘liq ekran ruxsati';
+
+  @override
+  String get fullScreenAccessHelp =>
+      'Qulflangan ekranda qo‘ng‘iroq ko‘rsatish uchun tizim sozlamalarida ruxsat bering';
+
+  @override
+  String get overlayAccess => 'Boshqa ilovalar ustida ko‘rsatish';
+
+  @override
+  String get overlayAccessHelp =>
+      'Telefondan foydalanayotganingizda qo‘ng‘iroq ekrani ochilishiga imkon beradi. Bo‘lmasa, qo‘ng‘iroq faqat bildirishnoma sifatida ko‘rinadi.';
+
+  @override
+  String get callForThisLesson => 'Ushbu dars uchun qo‘ng‘iroq';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -471,4 +506,39 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get noScheduledLessons => 'Режалаштирилган дарслар йўқ';
+
+  @override
+  String get lessonCalls => 'Дарс қўнғироқлари';
+
+  @override
+  String get lessonCallsHelp =>
+      'Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади';
+
+  @override
+  String get ringDuration => 'Қўнғироқ давомийлиги';
+
+  @override
+  String ringDurationValue(int seconds) {
+    return '$seconds сония';
+  }
+
+  @override
+  String get callRingtone => 'Қўнғироқ оҳанги';
+
+  @override
+  String get fullScreenAccess => 'Тўлиқ экран рухсати';
+
+  @override
+  String get fullScreenAccessHelp =>
+      'Қулфланган экранда қўнғироқ кўрсатиш учун тизим созламаларида рухсат беринг';
+
+  @override
+  String get overlayAccess => 'Бошқа иловалар устида кўрсатиш';
+
+  @override
+  String get overlayAccessHelp =>
+      'Телефондан фойдаланаётганингизда қўнғироқ экрани очилишига имкон беради. Бўлмаса, қўнғироқ фақат билдиришнома сифатида кўринади.';
+
+  @override
+  String get callForThisLesson => 'Ушбу дарс учун қўнғироқ';
 }

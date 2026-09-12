@@ -428,85 +428,117 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   }
 
   Future<void> _openScheduledLessons() async {
+    final scheduledLessons = widget.controller.scheduledLessons;
     final lessons = buildLessonWidgetPayload(
-      widget.controller.scheduledLessons,
+      scheduledLessons,
       widget.controller.settings,
       TimeZoneService(),
     );
+    final lessonsByKey = {
+      for (final lesson in scheduledLessons) lesson.callKey: lesson,
+    };
     final returnToActions = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.sizeOf(context).height * .75,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 24, 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      key: const Key('scheduled-lessons-back'),
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: strings.back,
-                      onPressed: () => Navigator.pop(context, true),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final settings = widget.controller.settings;
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height * .75,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 24, 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          key: const Key('scheduled-lessons-back'),
+                          icon: const Icon(Icons.arrow_back),
+                          tooltip: strings.back,
+                          onPressed: () => Navigator.pop(context, true),
+                        ),
+                        Text(
+                          strings.scheduledLessons,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ],
                     ),
-                    Text(
-                      strings.scheduledLessons,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ],
-                ),
+                  ),
+                  Expanded(
+                    child: lessons.isEmpty
+                        ? Center(child: Text(strings.noScheduledLessons))
+                        : ListView.builder(
+                            key: const Key('scheduled-lessons-list'),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            itemCount: lessons.length,
+                            itemBuilder: (context, index) {
+                              final lesson = lessons[index];
+                              final startsGroup =
+                                  index == 0 ||
+                                  lesson['group'] !=
+                                      lessons[index - 1]['group'];
+                              final lessonEntity = lessonsByKey[lesson['key']];
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (startsGroup)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        8,
+                                        16,
+                                        8,
+                                        4,
+                                      ),
+                                      child: Text(
+                                        lesson['group']! as String,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                    ),
+                                  Card(
+                                    child: ListTile(
+                                      key: Key('scheduled-lesson-$index'),
+                                      title: Text(lesson['title']! as String),
+                                      subtitle: Text(
+                                        lesson['displayStart']! as String,
+                                      ),
+                                      trailing: lessonEntity == null
+                                          ? null
+                                          : Semantics(
+                                              label: strings.callForThisLesson,
+                                              child: Switch(
+                                                key: Key(
+                                                  'scheduled-lesson-call-$index',
+                                                ),
+                                                value: settings.callEnabledFor(
+                                                  lessonEntity,
+                                                ),
+                                                onChanged: (value) async {
+                                                  await widget.controller
+                                                      .setLessonCallEnabled(
+                                                        lessonEntity,
+                                                        value,
+                                                      );
+                                                  setSheetState(() {});
+                                                },
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: lessons.isEmpty
-                    ? Center(child: Text(strings.noScheduledLessons))
-                    : ListView.builder(
-                        key: const Key('scheduled-lessons-list'),
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        itemCount: lessons.length,
-                        itemBuilder: (context, index) {
-                          final lesson = lessons[index];
-                          final startsGroup =
-                              index == 0 ||
-                              lesson['group'] != lessons[index - 1]['group'];
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (startsGroup)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    8,
-                                    16,
-                                    8,
-                                    4,
-                                  ),
-                                  child: Text(
-                                    lesson['group']! as String,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall,
-                                  ),
-                                ),
-                              Card(
-                                child: ListTile(
-                                  key: Key('scheduled-lesson-$index'),
-                                  title: Text(lesson['title']! as String),
-                                  subtitle: Text(
-                                    lesson['displayStart']! as String,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
     if (returnToActions == true && mounted) _openActions();
@@ -515,12 +547,26 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _openNotificationSettings() async {
     final customController = TextEditingController();
     var customUnitHours = false;
+    var fullScreenIntentRefreshStarted = false;
     final returnToMainSettings = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
+          if (!fullScreenIntentRefreshStarted) {
+            fullScreenIntentRefreshStarted = true;
+            // Fire-and-forget: the sheet must render immediately rather
+            // than block on a platform channel round trip, so the
+            // full-screen-access tile appears a frame later once this
+            // resolves.
+            widget.controller.refreshFullScreenIntentAccess().then((_) {
+              if (mounted) setSheetState(() {});
+            });
+            widget.controller.refreshOverlayAccess().then((_) {
+              if (mounted) setSheetState(() {});
+            });
+          }
           final settings = widget.controller.settings;
           final offsets = settings.reminderOffsetsMinutes.toSet();
           Future<void> toggleOffset(int value, bool enabled) async {
@@ -594,6 +640,76 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _openSoundSettings,
                     ),
+                    const Divider(),
+                    SwitchListTile(
+                      key: const Key('lesson-calls-switch'),
+                      title: Text(strings.lessonCalls),
+                      subtitle: Text(strings.lessonCallsHelp),
+                      value: settings.callsEnabled,
+                      onChanged: (value) async {
+                        await widget.controller.setCallsEnabled(value);
+                        setSheetState(() {});
+                      },
+                    ),
+                    ListTile(
+                      key: const Key('call-ring-duration'),
+                      leading: const Icon(Icons.timer_outlined),
+                      title: Text(strings.ringDuration),
+                      subtitle: Text(
+                        strings.ringDurationValue(settings.callRingSeconds),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: settings.callsEnabled
+                          ? () async {
+                              await _openCallRingDurationDialog(settings);
+                              setSheetState(() {});
+                            }
+                          : null,
+                    ),
+                    ListTile(
+                      key: const Key('call-ringtone'),
+                      leading: const Icon(Icons.ring_volume_outlined),
+                      title: Text(strings.callRingtone),
+                      subtitle: Text(
+                        settings.callRingtoneName ?? strings.defaultSound,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: settings.callsEnabled
+                          ? () async {
+                              await widget.controller.selectCallRingtone();
+                              setSheetState(() {});
+                            }
+                          : null,
+                    ),
+                    if (settings.callsEnabled &&
+                        !widget.controller.canUseFullScreenIntent)
+                      ListTile(
+                        key: const Key('full-screen-access'),
+                        leading: const Icon(Icons.fullscreen),
+                        title: Text(strings.fullScreenAccess),
+                        subtitle: Text(strings.fullScreenAccessHelp),
+                        trailing: const Icon(Icons.open_in_new),
+                        onTap: () async {
+                          await widget.controller
+                              .openFullScreenIntentSettings();
+                          setSheetState(() {});
+                        },
+                      ),
+                    // Android grants this one only from its own settings screen, so the
+                    // switch reflects the current state and both directions deep-link
+                    // there rather than toggling anything locally.
+                    if (settings.callsEnabled)
+                      SwitchListTile(
+                        key: const Key('overlay-access-tile'),
+                        secondary: const Icon(Icons.picture_in_picture_alt),
+                        title: Text(strings.overlayAccess),
+                        subtitle: Text(strings.overlayAccessHelp),
+                        value: widget.controller.canDrawOverlays,
+                        onChanged: (_) async {
+                          await widget.controller.openOverlaySettings();
+                          setSheetState(() {});
+                        },
+                      ),
                     for (final option in <(int, String)>[
                       (180, strings.threeHours),
                       (60, strings.oneHour),
@@ -744,6 +860,67 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     return remainder == 0
         ? '$hours ${strings.hours}'
         : '$hours ${strings.hours} $remainder ${strings.minutes}';
+  }
+
+  Future<void> _openCallRingDurationDialog(AppSettings settings) async {
+    final customController = TextEditingController();
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(strings.ringDuration),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              children: <int>[15, 30, 60, 120]
+                  .map(
+                    (seconds) => ChoiceChip(
+                      label: Text(strings.ringDurationValue(seconds)),
+                      selected: settings.callRingSeconds == seconds,
+                      onSelected: (_) => Navigator.pop(context, seconds),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: customController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(hintText: '10–300'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: strings.add,
+                  onPressed: () {
+                    final amount = int.tryParse(customController.text);
+                    if (amount == null) return;
+                    Navigator.pop(context, amount);
+                  },
+                  icon: const Icon(Icons.check_circle),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(strings.cancel),
+          ),
+        ],
+      ),
+    );
+    customController.dispose();
+    if (selected != null) {
+      await widget.controller.setCallRingSeconds(selected);
+    }
   }
 
   Future<void> _openSoundSettings() => Navigator.of(context).push(

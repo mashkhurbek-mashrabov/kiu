@@ -7,7 +7,10 @@ abstract interface class NotificationGateway {
   Future<bool> requestNotificationPermission();
   Future<bool> requestExactAlarmPermission();
   Future<bool> canScheduleExactly();
-  Future<NotificationSound?> selectSound({String? currentSound});
+  Future<NotificationSound?> selectSound({
+    String? currentSound,
+    bool ringtone = false,
+  });
   Future<void> schedule({
     required int id,
     required tz.TZDateTime when,
@@ -64,11 +67,17 @@ class LocalNotificationGateway implements NotificationGateway {
       await _android?.canScheduleExactNotifications() ?? false;
 
   @override
-  Future<NotificationSound?> selectSound({String? currentSound}) async {
+  Future<NotificationSound?> selectSound({
+    String? currentSound,
+    bool ringtone = false,
+  }) async {
     try {
       final sound = await _platform.invokeMapMethod<String, String>(
         'selectNotificationSound',
-        {'currentSound': currentSound},
+        {
+          'currentSound': currentSound,
+          'type': ringtone ? 'ringtone' : 'notification',
+        },
       );
       final uri = sound?['uri'];
       final name = sound?['name'];

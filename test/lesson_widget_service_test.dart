@@ -28,6 +28,22 @@ void main() {
     );
     expect(payload.first['displayStart'], '15:00 | 09-09-2026');
     expect(payload.last['meetingUrl'], 'https://meet.example/second');
+    expect(payload.first['key'], lessons.last.callKey);
+    expect(payload.first['callEnabled'], isFalse);
+  });
+
+  test('payload carries per-occurrence call state', () {
+    const lesson = Lesson(title: 'Tahfiz', websiteStart: '2026-09-09 19:00');
+    final settings = AppSettings(callOverrides: {lesson.callKey: true});
+
+    final payload = buildLessonWidgetPayload(
+      [lesson],
+      settings,
+      TimeZoneService(),
+    );
+
+    expect(payload.single['key'], lesson.callKey);
+    expect(payload.single['callEnabled'], isTrue);
   });
 
   test('widget last sync uses selected time zone', () {

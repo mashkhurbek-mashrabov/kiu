@@ -15,6 +15,7 @@ import 'support/fakes.dart';
 
 Future<AppController> controller([
   FakeNotificationGateway? notifications,
+  FakeBackgroundAccessGateway? backgroundAccess,
 ]) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
   final notificationGateway = notifications ?? FakeNotificationGateway();
@@ -32,6 +33,7 @@ Future<AppController> controller([
     reconciler: reconciler,
     notifications: notificationGateway,
     scheduler: FakeBackgroundScheduler(),
+    backgroundAccess: backgroundAccess,
   );
 }
 
@@ -203,5 +205,77 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Morning bell'), findsOneWidget);
+  });
+
+  Future<void> openNotificationSettings(
+    WidgetTester tester,
+    AppController appController,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('overlay access switch reads off while permission is missing', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    final tile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('overlay-access-tile')),
+    );
+    expect(tile.value, isFalse);
+  });
+
+  testWidgets('overlay access switch stays visible and on once granted', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = true;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    final tile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('overlay-access-tile')),
+    );
+    expect(tile.value, isTrue);
+  });
+
+  testWidgets('hides overlay access switch while calls are off', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await openNotificationSettings(tester, appController);
+
+    expect(find.byKey(const Key('overlay-access-tile')), findsNothing);
+  });
+
+  testWidgets('tapping the overlay access switch opens Android settings', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    final tile = find.byKey(const Key('overlay-access-tile'));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: tile, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+
+    expect(backgroundAccess.overlaySettingsOpened, 1);
   });
 }

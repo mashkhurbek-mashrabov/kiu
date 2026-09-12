@@ -237,4 +237,39 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get noScheduledLessons => 'Нет запланированных уроков';
+
+  @override
+  String get lessonCalls => 'Звонки об уроках';
+
+  @override
+  String get lessonCallsHelp =>
+      'Показывает полноэкранный звонок при начале урока';
+
+  @override
+  String get ringDuration => 'Длительность звонка';
+
+  @override
+  String ringDurationValue(int seconds) {
+    return '$seconds с';
+  }
+
+  @override
+  String get callRingtone => 'Мелодия звонка';
+
+  @override
+  String get fullScreenAccess => 'Полноэкранный доступ';
+
+  @override
+  String get fullScreenAccessHelp =>
+      'Разрешите полноэкранные звонки поверх блокировки экрана в настройках системы';
+
+  @override
+  String get overlayAccess => 'Отображение поверх других приложений';
+
+  @override
+  String get overlayAccessHelp =>
+      'Позволяет экрану звонка открываться, даже когда вы используете телефон. Без этого звонок показывается только как уведомление.';
+
+  @override
+  String get callForThisLesson => 'Звонок для этого урока';
 }

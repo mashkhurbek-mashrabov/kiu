@@ -21,4 +21,15 @@
 , "customizeSound": "Customize"
 , "scheduledLessons": "Scheduled lessons"
 , "noScheduledLessons": "No scheduled lessons"
+, "lessonCalls": "Lesson calls"
+, "lessonCallsHelp": "Shows a full-screen call when a lesson starts"
+, "ringDuration": "Ring duration"
+, "ringDurationValue": "{seconds} s"
+, "@ringDurationValue": {"placeholders":{"seconds":{"type":"int"}}}
+, "callRingtone": "Call ringtone"
+, "fullScreenAccess": "Full-screen access"
+, "fullScreenAccessHelp": "Allow full-screen calls over the lock screen in system settings"
+, "overlayAccess": "Display over other apps"
+, "overlayAccessHelp": "Lets the call screen open while you are using the phone. Without it the call shows only as a notification banner."
+, "callForThisLesson": "Call for this lesson"
 }

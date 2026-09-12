@@ -41,6 +41,9 @@ class ReminderReconciler {
     AppSettings settings,
   ) async {
     await _repository.saveLessons(lessons);
+    await _repository.pruneCallOverrides({
+      for (final lesson in lessons) lesson.callKey,
+    });
     final previousIds = _repository.loadScheduledIds();
     final nextIds = <int>{};
     final exact =
