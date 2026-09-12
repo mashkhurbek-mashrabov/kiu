@@ -1086,14 +1086,23 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   }
 
   Future<void> _selectTimeZone() async {
-    final zones = TimeZoneService().availableZoneIds;
+    final timeZoneService = TimeZoneService();
+    final zones = timeZoneService.availableZoneIds;
+    final offsetLabels = {
+      for (final zone in zones) zone: timeZoneService.offsetLabel(zone),
+    };
     var query = '';
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final needle = query.toLowerCase();
           final filtered = zones
-              .where((zone) => zone.toLowerCase().contains(query.toLowerCase()))
+              .where(
+                (zone) =>
+                    zone.toLowerCase().contains(needle) ||
+                    offsetLabels[zone]!.toLowerCase().contains(needle),
+              )
               .take(100)
               .toList();
           return AlertDialog(
@@ -1122,6 +1131,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                           return RadioListTile<String>(
                             value: zone,
                             title: Text(zone),
+                            subtitle: Text(offsetLabels[zone]!),
                           );
                         },
                       ),

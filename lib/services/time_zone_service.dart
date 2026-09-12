@@ -37,4 +37,14 @@ class TimeZoneService {
     initialize();
     return tz.TZDateTime.from(instant.toUtc(), tz.getLocation(zoneId));
   }
+
+  String offsetLabel(String zoneId) {
+    initialize();
+    final offset = tz.TZDateTime.now(tz.getLocation(zoneId)).timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final abs = offset.abs();
+    final hours = abs.inHours.toString().padLeft(2, '0');
+    final minutes = (abs.inMinutes % 60).toString().padLeft(2, '0');
+    return 'UTC$sign$hours:$minutes';
+  }
 }
