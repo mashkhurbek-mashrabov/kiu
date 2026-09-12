@@ -12,16 +12,10 @@ void main() {
   });
 
   test('uses DST offset at the lesson date', () {
-    final summer = service.display(
-      DateTime.utc(2026, 7, 1, 12),
-      'Europe/London',
-    );
-    final winter = service.display(
-      DateTime.utc(2026, 12, 1, 12),
-      'Europe/London',
-    );
-    expect(summer, contains('GMT+01:00'));
-    expect(winter, contains('GMT+00:00'));
+    final summer = service.inZone(DateTime.utc(2026, 7, 1, 12), 'Europe/London');
+    final winter = service.inZone(DateTime.utc(2026, 12, 1, 12), 'Europe/London');
+    expect(summer.timeZoneOffset, const Duration(hours: 1));
+    expect(winter.timeZoneOffset, Duration.zero);
   });
 
   test('rejects invalid LMS date', () {

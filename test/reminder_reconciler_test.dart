@@ -33,9 +33,10 @@ void main() {
     expect(result.scheduledCount, 3);
     expect(notifications.scheduled, hasLength(3));
     expect(notifications.scheduled.values.every((call) => call.exact), isTrue);
+    expect(notifications.scheduled.values.first.body, contains('19:00'));
     expect(
       notifications.scheduled.values.first.body,
-      contains('Asia/Tashkent'),
+      isNot(contains('Asia/Tashkent')),
     );
   });
 

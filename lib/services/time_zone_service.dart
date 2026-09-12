@@ -1,4 +1,3 @@
-import 'package:intl/intl.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -37,15 +36,5 @@ class TimeZoneService {
   tz.TZDateTime inZone(DateTime instant, String zoneId) {
     initialize();
     return tz.TZDateTime.from(instant.toUtc(), tz.getLocation(zoneId));
-  }
-
-  String display(DateTime instant, String zoneId) {
-    final local = inZone(instant, zoneId);
-    final offset = local.timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final hours = offset.inHours.abs().toString().padLeft(2, '0');
-    final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    return '${DateFormat('yyyy-MM-dd HH:mm').format(local)} '
-        '$zoneId (GMT$sign$hours:$minutes)';
   }
 }

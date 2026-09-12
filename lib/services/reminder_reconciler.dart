@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import 'lesson_widget_service.dart';
 import 'notification_service.dart';
 import 'time_zone_service.dart';
 
@@ -79,12 +80,7 @@ class ReminderReconciler {
               id: id,
               when: _timeZones.inZone(trigger, settings.timeZoneId),
               title: lesson.title,
-              body: _notificationBody(
-                settings.localeTag,
-                start,
-                settings.timeZoneId,
-                offset,
-              ),
+              body: _notificationBody(settings, start, offset),
               payload: homeUrl,
               exact: exact,
               reminderOffsetMinutes: offset,
@@ -122,13 +118,9 @@ class ReminderReconciler {
     );
   }
 
-  String _notificationBody(
-    String locale,
-    DateTime start,
-    String zone,
-    int offset,
-  ) {
-    final date = _timeZones.display(start, zone);
+  String _notificationBody(AppSettings settings, DateTime start, int offset) {
+    final locale = settings.localeTag;
+    final date = buildLessonWidgetLessonTime(start, settings, _timeZones);
     final timing = switch (locale) {
       'ru' =>
         offset == 0 ? 'Начинается сейчас' : 'Через ${_offset(locale, offset)}',
