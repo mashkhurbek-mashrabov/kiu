@@ -485,9 +485,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                                   ),
                                   child: Text(
                                     lesson['group']! as String,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleSmall,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall,
                                   ),
                                 ),
                               Card(
@@ -821,7 +821,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       subtitle: Text(
         hasOverride
             ? settings.reminderSoundOverrideNames[offsetMinutes] ??
-                strings.customSound
+                  strings.customSound
             : strings.inheritsMainSound,
       ),
       trailing: hasOverride

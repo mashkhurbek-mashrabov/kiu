@@ -44,10 +44,8 @@ class SettingsRepository {
     reminderSoundOverrideNames: _loadSoundNames(_soundOverrideNames),
   );
 
-  Map<int, String> _loadReminderSoundOverrides() => _loadSoundNames(
-    _soundOverrides,
-    fallbackKey: _legacySoundUris,
-  );
+  Map<int, String> _loadReminderSoundOverrides() =>
+      _loadSoundNames(_soundOverrides, fallbackKey: _legacySoundUris);
 
   Map<int, String> _loadSoundNames(String key, {String? fallbackKey}) {
     final raw =

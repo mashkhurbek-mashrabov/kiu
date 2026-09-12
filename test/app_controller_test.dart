@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app_controller.dart';
 import 'package:kiu/data/settings_repository.dart';
+import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
@@ -65,6 +66,46 @@ void main() {
     await controller.initialize();
     expect(scheduler.enabled, isTrue);
   });
+
+  test(
+    'reschedules cached reminders during initialization, not just on sync',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'kiu.reminders': true,
+        'kiu.lessonSnapshot':
+            '[{"title":"Tafsir","websiteStart":"2026-09-09 19:00"}]',
+      });
+      final notifications = FakeNotificationGateway();
+      final repository = SettingsRepository(
+        await SharedPreferences.getInstance(),
+      );
+      final reconciler = ReminderReconciler(
+        repository: repository,
+        notifications: notifications,
+        now: () => DateTime.utc(2026, 9, 9, 12),
+      );
+      final controller = AppController(
+        repository: repository,
+        syncService: ScheduleSyncService(
+          fetcher: ScheduleFetcher(cookieProvider: EmptyCookieProvider()),
+          repository: repository,
+          reconciler: reconciler,
+        ),
+        reconciler: reconciler,
+        notifications: notifications,
+        scheduler: FakeBackgroundScheduler(),
+      );
+
+      // No synchronize() call and no WebView page load -- initialize()
+      // alone must be enough to re-arm reminders scheduled in a prior
+      // session, since a cold start can't rely on the WebView reaching
+      // the lessons page or on a background WorkManager chain that may
+      // have died silently.
+      await controller.initialize();
+
+      expect(notifications.scheduled, isNotEmpty);
+    },
+  );
 
   test('publishes cached last sync to widget during initialization', () async {
     final lastSync = DateTime.utc(2026, 9, 8, 12);

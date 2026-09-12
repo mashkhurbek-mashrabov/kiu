@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:kiu/app/app_controller.dart';
 import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/lesson_widget_service.dart';
@@ -12,6 +13,7 @@ class FakeNotificationGateway implements NotificationGateway {
   NotificationSound? selectedSound;
   final Map<int, ScheduledCall> scheduled = {};
   final List<int> cancelled = [];
+  final Set<int> failScheduleIds = {};
 
   @override
   Future<bool> canScheduleExactly() async => exact;
@@ -46,6 +48,9 @@ class FakeNotificationGateway implements NotificationGateway {
     required int reminderOffsetMinutes,
     String? soundUri,
   }) async {
+    if (failScheduleIds.contains(id)) {
+      throw PlatformException(code: 'exact_alarms_not_permitted');
+    }
     scheduled[id] = ScheduledCall(
       when: when,
       title: title,

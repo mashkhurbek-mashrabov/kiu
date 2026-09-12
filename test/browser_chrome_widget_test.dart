@@ -13,9 +13,9 @@ import 'package:webview_flutter_platform_interface/webview_flutter_platform_inte
 import 'support/fake_webview_platform.dart';
 import 'support/fakes.dart';
 
-Future<AppController> controller(
-  [FakeNotificationGateway? notifications],
-) async {
+Future<AppController> controller([
+  FakeNotificationGateway? notifications,
+]) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
   final notificationGateway = notifications ?? FakeNotificationGateway();
   final reconciler = ReminderReconciler(

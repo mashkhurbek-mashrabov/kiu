@@ -1,9 +1,14 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+
 import '../core/constants.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import 'notification_service.dart';
 import 'time_zone_service.dart';
+
+const _notificationDeliveryGrace = Duration(hours: 1);
 
 class ReminderReconcileResult {
   const ReminderReconcileResult({
@@ -55,26 +60,51 @@ class ReminderReconciler {
         }
         for (final offset in offsets) {
           final trigger = start.subtract(Duration(minutes: offset));
-          if (!trigger.isAfter(now)) continue;
           final id = stableNotificationId('${lesson.key}|$offset');
-          nextIds.add(id);
-          await _notifications.schedule(
-            id: id,
-            when: _timeZones.inZone(trigger, settings.timeZoneId),
-            title: lesson.title,
-            body: _notificationBody(
-              settings.localeTag,
-              start,
-              settings.timeZoneId,
-              offset,
-            ),
-            payload: homeUrl,
-            exact: exact,
-            reminderOffsetMinutes: offset,
-            soundUri:
-                settings.reminderSoundOverrides[offset] ??
-                settings.reminderSoundUri,
-          );
+          if (!trigger.isAfter(now)) {
+            // Android may deliver inexact alarms after their trigger. Keep an
+            // already-scheduled alarm long enough for its receiver to run.
+            // ponytail: one-hour cap prevents obsolete late notifications.
+            if (previousIds.contains(id) &&
+                trigger.add(_notificationDeliveryGrace).isAfter(now)) {
+              nextIds.add(id);
+            }
+            continue;
+          }
+          try {
+            await _notifications.schedule(
+              id: id,
+              when: _timeZones.inZone(trigger, settings.timeZoneId),
+              title: lesson.title,
+              body: _notificationBody(
+                settings.localeTag,
+                start,
+                settings.timeZoneId,
+                offset,
+              ),
+              payload: homeUrl,
+              exact: exact,
+              reminderOffsetMinutes: offset,
+              soundUri:
+                  settings.reminderSoundOverrides[offset] ??
+                  settings.reminderSoundUri,
+            );
+            // ponytail: one failed alarm (e.g. a revoked custom sound URI)
+            // must not abort the whole batch and strand every later lesson
+            // unscheduled; only mark ids that actually made it to the OS.
+            nextIds.add(id);
+          } on PlatformException catch (error) {
+            // A silent `continue` here previously hid systemic failures
+            // (e.g. every offset sharing one revoked sound URI, or exact
+            // alarm permission dropped mid-session): sync would report
+            // success with scheduledCount 0 and nobody could tell why
+            // reminders stopped firing. Surface it instead.
+            debugPrint(
+              'ReminderReconciler: failed to schedule "${lesson.title}" '
+              '(+$offset min): $error',
+            );
+            continue;
+          }
         }
       }
     }

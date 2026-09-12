@@ -87,6 +87,10 @@ class AppController extends ChangeNotifier {
     }
     exactTiming = await _notifications.canScheduleExactly();
     await _scheduler.setEnabled(settings.backgroundSyncEnabled);
+    // Cold start must not depend on the WebView reaching the lessons page or
+    // on a background WorkManager chain that may have died: re-arm cached
+    // reminders against current time/permission state every launch.
+    await _rescheduleCached();
     await _refreshWidget();
     notifyListeners();
   }
