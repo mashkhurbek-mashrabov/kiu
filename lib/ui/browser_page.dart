@@ -1064,25 +1064,6 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Text(
-                strings.testPlatforms,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            for (final link in const [
-              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
-              ('nurul-izoh.com', 'https://nurul-izoh.com'),
-              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
-            ])
-              Card(
-                child: ListTile(
-                  title: Text(link.$1),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () => _launchExternal(link.$2),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
                 strings.pdfBooks,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
@@ -1108,12 +1089,35 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 'Mabdaul qiroat 3',
                 'https://arabic.uz/kitoblar/mabdaul-qiroat-3.pdf',
               ),
+              (
+                'Mabdaun nahv',
+                'https://uz.do-kazankiu.ru/files/upload/books/2026-04-22-22-45-55_dfac1821de910b46.pdf',
+              ),
             ])
               Card(
                 child: ListTile(
                   title: Text(link.$1),
                   trailing: const Icon(Icons.picture_as_pdf_outlined),
                   onTap: () => _openPdfViewer(link.$1, link.$2),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.testPlatforms,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
+              ('nurul-izoh.com', 'https://nurul-izoh.com'),
+              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () => _launchExternal(link.$2),
                 ),
               ),
             Padding(
