@@ -73,6 +73,10 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       _label(settings.localeTag, 'callToggleOff'),
     );
     await HomeWidget.saveWidgetData<String>(
+      'callJoinLabel',
+      _label(settings.localeTag, 'callJoin'),
+    );
+    await HomeWidget.saveWidgetData<String>(
       'syncLabel',
       _label(settings.localeTag, 'sync'),
     );
@@ -331,6 +335,7 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('ru', 'callDecline') => 'Отклонить',
   ('ru', 'callToggleOn') => 'Включить звонок для этого урока',
   ('ru', 'callToggleOff') => 'Отключить звонок для этого урока',
+  ('ru', 'callJoin') => 'Присоединиться к уроку',
   ('en', 'sync') => 'Sync',
   ('en', 'subtitle') => 'Scheduled online lessons',
   ('en', 'syncing') => 'Synchronizing…',
@@ -347,6 +352,7 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('en', 'callDecline') => 'Dismiss',
   ('en', 'callToggleOn') => 'Turn on the call for this lesson',
   ('en', 'callToggleOff') => 'Turn off the call for this lesson',
+  ('en', 'callJoin') => 'Join the lesson',
   ('uz', 'sync') => 'Yangilash',
   ('uz', 'subtitle') => 'Rejalashtirilgan onlayn darslar',
   ('uz', 'syncing') => 'Sinxronlanmoqda…',
@@ -363,6 +369,7 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('uz', 'callDecline') => 'Rad etish',
   ('uz', 'callToggleOn') => 'Bu dars uchun qo‘ng‘iroqni yoqish',
   ('uz', 'callToggleOff') => 'Bu dars uchun qo‘ng‘iroqni o‘chirish',
+  ('uz', 'callJoin') => 'Darsga qo‘shilish',
   (_, 'sync') => 'Янгилаш',
   (_, 'subtitle') => 'Режалаштирилган онлайн дарслар',
   (_, 'syncing') => 'Синхронланмоқда…',
@@ -379,5 +386,6 @@ String _label(String locale, String key) => switch ((locale, key)) {
   (_, 'callDecline') => 'Рад этиш',
   (_, 'callToggleOn') => 'Бу дарс учун қўнғироқни ёқиш',
   (_, 'callToggleOff') => 'Бу дарс учун қўнғироқни ўчириш',
+  (_, 'callJoin') => 'Дарсга қўшилиш',
   _ => '',
 };

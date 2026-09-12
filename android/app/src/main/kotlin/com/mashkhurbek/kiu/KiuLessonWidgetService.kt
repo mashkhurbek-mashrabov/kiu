@@ -94,38 +94,58 @@ private class LessonFactory(private val context: Context) : RemoteViewsService.R
             setViewVisibility(R.id.lesson_scheduled_accent, if (!started && today) View.VISIBLE else View.GONE)
             setViewVisibility(R.id.lesson_started_accent, if (started) View.VISIBLE else View.GONE)
 
+            // optString maps a JSON null to the literal "null", not to "" - guard explicitly.
+            val meetingUrl = if (lesson.isNull("meetingUrl")) {
+                null
+            } else {
+                lesson.optString("meetingUrl").takeIf { it.isNotBlank() }
+            }
+            val canJoin = started && meetingUrl != null && KiuLessonWidgetProvider.isValidHttps(Uri.parse(meetingUrl))
+
             val callKey = lesson.optString("key")
             val callEnabled = lesson.optBoolean("callEnabled", false)
-            setImageViewResource(
-                R.id.lesson_call_toggle,
-                if (callEnabled) R.drawable.ic_call else R.drawable.ic_call_off,
-            )
             val labels = HomeWidgetPlugin.getData(context)
-            setContentDescription(
-                R.id.lesson_call_toggle,
-                if (callEnabled) {
-                    labels.getString("callToggleOffLabel", null) ?: "Turn off the call for this lesson"
-                } else {
-                    labels.getString("callToggleOnLabel", null) ?: "Turn on the call for this lesson"
-                },
-            )
-            if (callKey.isNotBlank()) {
+            if (canJoin) {
+                setImageViewResource(R.id.lesson_call_toggle, R.drawable.ic_call_join)
+                setContentDescription(
+                    R.id.lesson_call_toggle,
+                    labels.getString("callJoinLabel", null) ?: "Join the lesson",
+                )
                 setOnClickFillInIntent(
                     R.id.lesson_call_toggle,
                     Intent().apply {
-                        data = Uri.parse("kiu://widget-call-toggle/$position")
-                        putExtra(KiuLessonWidgetProvider.EXTRA_ACTION, KiuLessonWidgetProvider.ACTION_VALUE_TOGGLE)
-                        putExtra(KiuLessonWidgetProvider.EXTRA_KEY, callKey)
-                        putExtra(KiuLessonWidgetProvider.EXTRA_CALL_ENABLED, callEnabled)
+                        data = Uri.parse("kiu://widget-lesson/$position")
+                        putExtra(KiuLessonWidgetProvider.EXTRA_LINK, meetingUrl)
+                        putExtra(KiuLessonWidgetProvider.EXTRA_ACTION, KiuLessonWidgetProvider.ACTION_VALUE_OPEN)
                     },
                 )
+            } else {
+                setImageViewResource(
+                    R.id.lesson_call_toggle,
+                    if (callEnabled) R.drawable.ic_call else R.drawable.ic_call_off,
+                )
+                setContentDescription(
+                    R.id.lesson_call_toggle,
+                    if (callEnabled) {
+                        labels.getString("callToggleOffLabel", null) ?: "Turn off the call for this lesson"
+                    } else {
+                        labels.getString("callToggleOnLabel", null) ?: "Turn on the call for this lesson"
+                    },
+                )
+                if (callKey.isNotBlank()) {
+                    setOnClickFillInIntent(
+                        R.id.lesson_call_toggle,
+                        Intent().apply {
+                            data = Uri.parse("kiu://widget-call-toggle/$position")
+                            putExtra(KiuLessonWidgetProvider.EXTRA_ACTION, KiuLessonWidgetProvider.ACTION_VALUE_TOGGLE)
+                            putExtra(KiuLessonWidgetProvider.EXTRA_KEY, callKey)
+                            putExtra(KiuLessonWidgetProvider.EXTRA_CALL_ENABLED, callEnabled)
+                        },
+                    )
+                }
             }
 
-            // optString maps a JSON null to the literal "null", not to "" - guard explicitly.
-            if (lesson.isNull("meetingUrl")) return@apply
-            val meetingUrl = lesson.optString("meetingUrl").takeIf { it.isNotBlank() } ?: return@apply
-            val uri = Uri.parse(meetingUrl)
-            if (started && KiuLessonWidgetProvider.isValidHttps(uri)) {
+            if (canJoin) {
                 setOnClickFillInIntent(
                     R.id.lesson_item,
                     Intent().apply {
