@@ -40,19 +40,32 @@ String playbackRateScript(double rate) {
 ''';
 }
 
+/// Drives the LMS theme the same way the site's own `theme-script.js` does:
+/// `localStorage.darkMode` is the source of truth and the site applies it as a
+/// `dark`/`light` class on `<html>` on every load. Writing both directly (in
+/// place of clicking `#dark-mode-toggle`) also survives navigation, since the
+/// site re-reads localStorage before first paint.
 String siteThemeScript(bool dark) {
   final encodedDark = jsonEncode(dark);
   return '''
 (() => {
   const dark = $encodedDark;
-  const toggle = document.querySelector('#dark-mode-toggle');
-  if (!toggle) return 'absent';
-  // ponytail: the site marks dark mode with `activate` on the toggle itself,
-  // so one click is enough; no verify/retry loop, which would risk visible
-  // flicker if the class ever lands slowly.
-  if (toggle.classList.contains('activate') === dark) return 'synced';
-  toggle.click();
-  return 'toggled';
+  try {
+    window.localStorage.setItem('darkMode', dark ? 'enabled' : 'disabled');
+  } catch (error) {
+    // Storage can be blocked; the class below still themes this page.
+  }
+  const root = document.documentElement;
+  root.classList.toggle('dark', dark);
+  root.classList.toggle('light', !dark);
+  // The header keeps two buttons; `activate` marks the one still available,
+  // so the icon for the mode we just left is the visible one.
+  const darkToggle = document.getElementById('dark-mode-toggle');
+  const lightToggle = document.getElementById('light-mode-toggle');
+  if (!darkToggle || !lightToggle) return 'applied';
+  darkToggle.classList.toggle('activate', !dark);
+  lightToggle.classList.toggle('activate', dark);
+  return 'synced';
 })();
 ''';
 }

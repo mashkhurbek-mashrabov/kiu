@@ -49,14 +49,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
 
   AppLocalizations get strings => AppLocalizations.of(context);
 
-  /// Brightness the app is rendering with. Read from the platform dispatcher
-  /// rather than MediaQuery so it also works from initState.
-  Brightness get _brightness => switch (widget.controller.settings.themeMode) {
-    ThemeMode.dark => Brightness.dark,
-    ThemeMode.light => Brightness.light,
-    ThemeMode.system =>
-      WidgetsBinding.instance.platformDispatcher.platformBrightness,
-  };
+  Brightness get _brightness =>
+      resolveDark(widget.controller.settings.themeMode)
+      ? Brightness.dark
+      : Brightness.light;
 
   @override
   void initState() {
@@ -153,6 +149,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (widget.controller.settings.themeMode != ThemeMode.system) return;
     if (mounted) setState(() {});
     unawaited(_applySiteTheme());
+    unawaited(widget.controller.refreshWidget());
   }
 
   NavigationDecision _handleNavigation(NavigationRequest request) {

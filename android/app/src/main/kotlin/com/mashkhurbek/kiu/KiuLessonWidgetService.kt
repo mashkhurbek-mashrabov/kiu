@@ -2,7 +2,6 @@ package com.mashkhurbek.kiu
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
@@ -17,6 +16,7 @@ class KiuLessonWidgetService : RemoteViewsService() {
 
 private class LessonFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
     private var rows: List<WidgetRow> = emptyList()
+    private var dark: Boolean = false
 
     override fun onCreate() = load()
 
@@ -29,6 +29,8 @@ private class LessonFactory(private val context: Context) : RemoteViewsService.R
     override fun getViewAt(position: Int): RemoteViews = when (val row = rows.getOrNull(position)) {
         is WidgetRow.Header -> RemoteViews(context.packageName, R.layout.kiu_lesson_widget_group_header).apply {
             setTextViewText(R.id.lesson_group_title, row.title)
+            setTextColor(R.id.lesson_group_title, WidgetTheme.muted(dark))
+            setInt(R.id.lesson_group_rule, "setBackgroundColor", WidgetTheme.rule(dark))
         }
         is WidgetRow.Lesson -> lessonView(row.lesson, position)
         null -> RemoteViews(context.packageName, R.layout.kiu_lesson_widget_group_header)
@@ -47,8 +49,10 @@ private class LessonFactory(private val context: Context) : RemoteViewsService.R
     override fun hasStableIds(): Boolean = true
 
     private fun load() {
+        val data = HomeWidgetPlugin.getData(context)
+        dark = data.getString("widgetDark", "false") == "true"
         val lessons = runCatching {
-            JSONArray(HomeWidgetPlugin.getData(context).getString("lessons", "[]") ?: "[]")
+            JSONArray(data.getString("lessons", "[]") ?: "[]")
         }.getOrDefault(JSONArray())
         val loadedRows = mutableListOf<WidgetRow>()
         var previousGroup: String? = null
@@ -75,22 +79,18 @@ private class LessonFactory(private val context: Context) : RemoteViewsService.R
         return RemoteViews(context.packageName, layout).apply {
             setTextViewText(R.id.lesson_title, lesson.optString("title"))
             setTextViewText(R.id.lesson_time, lesson.optString("displayStart"))
-            setTextColor(
-                R.id.lesson_title,
-                when {
-                    started -> Color.rgb(23, 107, 69)
-                    today -> Color.rgb(167, 120, 0)
-                    else -> Color.rgb(52, 65, 58)
+            setInt(
+                R.id.lesson_item,
+                "setBackgroundResource",
+                if (started || today) {
+                    WidgetTheme.lessonItem(dark)
+                } else {
+                    WidgetTheme.lessonItemOther(dark)
                 },
             )
-            setTextColor(
-                R.id.lesson_time,
-                when {
-                    started -> Color.rgb(23, 107, 69)
-                    today -> Color.rgb(138, 101, 0)
-                    else -> Color.rgb(104, 116, 109)
-                },
-            )
+            setInt(R.id.lesson_time, "setBackgroundResource", WidgetTheme.lessonTime(dark))
+            setTextColor(R.id.lesson_title, WidgetTheme.lessonTitle(dark, started, today))
+            setTextColor(R.id.lesson_time, WidgetTheme.lessonTimeText(dark, started, today))
             setViewVisibility(R.id.lesson_scheduled_accent, if (!started && today) View.VISIBLE else View.GONE)
             setViewVisibility(R.id.lesson_started_accent, if (started) View.VISIBLE else View.GONE)
 

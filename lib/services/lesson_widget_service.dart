@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 
+import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import 'reminder_reconciler.dart' show stableNotificationId;
@@ -83,6 +84,10 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     await HomeWidget.saveWidgetData<String>('widgetStatusVisibleUntil', '0');
     await HomeWidget.saveWidgetData<String>('widgetIsSyncing', 'false');
     await HomeWidget.saveWidgetData<String>(
+      'widgetDark',
+      widgetDarkFlag(settings),
+    );
+    await HomeWidget.saveWidgetData<String>(
       'widgetLastSync',
       buildLessonWidgetLastSyncLabel(lastSuccessfulSync, settings, _timeZones),
     );
@@ -132,6 +137,10 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       'emptyLabel',
       _label(settings.localeTag, 'empty'),
     );
+    await HomeWidget.saveWidgetData<String>(
+      'widgetDark',
+      widgetDarkFlag(settings),
+    );
     await _update();
   }
 
@@ -139,6 +148,12 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     qualifiedAndroidName: lessonWidgetQualifiedProvider,
   );
 }
+
+/// RemoteViews cannot read the app's ThemeData and `values-night` would follow
+/// the OS instead of the in-app choice, so the resolved mode travels to Kotlin
+/// as data and the provider tints the views itself.
+String widgetDarkFlag(AppSettings settings) =>
+    resolveDark(settings.themeMode) ? 'true' : 'false';
 
 List<DateTime> buildLessonWidgetUpdateTimes(
   List<Map<String, Object?>> payload,

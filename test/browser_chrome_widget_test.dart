@@ -120,7 +120,7 @@ void main() {
       Theme.of(tester.element(find.byType(BottomAppBar))).colorScheme.surface,
       const Color(0xFF2B2939),
     );
-    expect(injectedScripts.last, contains('#dark-mode-toggle'));
+    expect(injectedScripts.last, contains("setItem('darkMode'"));
     expect(injectedScripts.last, contains('const dark = true'));
   });
 

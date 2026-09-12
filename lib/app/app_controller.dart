@@ -111,8 +111,15 @@ class AppController extends ChangeNotifier {
   Future<void> setThemeMode(ThemeMode value) async {
     settings = settings.copyWith(themeMode: value);
     await _repository.saveSettings(settings);
+    // The home-screen widget is themed from published data, not from the
+    // system night-mode qualifier, so it needs a republish here.
+    await _refreshWidget();
     notifyListeners();
   }
+
+  /// Republishes widget data after something outside settings changed how it
+  /// should look, e.g. the OS flipped night mode while the app follows it.
+  Future<void> refreshWidget() => _refreshWidget();
 
   Future<void> setLocale(String value) async {
     settings = settings.copyWith(localeTag: value);

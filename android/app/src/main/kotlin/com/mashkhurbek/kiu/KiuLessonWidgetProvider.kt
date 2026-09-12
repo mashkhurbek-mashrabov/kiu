@@ -19,6 +19,7 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
         appWidgetIds: IntArray,
         widgetData: SharedPreferences,
     ) {
+        val dark = widgetData.getString("widgetDark", "false") == "true"
         appWidgetIds.forEach { widgetId ->
             val serviceIntent = Intent(context, KiuLessonWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
@@ -26,6 +27,14 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             val views = RemoteViews(context.packageName, R.layout.kiu_lesson_widget).apply {
+                setInt(R.id.widget_container, "setBackgroundResource", WidgetTheme.background(dark))
+                setInt(R.id.widget_sync_icon, "setBackgroundResource", WidgetTheme.syncButton(dark))
+                setTextColor(R.id.widget_title, WidgetTheme.brand(dark))
+                setTextColor(R.id.widget_subtitle, WidgetTheme.brand(dark))
+                setTextColor(R.id.widget_divider, WidgetTheme.divider(dark))
+                setTextColor(R.id.widget_status, WidgetTheme.brand(dark))
+                setTextColor(R.id.widget_last_sync, WidgetTheme.muted(dark))
+                setTextColor(R.id.lesson_empty, WidgetTheme.muted(dark))
                 setRemoteAdapter(R.id.lesson_list, serviceIntent)
                 setEmptyView(R.id.lesson_list, R.id.lesson_empty)
                 setContentDescription(R.id.widget_sync, widgetData.getString("syncLabel", "Sync"))

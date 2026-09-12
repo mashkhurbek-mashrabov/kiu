@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/domain/app_settings.dart';
 import 'package:kiu/domain/lesson.dart';
@@ -30,6 +31,19 @@ void main() {
     expect(payload.last['meetingUrl'], 'https://meet.example/second');
     expect(payload.first['key'], lessons.last.callKey);
     expect(payload.first['callEnabled'], isFalse);
+  });
+
+  test('widget dark flag follows the in-app appearance choice', () {
+    expect(
+      widgetDarkFlag(const AppSettings(themeMode: ThemeMode.dark)),
+      'true',
+    );
+    expect(
+      widgetDarkFlag(const AppSettings(themeMode: ThemeMode.light)),
+      'false',
+    );
+    // System mode resolves against the platform, which reports light in tests.
+    expect(widgetDarkFlag(const AppSettings()), 'false');
   });
 
   test('payload carries per-occurrence call state', () {
