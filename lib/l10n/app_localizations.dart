@@ -592,6 +592,30 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Ушбу дарс учун қўнғироқ'**
   String get callForThisLesson;
+
+  /// No description provided for @appearance.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Кўриниш'**
+  String get appearance;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тизим бўйича'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ёруғ'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тунги'**
+  String get themeDark;
 }
 
 class _AppLocalizationsDelegate

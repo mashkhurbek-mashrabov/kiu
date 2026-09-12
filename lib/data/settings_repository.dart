@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/app_settings.dart';
@@ -11,6 +12,7 @@ class SettingsRepository {
   final SharedPreferences _preferences;
 
   static const _playbackRate = 'kiu.playbackRate';
+  static const _themeMode = 'kiu.themeMode';
   static const _locale = 'kiu.locale';
   static const _timeZone = 'kiu.timeZone';
   static const _reminders = 'kiu.reminders';
@@ -36,6 +38,9 @@ class SettingsRepository {
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
+    themeMode:
+        ThemeMode.values.asNameMap()[_preferences.getString(_themeMode)] ??
+        ThemeMode.system,
     localeTag: _preferences.getString(_locale) ?? 'uz_Cyrl',
     timeZoneId: _preferences.getString(_timeZone) ?? 'Asia/Tashkent',
     remindersEnabled: _preferences.getBool(_reminders) ?? false,
@@ -96,6 +101,7 @@ class SettingsRepository {
   Future<void> saveSettings(AppSettings settings) async {
     await Future.wait([
       _preferences.setDouble(_playbackRate, settings.playbackRate),
+      _preferences.setString(_themeMode, settings.themeMode.name),
       _preferences.setString(_locale, settings.localeTag),
       _preferences.setString(_timeZone, settings.timeZoneId),
       _preferences.setBool(_reminders, settings.remindersEnabled),

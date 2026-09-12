@@ -272,4 +272,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get callForThisLesson => 'Звонок для этого урока';
+
+  @override
+  String get appearance => 'Оформление';
+
+  @override
+  String get themeSystem => 'Как в системе';
+
+  @override
+  String get themeLight => 'Светлая';
+
+  @override
+  String get themeDark => 'Тёмная';
 }

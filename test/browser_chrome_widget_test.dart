@@ -41,6 +41,7 @@ void main() {
   setUp(() {
     WebViewPlatform.instance = FakeWebViewPlatform();
     SharedPreferences.setMockInitialValues({});
+    injectedScripts.clear();
   });
 
   testWidgets('uses headerless compact five-action bottom bar', (tester) async {
@@ -65,6 +66,62 @@ void main() {
     }
     expect(find.byKey(const Key('home-selected')), findsOneWidget);
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
+  });
+
+  testWidgets('paints the dark surface when dark mode is saved', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.themeMode': 'dark'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
+        .colorScheme;
+    expect(colors.brightness, Brightness.dark);
+    expect(colors.surface, const Color(0xFF2B2939));
+  });
+
+  testWidgets('paints the light surface when light mode is saved', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.themeMode': 'light'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
+        .colorScheme;
+    expect(colors.brightness, Brightness.light);
+    expect(colors.surface, const Color(0xFFF2F1EA));
+  });
+
+  testWidgets('switches appearance from More', (tester) async {
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('theme-mode-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('theme-mode-dark')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.themeMode, ThemeMode.dark);
+    expect(
+      Theme.of(tester.element(find.byType(BottomAppBar))).colorScheme.surface,
+      const Color(0xFF2B2939),
+    );
+    expect(injectedScripts.last, contains('#dark-mode-toggle'));
+    expect(injectedScripts.last, contains('const dark = true'));
   });
 
   testWidgets('does not highlight Home on another trusted page', (

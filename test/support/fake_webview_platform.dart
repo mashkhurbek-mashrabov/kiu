@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
+/// Scripts the shell injected, newest last. Tests clear it in setUp.
+final List<String> injectedScripts = <String>[];
+
 class FakeWebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewController createPlatformWebViewController(
@@ -39,6 +42,10 @@ class _FakeController extends PlatformWebViewController {
 
   @override
   Future<void> loadRequest(LoadRequestParams params) async {}
+
+  @override
+  Future<void> runJavaScript(String javaScript) async =>
+      injectedScripts.add(javaScript);
 
   @override
   Future<bool> canGoBack() async => false;

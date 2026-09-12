@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app_controller.dart';
 import 'package:kiu/data/settings_repository.dart';
@@ -56,6 +57,20 @@ void main() {
     final reloaded = SettingsRepository(await SharedPreferences.getInstance())
         .loadSettings();
     expect(reloaded.playbackRate, 0.5);
+  });
+
+  test('defaults to system theme and persists the chosen mode', () async {
+    final controller = await createController(
+      FakeNotificationGateway(),
+      FakeBackgroundScheduler(),
+    );
+    expect(controller.settings.themeMode, ThemeMode.system);
+
+    await controller.setThemeMode(ThemeMode.dark);
+    expect(controller.settings.themeMode, ThemeMode.dark);
+    final reloaded = SettingsRepository(await SharedPreferences.getInstance())
+        .loadSettings();
+    expect(reloaded.themeMode, ThemeMode.dark);
   });
 
   test('registers background sync by default during initialization', () async {

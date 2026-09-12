@@ -40,6 +40,23 @@ String playbackRateScript(double rate) {
 ''';
 }
 
+String siteThemeScript(bool dark) {
+  final encodedDark = jsonEncode(dark);
+  return '''
+(() => {
+  const dark = $encodedDark;
+  const toggle = document.querySelector('#dark-mode-toggle');
+  if (!toggle) return 'absent';
+  // ponytail: the site marks dark mode with `activate` on the toggle itself,
+  // so one click is enough; no verify/retry loop, which would risk visible
+  // flicker if the class ever lands slowly.
+  if (toggle.classList.contains('activate') === dark) return 'synced';
+  toggle.click();
+  return 'toggled';
+})();
+''';
+}
+
 String markWatchedScript(String requestId) {
   final encodedRequestId = jsonEncode(requestId);
   return '''

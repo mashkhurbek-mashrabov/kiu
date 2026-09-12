@@ -14,6 +14,15 @@ void main() {
     expect(playbackRateScript(0.25), contains('const rate = 0.5'));
   });
 
+  test('site theme script toggles only when the site disagrees', () {
+    final dark = siteThemeScript(true);
+    expect(dark, contains('const dark = true'));
+    expect(dark, contains('#dark-mode-toggle'));
+    expect(dark, contains("classList.contains('activate') === dark"));
+    expect(dark, contains('toggle.click()'));
+    expect(siteThemeScript(false), contains('const dark = false'));
+  });
+
   test('mark watched script carries both LMS events and token support', () {
     final script = markWatchedScript('request-1');
     expect(script, contains('lessonVideoIsEnded'));

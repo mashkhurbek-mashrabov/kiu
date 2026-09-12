@@ -9,6 +9,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_controller.dart';
 import '../core/constants.dart';
+import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../l10n/app_localizations.dart';
@@ -48,6 +49,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
 
   AppLocalizations get strings => AppLocalizations.of(context);
 
+  /// Brightness the app is rendering with. Read from the platform dispatcher
+  /// rather than MediaQuery so it also works from initState.
+  Brightness get _brightness => switch (widget.controller.settings.themeMode) {
+    ThemeMode.dark => Brightness.dark,
+    ThemeMode.light => Brightness.light,
+    ThemeMode.system =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +71,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     _currentUri = initialUri;
     _webView = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
+      ..setBackgroundColor(surfaceFor(_brightness))
       ..addJavaScriptChannel(
         'KiuBridge',
         onMessageReceived: _handleBridgeMessage,
@@ -138,6 +148,13 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
+  @override
+  void didChangePlatformBrightness() {
+    if (widget.controller.settings.themeMode != ThemeMode.system) return;
+    if (mounted) setState(() {});
+    unawaited(_applySiteTheme());
+  }
+
   NavigationDecision _handleNavigation(NavigationRequest request) {
     final uri = Uri.tryParse(request.url);
     if (uri != null && uri.scheme == 'https') {
@@ -167,6 +184,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     _canForward = await _webView.canGoForward();
     if (uri != null && isTrustedHttps(uri)) {
       await _applyPlaybackRate();
+      await _applySiteTheme();
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
         unawaited(_maybeExplainBackgroundAccess());
@@ -184,6 +202,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (!isTrustedHttps(_currentUri)) return;
     await _webView.runJavaScript(
       playbackRateScript(widget.controller.settings.playbackRate),
+    );
+  }
+
+  /// Mirrors the app theme onto the LMS page: recolors the WebView so page
+  /// transitions do not flash the opposite theme, then nudges the site's own
+  /// dark-mode toggle when it disagrees with the app.
+  Future<void> _applySiteTheme() async {
+    final brightness = _brightness;
+    await _webView.setBackgroundColor(surfaceFor(brightness));
+    if (!isTrustedHttps(_currentUri)) return;
+    await _webView.runJavaScript(
+      siteThemeScript(brightness == Brightness.dark),
     );
   }
 
@@ -398,6 +428,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _selectTimeZone();
+                  },
+                ),
+                ListTile(
+                  key: const Key('theme-mode-menu'),
+                  leading: const Icon(Icons.brightness_6_outlined),
+                  title: Text(strings.appearance),
+                  subtitle: Text(
+                    _themeModeLabel(widget.controller.settings.themeMode),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _selectThemeMode();
                   },
                 ),
                 ListTile(
@@ -1093,6 +1135,36 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (selected != null) {
       await widget.controller.setTimeZone(selected);
     }
+  }
+
+  String _themeModeLabel(ThemeMode mode) => switch (mode) {
+    ThemeMode.system => strings.themeSystem,
+    ThemeMode.light => strings.themeLight,
+    ThemeMode.dark => strings.themeDark,
+  };
+
+  Future<void> _selectThemeMode() async {
+    final selected = await showDialog<ThemeMode>(
+      context: context,
+      builder: (context) => RadioGroup<ThemeMode>(
+        groupValue: widget.controller.settings.themeMode,
+        onChanged: (value) => Navigator.pop(context, value),
+        child: SimpleDialog(
+          title: Text(strings.appearance),
+          children: [
+            for (final mode in ThemeMode.values)
+              RadioListTile<ThemeMode>(
+                key: Key('theme-mode-${mode.name}'),
+                value: mode,
+                title: Text(_themeModeLabel(mode)),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await widget.controller.setThemeMode(selected);
+    await _applySiteTheme();
   }
 
   Future<void> _selectLanguage() async {

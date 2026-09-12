@@ -32,4 +32,8 @@
 , "overlayAccess": "Boshqa ilovalar ustida ko‘rsatish"
 , "overlayAccessHelp": "Telefondan foydalanayotganingizda qo‘ng‘iroq ekrani ochilishiga imkon beradi. Bo‘lmasa, qo‘ng‘iroq faqat bildirishnoma sifatida ko‘rinadi."
 , "callForThisLesson": "Ushbu dars uchun qo‘ng‘iroq"
+, "appearance": "Ko‘rinish"
+, "themeSystem": "Tizim bo‘yicha"
+, "themeLight": "Yorug‘"
+, "themeDark": "Tungi"
 }

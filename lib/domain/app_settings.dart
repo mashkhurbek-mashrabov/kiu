@@ -5,6 +5,7 @@ import 'lesson.dart';
 class AppSettings {
   const AppSettings({
     this.playbackRate = 1,
+    this.themeMode = ThemeMode.system,
     this.localeTag = 'uz_Cyrl',
     this.timeZoneId = 'Asia/Tashkent',
     this.remindersEnabled = false,
@@ -22,6 +23,7 @@ class AppSettings {
   });
 
   final double playbackRate;
+  final ThemeMode themeMode;
   final String localeTag;
   final String timeZoneId;
   final bool remindersEnabled;
@@ -51,6 +53,7 @@ class AppSettings {
 
   AppSettings copyWith({
     double? playbackRate,
+    ThemeMode? themeMode,
     String? localeTag,
     String? timeZoneId,
     bool? remindersEnabled,
@@ -67,6 +70,7 @@ class AppSettings {
     Map<String, bool>? callOverrides,
   }) => AppSettings(
     playbackRate: playbackRate ?? this.playbackRate,
+    themeMode: themeMode ?? this.themeMode,
     localeTag: localeTag ?? this.localeTag,
     timeZoneId: timeZoneId ?? this.timeZoneId,
     remindersEnabled: remindersEnabled ?? this.remindersEnabled,

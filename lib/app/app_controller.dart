@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -104,6 +104,12 @@ class AppController extends ChangeNotifier {
 
   Future<void> setPlaybackRate(double value) async {
     settings = settings.copyWith(playbackRate: value.clamp(0.5, 4.0));
+    await _repository.saveSettings(settings);
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode value) async {
+    settings = settings.copyWith(themeMode: value);
     await _repository.saveSettings(settings);
     notifyListeners();
   }
