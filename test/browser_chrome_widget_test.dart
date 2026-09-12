@@ -9,7 +9,6 @@ import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 import 'support/fake_webview_platform.dart';
 import 'support/fakes.dart';
@@ -331,10 +330,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Nurul Izoh'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.widgetWithText(AppBar, 'Nurul Izoh'), findsOneWidget);
     expect(find.byType(WebViewWidget), findsOneWidget);
+    expect(find.byKey(const Key('pdf-loading')), findsOneWidget);
     expect(loadedUrls.last, startsWith('https://docs.google.com/viewer?url='));
   });
 

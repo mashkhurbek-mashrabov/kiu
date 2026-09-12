@@ -1168,13 +1168,32 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       builder: (context) {
         final viewerUrl =
             'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
+        var loading = true;
+        void Function()? onPageFinished;
         final controller = WebViewController()
           ..setJavaScriptMode(JavaScriptMode.unrestricted)
           ..setBackgroundColor(surfaceFor(_brightness))
+          ..setNavigationDelegate(
+            NavigationDelegate(onPageFinished: (_) => onPageFinished?.call()),
+          )
           ..loadRequest(Uri.parse(viewerUrl));
-        return Scaffold(
-          appBar: AppBar(title: Text(title)),
-          body: WebViewWidget(controller: controller),
+        return StatefulBuilder(
+          builder: (context, setPageState) {
+            onPageFinished = () => setPageState(() => loading = false);
+            return Scaffold(
+              appBar: AppBar(title: Text(title)),
+              body: Stack(
+                children: [
+                  WebViewWidget(controller: controller),
+                  if (loading)
+                    const Center(
+                      key: Key('pdf-loading'),
+                      child: CircularProgressIndicator(),
+                    ),
+                ],
+              ),
+            );
+          },
         );
       },
     ),
