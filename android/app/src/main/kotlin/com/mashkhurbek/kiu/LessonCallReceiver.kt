@@ -3,6 +3,7 @@ package com.mashkhurbek.kiu
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
+import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -12,6 +13,8 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import es.antonborri.home_widget.HomeWidgetPlugin
 
 /** Rings, answers, declines, and times out a single lesson-call occurrence. */
@@ -66,8 +69,6 @@ class LessonCallReceiver : BroadcastReceiver() {
         val answerLabel = prefs.getString("callAnswerLabel", null) ?: "Join"
         val declineLabel = prefs.getString("callDeclineLabel", null) ?: "Dismiss"
 
-        val channelId = ensureChannel(context, ringtoneUri)
-
         val fullScreenIntent = Intent(context, LessonCallActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
             putExtra(EXTRA_REQUEST_CODE, requestCode)
@@ -83,6 +84,19 @@ class LessonCallReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        // When the call screen comes up it already shows the lesson and both buttons, so a
+        // heads-up banner on top of it is pure duplication: post silently in that case and let
+        // the notification sit in the shade as the way back. The loud heads-up only matters
+        // when no call screen appears, because then it is the entire UI.
+        //
+        // This must be decided up front rather than from startActivity's result: a blocked
+        // background activity start does NOT throw, it is silently dropped, so a
+        // runCatching around it reports success either way and would leave the fallback mute.
+        val willShowCallScreen = canDrawOverlays(context) || screenIsOff(context)
+        val channelId = ensureChannel(context, ringtoneUri, silent = willShowCallScreen)
+        val launched = willShowCallScreen
+        runCatching { context.startActivity(fullScreenIntent) }
+
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(context, channelId)
         } else {
@@ -95,10 +109,12 @@ class LessonCallReceiver : BroadcastReceiver() {
             .setContentText(title)
             .setSmallIcon(R.drawable.ic_notification)
             .setCategory(Notification.CATEGORY_CALL)
-            .setPriority(Notification.PRIORITY_HIGH)
+            .setPriority(if (launched) Notification.PRIORITY_LOW else Notification.PRIORITY_HIGH)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
+            // Re-asserting the full-screen intent while the screen is already up would make
+            // Android relaunch it; only arm it when it is still needed.
+            .apply { if (!launched) setFullScreenIntent(fullScreenPendingIntent, true) }
             .setContentIntent(fullScreenPendingIntent)
             .addAction(
                 R.drawable.ic_lesson_call_decline,
@@ -119,14 +135,6 @@ class LessonCallReceiver : BroadcastReceiver() {
 
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .notify(requestCode, notification)
-
-        // Android only honours a full-screen intent by actually launching the activity when the
-        // device is locked or the screen is off; unlocked and in use it downgrades to a heads-up.
-        // Exact alarms grant a short background-activity-launch window, so ask directly too and
-        // the call screen shows in both states. If the launch is blocked the notification above
-        // is still posted, so this can only ever add behaviour.
-        // ponytail: no SYSTEM_ALERT_WINDOW - that permission is a heavy ask for this payoff.
-        runCatching { context.startActivity(fullScreenIntent) }
 
         val timeoutPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -180,22 +188,51 @@ class LessonCallReceiver : BroadcastReceiver() {
      * `reminderNotificationChannelId` in `lib/services/notification_service.dart` uses - so
      * changing the ringtone actually takes effect on the next ring.
      */
-    private fun ensureChannel(context: Context, ringtoneUri: Uri): String {
-        val id = "kiu_lesson_call_${channelSuffix(ringtoneUri.toString())}"
+    /** Holding this is what exempts the direct `startActivity` from background-launch blocking. */
+    private fun canDrawOverlays(context: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+
+    /**
+     * Locked or screen-off, in which case Android honours the full-screen intent and brings the
+     * call screen up by itself, with no background-launch restriction involved.
+     */
+    private fun screenIsOff(context: Context): Boolean {
+        val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        return !power.isInteractive || keyguard.isKeyguardLocked
+    }
+
+    private fun ensureChannel(context: Context, ringtoneUri: Uri, silent: Boolean): String {
+        // Two channels: the loud one is the standalone fallback, the silent one only backs the
+        // already-visible call screen (which does its own ringing and vibrating).
+        val id = if (silent) {
+            "kiu_lesson_call_quiet"
+        } else {
+            "kiu_lesson_call_${channelSuffix(ringtoneUri.toString())}"
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (manager.getNotificationChannel(id) == null) {
-                val channel = NotificationChannel(id, "Lesson calls", NotificationManager.IMPORTANCE_HIGH).apply {
+                val importance = if (silent) {
+                    NotificationManager.IMPORTANCE_LOW
+                } else {
+                    NotificationManager.IMPORTANCE_HIGH
+                }
+                val channel = NotificationChannel(id, "Lesson calls", importance).apply {
                     description = "Incoming lesson-call alerts"
-                    enableVibration(true)
+                    enableVibration(!silent)
                     setBypassDnd(false)
-                    setSound(
-                        ringtoneUri,
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build(),
-                    )
+                    if (silent) {
+                        setSound(null, null)
+                    } else {
+                        setSound(
+                            ringtoneUri,
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build(),
+                        )
+                    }
                 }
                 manager.createNotificationChannel(channel)
             }

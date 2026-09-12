@@ -167,6 +167,49 @@ void main() {
     expect(find.byKey(const Key('scheduled-lessons-menu')), findsOneWidget);
   });
 
+  testWidgets(
+    'toggles a lesson call from the phone icon in Scheduled lessons',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'kiu.lessonSnapshot':
+            '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00"}]',
+      });
+      final appController = await controller();
+      await tester.pumpWidget(
+        KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+      );
+      await tester.tap(find.byKey(const Key('actions-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+      await tester.pumpAndSettle();
+
+      final toggle = find.byKey(const Key('scheduled-lesson-call-0'));
+      // Calls are off globally by default, so the icon starts struck through.
+      expect(
+        tester
+            .widget<Icon>(
+              find.descendant(of: toggle, matching: find.byType(Icon)),
+            )
+            .icon,
+        Icons.phone_disabled,
+      );
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<Icon>(
+              find.descendant(of: toggle, matching: find.byType(Icon)),
+            )
+            .icon,
+        Icons.call,
+      );
+      final lesson = appController.scheduledLessons.single;
+      expect(appController.settings.callEnabledFor(lesson), isTrue);
+    },
+  );
+
   testWidgets('lists custom reminder inline with remove action', (
     tester,
   ) async {

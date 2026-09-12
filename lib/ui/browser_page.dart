@@ -499,9 +499,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                           tooltip: strings.back,
                           onPressed: () => Navigator.pop(context, true),
                         ),
-                        Text(
-                          strings.scheduledLessons,
-                          style: Theme.of(context).textTheme.titleLarge,
+                        Expanded(
+                          child: Text(
+                            strings.scheduledLessons,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                         ),
                       ],
                     ),
@@ -545,26 +547,29 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                                       subtitle: Text(
                                         lesson['displayStart']! as String,
                                       ),
+                                      // Phone icon rather than a switch, matching
+                                      // the home-screen widget's per-row toggle.
                                       trailing: lessonEntity == null
                                           ? null
-                                          : Semantics(
-                                              label: strings.callForThisLesson,
-                                              child: Switch(
-                                                key: Key(
-                                                  'scheduled-lesson-call-$index',
-                                                ),
-                                                value: settings.callEnabledFor(
-                                                  lessonEntity,
-                                                ),
-                                                onChanged: (value) async {
-                                                  await widget.controller
-                                                      .setLessonCallEnabled(
-                                                        lessonEntity,
-                                                        value,
-                                                      );
-                                                  setSheetState(() {});
-                                                },
+                                          : _LessonCallToggle(
+                                              key: Key(
+                                                'scheduled-lesson-call-$index',
                                               ),
+                                              enabled: settings.callEnabledFor(
+                                                lessonEntity,
+                                              ),
+                                              tooltip:
+                                                  strings.callForThisLesson,
+                                              onPressed: () async {
+                                                await widget.controller
+                                                    .setLessonCallEnabled(
+                                                      lessonEntity,
+                                                      !settings.callEnabledFor(
+                                                        lessonEntity,
+                                                      ),
+                                                    );
+                                                setSheetState(() {});
+                                              },
                                             ),
                                     ),
                                   ),
@@ -1352,6 +1357,32 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Per-lesson call toggle. Mirrors the home-screen widget's row icon: a filled
+/// phone when the call is on, the same phone struck through when it is off.
+class _LessonCallToggle extends StatelessWidget {
+  const _LessonCallToggle({
+    super.key,
+    required this.enabled,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final String tooltip;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return IconButton(
+      icon: Icon(enabled ? Icons.call : Icons.phone_disabled),
+      color: enabled ? colors.primary : colors.onSurfaceVariant,
+      tooltip: tooltip,
+      onPressed: () => onPressed(),
     );
   }
 }

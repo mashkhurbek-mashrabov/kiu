@@ -1,18 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/kiu_call_background"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="0dp"
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:paddingHorizontal="28dp"
-    android:paddingTop="56dp"
+    android:paddingTop="40dp"
     android:paddingBottom="56dp">
+
+    <!-- Brand row. The logo art is a dark-green silhouette on transparency, so it is tinted
+         light here to stay legible against the dark call background. -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/call_brand_logo"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@null"
+            android:src="@drawable/kiu_logo"
+            android:tint="#BFE8D2" />
+
+        <TextView
+            android:id="@+id/call_brand_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:letterSpacing="0.18"
+            android:text="@string/app_name"
+            android:textColor="#BFE8D2"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/call_incoming_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
         android:alpha="0.85"
         android:letterSpacing="0.14"
         android:textAllCaps="true"
@@ -25,7 +61,7 @@
     <FrameLayout
         android:layout_width="148dp"
         android:layout_height="148dp"
-        android:layout_marginTop="40dp">
+        android:layout_marginTop="26dp">
 
         <View
             android:id="@+id/call_halo"
@@ -152,3 +188,4 @@
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
+</ScrollView>
