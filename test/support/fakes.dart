@@ -135,10 +135,15 @@ class CapturingScheduleFetcher extends ScheduleFetcher {
 
   final List<Lesson> lessons;
   String? userAgent;
+  String? localeTag;
 
   @override
-  Future<List<Lesson>> fetch({String? userAgent}) async {
+  Future<List<Lesson>> fetch({
+    String? userAgent,
+    String localeTag = 'uz_Cyrl',
+  }) async {
     this.userAgent = userAgent;
+    this.localeTag = localeTag;
     return lessons;
   }
 }

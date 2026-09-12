@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kiu/core/constants.dart';
 import 'package:kiu/data/settings_repository.dart';
 import 'package:kiu/domain/lesson.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
@@ -42,4 +43,26 @@ void main() {
       expect(widgets.status, isNull);
     },
   );
+
+  test('fetches the schedule in the saved app language', () async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    final repository = SettingsRepository(
+      await SharedPreferences.getInstance(),
+    );
+    final fetcher = CapturingScheduleFetcher(const []);
+    final notifications = FakeNotificationGateway();
+    final service = ScheduleSyncService(
+      fetcher: fetcher,
+      repository: repository,
+      reconciler: ReminderReconciler(
+        repository: repository,
+        notifications: notifications,
+      ),
+    );
+
+    await service.synchronize();
+
+    expect(fetcher.localeTag, 'ru');
+    expect(homeUrlFor(fetcher.localeTag!), contains('/ru/'));
+  });
 }

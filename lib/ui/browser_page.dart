@@ -36,7 +36,7 @@ class BrowserPage extends StatefulWidget {
 class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   late final WebViewController _webView;
   Timer? _foregroundTimer;
-  Uri _currentUri = Uri.parse(homeUrl);
+  late Uri _currentUri;
   int _progress = 0;
   bool _canBack = false;
   bool _canForward = false;
@@ -48,6 +48,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   String? _markRequestId;
 
   AppLocalizations get strings => AppLocalizations.of(context);
+
+  String get _homeUrl => homeUrlFor(widget.controller.settings.localeTag);
 
   Brightness get _brightness =>
       resolveDark(widget.controller.settings.themeMode)
@@ -63,7 +65,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     final requestedUri = widget.navigationRequests?.value;
     final initialUri = requestedUri != null && isTrustedHttps(requestedUri)
         ? requestedUri
-        : Uri.parse(homeUrl);
+        : Uri.parse(_homeUrl);
     _currentUri = initialUri;
     _webView = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -220,7 +222,21 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
-  Future<void> _goHome() => _webView.loadRequest(Uri.parse(homeUrl));
+  /// Switches the site over to the app's language by reloading the current
+  /// page with its language prefix swapped, which also makes the server
+  /// persist the choice for later navigation. Unlike the theme and playback
+  /// scripts this runs on the exam platform too, so both sites follow the
+  /// language; it injects nothing and only ever rewrites one of our own URLs.
+  Future<void> _applySiteLanguage() async {
+    final target = withSiteLanguage(
+      _currentUri,
+      widget.controller.settings.localeTag,
+    );
+    if (target == _currentUri) return;
+    await _webView.loadRequest(target);
+  }
+
+  Future<void> _goHome() => _webView.loadRequest(Uri.parse(_homeUrl));
 
   Future<void> _goToRequestedPage() async {
     final uri = widget.navigationRequests?.value;
@@ -440,6 +456,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   },
                 ),
                 ListTile(
+                  key: const Key('language-menu'),
                   leading: const Icon(Icons.language),
                   title: Text(strings.language),
                   onTap: () {
@@ -1196,13 +1213,16 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         ),
       ),
     );
-    if (selected != null) {
-      await widget.controller.setLocale(selected);
-    }
+    if (selected == null) return;
+    await widget.controller.setLocale(selected);
+    await _applySiteLanguage();
   }
 
-  Widget _languageOption(String value, String label) =>
-      RadioListTile<String>(value: value, title: Text(label));
+  Widget _languageOption(String value, String label) => RadioListTile<String>(
+    key: Key('language-$value'),
+    value: value,
+    title: Text(label),
+  );
 
   Future<void> _handleSystemBack() async {
     if (await _webView.canGoBack()) {

@@ -42,6 +42,8 @@ void main() {
     WebViewPlatform.instance = FakeWebViewPlatform();
     SharedPreferences.setMockInitialValues({});
     injectedScripts.clear();
+    loadedUrls.clear();
+    navigateTo = null;
   });
 
   testWidgets('uses headerless compact five-action bottom bar', (tester) async {
@@ -137,6 +139,120 @@ void main() {
       ),
     );
     expect(find.byKey(const Key('home-selected')), findsNothing);
+  });
+
+  testWidgets('highlights Home on the Russian lessons page', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+        navigationRequests: ValueNotifier<Uri?>(
+          Uri.parse('https://uz.do-kazankiu.ru/ru/profile/my-online-lessons'),
+        ),
+      ),
+    );
+    expect(find.byKey(const Key('home-selected')), findsOneWidget);
+  });
+
+  testWidgets('opens the lessons page in the saved language', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    expect(
+      loadedUrls.single,
+      'https://uz.do-kazankiu.ru/ru/profile/my-online-lessons',
+    );
+  });
+
+  testWidgets('reloads the current page when the language changes', (
+    tester,
+  ) async {
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: appController,
+        homeRequests: ValueNotifier<int>(0),
+        navigationRequests: ValueNotifier<Uri?>(
+          Uri.parse('https://uz.do-kazankiu.ru/uz/profile/lesson/42'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-ru')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.localeTag, 'ru');
+    // Same page, Russian prefix: the user keeps their place.
+    expect(loadedUrls.last, 'https://uz.do-kazankiu.ru/ru/profile/lesson/42');
+  });
+
+  testWidgets('switches the exam platform language too', (tester) async {
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    // The exam host is reached by a link in the LMS menu, so drive the same
+    // page callback a real navigation there would.
+    navigateTo!('https://test.do-kazankiu.ru/uz/tests');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-ru')));
+    await tester.pumpAndSettle();
+
+    expect(loadedUrls.last, 'https://test.do-kazankiu.ru/ru/tests');
+  });
+
+  testWidgets('leaves the exam platform free of injected scripts', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    injectedScripts.clear();
+    navigateTo!('https://test.do-kazankiu.ru/uz/tests');
+    await tester.pumpAndSettle();
+
+    // Theme, playback and the KiuBridge stay LMS-only: the exam host shares a
+    // session with the LMS, so anything injected there is a real leak path.
+    expect(injectedScripts, isEmpty);
+  });
+
+  testWidgets('never sends an English prefix to the site', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-en')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.localeTag, 'en');
+    // App UI turns English, but the servers only understand uz/ru and would
+    // blindly persist a bogus `lang=en` cookie.
+    expect(loadedUrls.last, contains('/uz/'));
+    expect(loadedUrls, everyElement(isNot(contains('/en/'))));
   });
 
   testWidgets('shows cached scheduled lessons from More', (tester) async {
