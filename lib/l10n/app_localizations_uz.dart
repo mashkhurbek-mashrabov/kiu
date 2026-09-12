@@ -284,6 +284,18 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get themeDark => 'Tungi';
+
+  @override
+  String get usefulLinks => 'Foydali havolalar';
+
+  @override
+  String get testPlatforms => 'Test platformalari';
+
+  @override
+  String get pdfBooks => 'PDF kitoblar';
+
+  @override
+  String get apps => 'Ilovalar';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -565,4 +577,16 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get themeDark => 'Тунги';
+
+  @override
+  String get usefulLinks => 'Фойдали ҳаволалар';
+
+  @override
+  String get testPlatforms => 'Тест платформалари';
+
+  @override
+  String get pdfBooks => 'PDF китоблар';
+
+  @override
+  String get apps => 'Иловалар';
 }

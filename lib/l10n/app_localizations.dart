@@ -616,6 +616,30 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Тунги'**
   String get themeDark;
+
+  /// No description provided for @usefulLinks.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фойдали ҳаволалар'**
+  String get usefulLinks;
+
+  /// No description provided for @testPlatforms.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тест платформалари'**
+  String get testPlatforms;
+
+  /// No description provided for @pdfBooks.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'PDF китоблар'**
+  String get pdfBooks;
+
+  /// No description provided for @apps.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Иловалар'**
+  String get apps;
 }
 
 class _AppLocalizationsDelegate

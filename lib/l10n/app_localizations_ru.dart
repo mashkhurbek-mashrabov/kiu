@@ -284,4 +284,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get themeDark => 'Тёмная';
+
+  @override
+  String get usefulLinks => 'Полезные ссылки';
+
+  @override
+  String get testPlatforms => 'Платформы тестирования';
+
+  @override
+  String get pdfBooks => 'Книги в PDF';
+
+  @override
+  String get apps => 'Приложения';
 }

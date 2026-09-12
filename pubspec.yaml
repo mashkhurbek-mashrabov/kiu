@@ -20,6 +20,7 @@ dependencies:
   webview_flutter: 4.14.1
   webview_flutter_android: 4.14.1
   workmanager: 0.10.9
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
@@ -462,6 +463,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _selectLanguage();
+                  },
+                ),
+                ListTile(
+                  key: const Key('useful-links-menu'),
+                  leading: const Icon(Icons.link),
+                  title: Text(strings.usefulLinks),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openUsefulLinks();
                   },
                 ),
                 if (widget.controller.appVersion case final version?) ...[
@@ -1043,6 +1053,105 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       ),
     ),
   );
+
+  Future<void> _openUsefulLinks() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => Scaffold(
+        appBar: AppBar(title: Text(strings.usefulLinks)),
+        body: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.testPlatforms,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
+              ('nurul-izoh.com', 'https://nurul-izoh.com'),
+              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () => _launchExternal(link.$2),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.pdfBooks,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              (
+                'E\'tiqod durdonalari',
+                'https://uz.do-kazankiu.ru/files/upload/books/2024-10-19-17-14-55_51415d09fa306b663e1d1f9ba25f8bf6.pdf',
+              ),
+              (
+                'Nurul Izoh',
+                'https://uz.do-kazankiu.ru/files/upload/books/2026-09-03-13-50-07_dcf4732467d276aa.pdf',
+              ),
+              (
+                'Mabdaul qiroat 1',
+                'https://arabic.uz/kitoblar/mabdaul-qiroat-1.pdf',
+              ),
+              (
+                'Mabdaul qiroat 2',
+                'https://arabic.uz/kitoblar/mabdaul-qiroat-2.pdf',
+              ),
+              (
+                'Mabdaul qiroat 3',
+                'https://arabic.uz/kitoblar/mabdaul-qiroat-3.pdf',
+              ),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.picture_as_pdf_outlined),
+                  onTap: () => _launchExternal(link.$2),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.apps,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              (
+                'Riyozus solihiyn',
+                'https://play.google.com/store/apps/details?id=uz.hilolnashr.riyozus_solihiyn',
+              ),
+              (
+                'Odoblar xazinasi',
+                'https://play.google.com/store/apps/details?id=uz.hilol.odoblar',
+              ),
+              (
+                'Arabcha-O‘zbekcha lug‘at',
+                'https://play.google.com/store/apps/details?id=uz.hilal.javohir',
+              ),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () => _launchExternal(link.$2),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _launchExternal(String url) =>
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
   Widget _reminderSoundOverrideTile(
     int offsetMinutes,

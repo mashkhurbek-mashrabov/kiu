@@ -283,6 +283,37 @@ void main() {
     expect(find.byKey(const Key('scheduled-lessons-menu')), findsOneWidget);
   });
 
+  testWidgets('opens Useful links with test platforms, books and apps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Фойдали ҳаволалар'), findsOneWidget);
+    expect(find.text('Тест платформалари'), findsOneWidget);
+    expect(find.text('nurul-izoh.com'), findsOneWidget);
+    expect(find.text('PDF китоблар'), findsOneWidget);
+    expect(find.text('Nurul Izoh'), findsOneWidget);
+    expect(find.text('Mabdaul qiroat 2'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Riyozus solihiyn'), 300);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иловалар'), findsOneWidget);
+    expect(find.text('Riyozus solihiyn'), findsOneWidget);
+  });
+
   testWidgets(
     'toggles a lesson call from the phone icon in Scheduled lessons',
     (tester) async {

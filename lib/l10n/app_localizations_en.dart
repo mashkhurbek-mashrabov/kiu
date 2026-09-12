@@ -283,4 +283,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeDark => 'Dark';
+
+  @override
+  String get usefulLinks => 'Useful links';
+
+  @override
+  String get testPlatforms => 'Test platforms';
+
+  @override
+  String get pdfBooks => 'PDF books';
+
+  @override
+  String get apps => 'Apps';
 }
