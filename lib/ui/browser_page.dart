@@ -4,14 +4,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_controller.dart';
 import '../core/constants.dart';
+import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../l10n/app_localizations.dart';
+import '../services/lesson_widget_service.dart';
 import '../services/time_zone_service.dart';
 import '../web/js_scripts.dart';
 
@@ -34,7 +37,7 @@ class BrowserPage extends StatefulWidget {
 class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   late final WebViewController _webView;
   Timer? _foregroundTimer;
-  Uri _currentUri = Uri.parse(homeUrl);
+  late Uri _currentUri;
   int _progress = 0;
   bool _canBack = false;
   bool _canForward = false;
@@ -47,6 +50,13 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
 
   AppLocalizations get strings => AppLocalizations.of(context);
 
+  String get _homeUrl => homeUrlFor(widget.controller.settings.localeTag);
+
+  Brightness get _brightness =>
+      resolveDark(widget.controller.settings.themeMode)
+      ? Brightness.dark
+      : Brightness.light;
+
   @override
   void initState() {
     super.initState();
@@ -56,11 +66,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     final requestedUri = widget.navigationRequests?.value;
     final initialUri = requestedUri != null && isTrustedHttps(requestedUri)
         ? requestedUri
-        : Uri.parse(homeUrl);
+        : Uri.parse(_homeUrl);
     _currentUri = initialUri;
     _webView = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
+      ..setBackgroundColor(surfaceFor(_brightness))
       ..addJavaScriptChannel(
         'KiuBridge',
         onMessageReceived: _handleBridgeMessage,
@@ -137,6 +147,14 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
+  @override
+  void didChangePlatformBrightness() {
+    if (widget.controller.settings.themeMode != ThemeMode.system) return;
+    if (mounted) setState(() {});
+    unawaited(_applySiteTheme());
+    unawaited(widget.controller.refreshWidget());
+  }
+
   NavigationDecision _handleNavigation(NavigationRequest request) {
     final uri = Uri.tryParse(request.url);
     if (uri != null && uri.scheme == 'https') {
@@ -166,6 +184,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     _canForward = await _webView.canGoForward();
     if (uri != null && isTrustedHttps(uri)) {
       await _applyPlaybackRate();
+      await _applySiteTheme();
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
         unawaited(_maybeExplainBackgroundAccess());
@@ -186,13 +205,39 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     );
   }
 
+  /// Mirrors the app theme onto the LMS page: recolors the WebView so page
+  /// transitions do not flash the opposite theme, then nudges the site's own
+  /// dark-mode toggle when it disagrees with the app.
+  Future<void> _applySiteTheme() async {
+    final brightness = _brightness;
+    await _webView.setBackgroundColor(surfaceFor(brightness));
+    if (!isTrustedHttps(_currentUri)) return;
+    await _webView.runJavaScript(
+      siteThemeScript(brightness == Brightness.dark),
+    );
+  }
+
   Future<void> _setPlaybackRate(double rate) async {
     await widget.controller.setPlaybackRate(rate);
     await _applyPlaybackRate();
     if (mounted) setState(() {});
   }
 
-  Future<void> _goHome() => _webView.loadRequest(Uri.parse(homeUrl));
+  /// Switches the site over to the app's language by reloading the current
+  /// page with its language prefix swapped, which also makes the server
+  /// persist the choice for later navigation. Unlike the theme and playback
+  /// scripts this runs on the exam platform too, so both sites follow the
+  /// language; it injects nothing and only ever rewrites one of our own URLs.
+  Future<void> _applySiteLanguage() async {
+    final target = withSiteLanguage(
+      _currentUri,
+      widget.controller.settings.localeTag,
+    );
+    if (target == _currentUri) return;
+    await _webView.loadRequest(target);
+  }
+
+  Future<void> _goHome() => _webView.loadRequest(Uri.parse(_homeUrl));
 
   Future<void> _goToRequestedPage() async {
     final uri = widget.navigationRequests?.value;
@@ -336,7 +381,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
-                  children: <double>[0.5, 1, 1.5, 1.7, 2, 2.5, 3]
+                  children: <double>[1, 1.5, 1.7, 2, 2.5]
                       .map(
                         (rate) => ChoiceChip(
                           label: Text(
@@ -355,10 +400,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 const SizedBox(height: 8),
                 Text('${strings.customSpeed}: ${selected.toStringAsFixed(2)}×'),
                 Slider(
-                  value: selected.clamp(0.25, 4.0).toDouble(),
-                  min: 0.25,
+                  value: selected.clamp(0.5, 4.0).toDouble(),
+                  min: 0.5,
                   max: 4,
-                  divisions: 75,
+                  divisions: 70,
                   onChanged: (value) => setSheetState(() => selected = value),
                   onChangeEnd: _setPlaybackRate,
                 ),
@@ -382,6 +427,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   },
                 ),
                 ListTile(
+                  key: const Key('scheduled-lessons-menu'),
+                  leading: const Icon(Icons.calendar_month_outlined),
+                  title: Text(strings.scheduledLessons),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openScheduledLessons();
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.public),
                   title: Text(strings.timezone),
                   subtitle: Text(widget.controller.settings.timeZoneId),
@@ -391,11 +445,33 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   },
                 ),
                 ListTile(
+                  key: const Key('theme-mode-menu'),
+                  leading: const Icon(Icons.brightness_6_outlined),
+                  title: Text(strings.appearance),
+                  subtitle: Text(
+                    _themeModeLabel(widget.controller.settings.themeMode),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _selectThemeMode();
+                  },
+                ),
+                ListTile(
+                  key: const Key('language-menu'),
                   leading: const Icon(Icons.language),
                   title: Text(strings.language),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _selectLanguage();
+                  },
+                ),
+                ListTile(
+                  key: const Key('useful-links-menu'),
+                  leading: const Icon(Icons.link),
+                  title: Text(strings.usefulLinks),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openUsefulLinks();
                   },
                 ),
                 if (widget.controller.appVersion case final version?) ...[
@@ -417,15 +493,151 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openScheduledLessons() async {
+    final scheduledLessons = widget.controller.scheduledLessons;
+    final lessons = buildLessonWidgetPayload(
+      scheduledLessons,
+      widget.controller.settings,
+      TimeZoneService(),
+    );
+    final lessonsByKey = {
+      for (final lesson in scheduledLessons) lesson.callKey: lesson,
+    };
+    final returnToActions = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final settings = widget.controller.settings;
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height * .75,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 24, 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          key: const Key('scheduled-lessons-back'),
+                          icon: const Icon(Icons.arrow_back),
+                          tooltip: strings.back,
+                          onPressed: () => Navigator.pop(context, true),
+                        ),
+                        Expanded(
+                          child: Text(
+                            strings.scheduledLessons,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: lessons.isEmpty
+                        ? Center(child: Text(strings.noScheduledLessons))
+                        : ListView.builder(
+                            key: const Key('scheduled-lessons-list'),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            itemCount: lessons.length,
+                            itemBuilder: (context, index) {
+                              final lesson = lessons[index];
+                              final startsGroup =
+                                  index == 0 ||
+                                  lesson['group'] !=
+                                      lessons[index - 1]['group'];
+                              final lessonEntity = lessonsByKey[lesson['key']];
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (startsGroup)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        8,
+                                        16,
+                                        8,
+                                        4,
+                                      ),
+                                      child: Text(
+                                        lesson['group']! as String,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                    ),
+                                  Card(
+                                    child: ListTile(
+                                      key: Key('scheduled-lesson-$index'),
+                                      title: Text(lesson['title']! as String),
+                                      subtitle: Text(
+                                        lesson['displayStart']! as String,
+                                      ),
+                                      // Phone icon rather than a switch, matching
+                                      // the home-screen widget's per-row toggle.
+                                      trailing: lessonEntity == null
+                                          ? null
+                                          : _LessonCallToggle(
+                                              key: Key(
+                                                'scheduled-lesson-call-$index',
+                                              ),
+                                              enabled: settings.callEnabledFor(
+                                                lessonEntity,
+                                              ),
+                                              tooltip:
+                                                  strings.callForThisLesson,
+                                              onPressed: () async {
+                                                await widget.controller
+                                                    .setLessonCallEnabled(
+                                                      lessonEntity,
+                                                      !settings.callEnabledFor(
+                                                        lessonEntity,
+                                                      ),
+                                                    );
+                                                setSheetState(() {});
+                                              },
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (returnToActions == true && mounted) _openActions();
+  }
+
   Future<void> _openNotificationSettings() async {
     final customController = TextEditingController();
     var customUnitHours = false;
+    var fullScreenIntentRefreshStarted = false;
     final returnToMainSettings = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
+          if (!fullScreenIntentRefreshStarted) {
+            fullScreenIntentRefreshStarted = true;
+            // Fire-and-forget: the sheet must render immediately rather
+            // than block on a platform channel round trip, so the
+            // full-screen-access tile appears a frame later once this
+            // resolves.
+            widget.controller.refreshFullScreenIntentAccess().then((_) {
+              if (mounted) setSheetState(() {});
+            });
+            widget.controller.refreshOverlayAccess().then((_) {
+              if (mounted) setSheetState(() {});
+            });
+          }
           final settings = widget.controller.settings;
           final offsets = settings.reminderOffsetsMinutes.toSet();
           Future<void> toggleOffset(int value, bool enabled) async {
@@ -493,11 +705,82 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       subtitle: Text(
                         settings.reminderSoundUri == null
                             ? strings.defaultSound
-                            : strings.soundSelected,
+                            : settings.reminderSoundName ??
+                                  strings.soundSelected,
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _openSoundSettings,
                     ),
+                    const Divider(),
+                    SwitchListTile(
+                      key: const Key('lesson-calls-switch'),
+                      title: Text(strings.lessonCalls),
+                      subtitle: Text(strings.lessonCallsHelp),
+                      value: settings.callsEnabled,
+                      onChanged: (value) async {
+                        await widget.controller.setCallsEnabled(value);
+                        setSheetState(() {});
+                      },
+                    ),
+                    ListTile(
+                      key: const Key('call-ring-duration'),
+                      leading: const Icon(Icons.timer_outlined),
+                      title: Text(strings.ringDuration),
+                      subtitle: Text(
+                        strings.ringDurationValue(settings.callRingSeconds),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: settings.callsEnabled
+                          ? () async {
+                              await _openCallRingDurationDialog(settings);
+                              setSheetState(() {});
+                            }
+                          : null,
+                    ),
+                    ListTile(
+                      key: const Key('call-ringtone'),
+                      leading: const Icon(Icons.ring_volume_outlined),
+                      title: Text(strings.callRingtone),
+                      subtitle: Text(
+                        settings.callRingtoneName ?? strings.defaultSound,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: settings.callsEnabled
+                          ? () async {
+                              await widget.controller.selectCallRingtone();
+                              setSheetState(() {});
+                            }
+                          : null,
+                    ),
+                    if (settings.callsEnabled &&
+                        !widget.controller.canUseFullScreenIntent)
+                      ListTile(
+                        key: const Key('full-screen-access'),
+                        leading: const Icon(Icons.fullscreen),
+                        title: Text(strings.fullScreenAccess),
+                        subtitle: Text(strings.fullScreenAccessHelp),
+                        trailing: const Icon(Icons.open_in_new),
+                        onTap: () async {
+                          await widget.controller
+                              .openFullScreenIntentSettings();
+                          setSheetState(() {});
+                        },
+                      ),
+                    // Android grants this one only from its own settings screen, so the
+                    // switch reflects the current state and both directions deep-link
+                    // there rather than toggling anything locally.
+                    if (settings.callsEnabled)
+                      SwitchListTile(
+                        key: const Key('overlay-access-tile'),
+                        secondary: const Icon(Icons.picture_in_picture_alt),
+                        title: Text(strings.overlayAccess),
+                        subtitle: Text(strings.overlayAccessHelp),
+                        value: widget.controller.canDrawOverlays,
+                        onChanged: (_) async {
+                          await widget.controller.openOverlaySettings();
+                          setSheetState(() {});
+                        },
+                      ),
                     for (final option in <(int, String)>[
                       (180, strings.threeHours),
                       (60, strings.oneHour),
@@ -650,6 +933,67 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         : '$hours ${strings.hours} $remainder ${strings.minutes}';
   }
 
+  Future<void> _openCallRingDurationDialog(AppSettings settings) async {
+    final customController = TextEditingController();
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(strings.ringDuration),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              children: <int>[15, 30, 60, 120]
+                  .map(
+                    (seconds) => ChoiceChip(
+                      label: Text(strings.ringDurationValue(seconds)),
+                      selected: settings.callRingSeconds == seconds,
+                      onSelected: (_) => Navigator.pop(context, seconds),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: customController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(hintText: '10–300'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: strings.add,
+                  onPressed: () {
+                    final amount = int.tryParse(customController.text);
+                    if (amount == null) return;
+                    Navigator.pop(context, amount);
+                  },
+                  icon: const Icon(Icons.check_circle),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(strings.cancel),
+          ),
+        ],
+      ),
+    );
+    customController.dispose();
+    if (selected != null) {
+      await widget.controller.setCallRingSeconds(selected);
+    }
+  }
+
   Future<void> _openSoundSettings() => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => StatefulBuilder(
@@ -669,7 +1013,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   subtitle: Text(
                     settings.reminderSoundUri == null
                         ? strings.defaultSound
-                        : strings.soundSelected,
+                        : settings.reminderSoundName ?? strings.soundSelected,
                   ),
                   trailing: TextButton(
                     onPressed: () async {
@@ -710,6 +1054,105 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     ),
   );
 
+  Future<void> _openUsefulLinks() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => Scaffold(
+        appBar: AppBar(title: Text(strings.usefulLinks)),
+        body: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.testPlatforms,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
+              ('nurul-izoh.com', 'https://nurul-izoh.com'),
+              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () => _launchExternal(link.$2),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.pdfBooks,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              (
+                'E\'tiqod durdonalari',
+                'https://uz.do-kazankiu.ru/files/upload/books/2024-10-19-17-14-55_51415d09fa306b663e1d1f9ba25f8bf6.pdf',
+              ),
+              (
+                'Nurul Izoh',
+                'https://uz.do-kazankiu.ru/files/upload/books/2026-09-03-13-50-07_dcf4732467d276aa.pdf',
+              ),
+              (
+                'Mabdaul qiroat 1',
+                'https://arabic.uz/kitoblar/mabdaul-qiroat-1.pdf',
+              ),
+              (
+                'Mabdaul qiroat 2',
+                'https://arabic.uz/kitoblar/mabdaul-qiroat-2.pdf',
+              ),
+              (
+                'Mabdaul qiroat 3',
+                'https://arabic.uz/kitoblar/mabdaul-qiroat-3.pdf',
+              ),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.picture_as_pdf_outlined),
+                  onTap: () => _launchExternal(link.$2),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.apps,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              (
+                'Riyozus solihiyn',
+                'https://play.google.com/store/apps/details?id=uz.hilolnashr.riyozus_solihiyn',
+              ),
+              (
+                'Odoblar xazinasi',
+                'https://play.google.com/store/apps/details?id=uz.hilol.odoblar',
+              ),
+              (
+                'Arabcha-O‘zbekcha lug‘at',
+                'https://play.google.com/store/apps/details?id=uz.hilal.javohir',
+              ),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.open_in_new),
+                  onTap: () => _launchExternal(link.$2),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _launchExternal(String url) =>
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
   Widget _reminderSoundOverrideTile(
     int offsetMinutes,
     AppSettings settings,
@@ -723,7 +1166,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       leading: Icon(hasOverride ? Icons.music_note : Icons.music_note_outlined),
       title: Text(_reminderOffsetLabel(offsetMinutes)),
       subtitle: Text(
-        hasOverride ? strings.customSound : strings.inheritsMainSound,
+        hasOverride
+            ? settings.reminderSoundOverrideNames[offsetMinutes] ??
+                  strings.customSound
+            : strings.inheritsMainSound,
       ),
       trailing: hasOverride
           ? Row(
@@ -766,14 +1212,23 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   }
 
   Future<void> _selectTimeZone() async {
-    final zones = TimeZoneService().availableZoneIds;
+    final timeZoneService = TimeZoneService();
+    final zones = timeZoneService.availableZoneIds;
+    final offsetLabels = {
+      for (final zone in zones) zone: timeZoneService.offsetLabel(zone),
+    };
     var query = '';
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final needle = query.toLowerCase();
           final filtered = zones
-              .where((zone) => zone.toLowerCase().contains(query.toLowerCase()))
+              .where(
+                (zone) =>
+                    zone.toLowerCase().contains(needle) ||
+                    offsetLabels[zone]!.toLowerCase().contains(needle),
+              )
               .take(100)
               .toList();
           return AlertDialog(
@@ -802,6 +1257,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                           return RadioListTile<String>(
                             value: zone,
                             title: Text(zone),
+                            subtitle: Text(offsetLabels[zone]!),
                           );
                         },
                       ),
@@ -817,6 +1273,36 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (selected != null) {
       await widget.controller.setTimeZone(selected);
     }
+  }
+
+  String _themeModeLabel(ThemeMode mode) => switch (mode) {
+    ThemeMode.system => strings.themeSystem,
+    ThemeMode.light => strings.themeLight,
+    ThemeMode.dark => strings.themeDark,
+  };
+
+  Future<void> _selectThemeMode() async {
+    final selected = await showDialog<ThemeMode>(
+      context: context,
+      builder: (context) => RadioGroup<ThemeMode>(
+        groupValue: widget.controller.settings.themeMode,
+        onChanged: (value) => Navigator.pop(context, value),
+        child: SimpleDialog(
+          title: Text(strings.appearance),
+          children: [
+            for (final mode in ThemeMode.values)
+              RadioListTile<ThemeMode>(
+                key: Key('theme-mode-${mode.name}'),
+                value: mode,
+                title: Text(_themeModeLabel(mode)),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await widget.controller.setThemeMode(selected);
+    await _applySiteTheme();
   }
 
   Future<void> _selectLanguage() async {
@@ -836,13 +1322,16 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         ),
       ),
     );
-    if (selected != null) {
-      await widget.controller.setLocale(selected);
-    }
+    if (selected == null) return;
+    await widget.controller.setLocale(selected);
+    await _applySiteLanguage();
   }
 
-  Widget _languageOption(String value, String label) =>
-      RadioListTile<String>(value: value, title: Text(label));
+  Widget _languageOption(String value, String label) => RadioListTile<String>(
+    key: Key('language-$value'),
+    value: value,
+    title: Text(label),
+  );
 
   Future<void> _handleSystemBack() async {
     if (await _webView.canGoBack()) {
@@ -1007,6 +1496,32 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Per-lesson call toggle. Mirrors the home-screen widget's row icon: a filled
+/// phone when the call is on, the same phone struck through when it is off.
+class _LessonCallToggle extends StatelessWidget {
+  const _LessonCallToggle({
+    super.key,
+    required this.enabled,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final String tooltip;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return IconButton(
+      icon: Icon(enabled ? Icons.call : Icons.phone_disabled),
+      color: enabled ? colors.primary : colors.onSurfaceVariant,
+      tooltip: tooltip,
+      onPressed: () => onPressed(),
     );
   }
 }

@@ -43,8 +43,13 @@ class ScheduleFetcher {
   final ScheduleParser _parser;
   final HttpClient _client;
 
-  Future<List<Lesson>> fetch({String? userAgent}) async {
-    final uri = Uri.parse(homeUrl);
+  /// Fetches the schedule page in the app's language, so cached lesson titles
+  /// match what the rest of the app (reminders, widget, call screen) shows.
+  Future<List<Lesson>> fetch({
+    String? userAgent,
+    String localeTag = 'uz_Cyrl',
+  }) async {
+    final uri = Uri.parse(homeUrlFor(localeTag));
     final cookies = await _cookieProvider.cookiesFor(uri);
     if (cookies.isEmpty) throw const ScheduleFetchException('auth');
 

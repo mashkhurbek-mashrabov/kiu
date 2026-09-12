@@ -13,6 +13,10 @@ class Lesson {
 
   String get key => lessonId ?? '$title|$websiteStart';
 
+  /// Occurrence-unique key: [key] alone may repeat across occurrences of a
+  /// recurring course, but a call alert must target one specific occurrence.
+  String get callKey => '$key@$websiteStart';
+
   Map<String, Object> toJson() {
     final json = <String, Object>{'title': title, 'websiteStart': websiteStart};
     if (lessonId != null) json['lessonId'] = lessonId!;

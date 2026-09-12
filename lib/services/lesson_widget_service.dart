@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 
+import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import 'reminder_reconciler.dart' show stableNotificationId;
 import 'time_zone_service.dart';
 
 const lessonWidgetProvider = 'KiuLessonWidgetProvider';
@@ -35,6 +37,45 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     final payload = buildLessonWidgetPayload(lessons, settings, _timeZones);
     final now = DateTime.now();
     await HomeWidget.saveWidgetData<String>('lessons', jsonEncode(payload));
+    final callPayload = buildLessonCallPayload(
+      lessons,
+      settings,
+      _timeZones,
+      now: now,
+    );
+    await HomeWidget.saveWidgetData<String>('calls', jsonEncode(callPayload));
+    await HomeWidget.saveWidgetData<String>(
+      'callRingSeconds',
+      '${settings.callRingSeconds}',
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callRingtoneUri',
+      settings.callRingtoneUri ?? '',
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callIncomingLabel',
+      _label(settings.localeTag, 'callIncoming'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callAnswerLabel',
+      _label(settings.localeTag, 'callAnswer'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callDeclineLabel',
+      _label(settings.localeTag, 'callDecline'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callToggleOnLabel',
+      _label(settings.localeTag, 'callToggleOn'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callToggleOffLabel',
+      _label(settings.localeTag, 'callToggleOff'),
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'callJoinLabel',
+      _label(settings.localeTag, 'callJoin'),
+    );
     await HomeWidget.saveWidgetData<String>(
       'syncLabel',
       _label(settings.localeTag, 'sync'),
@@ -46,6 +87,10 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     await HomeWidget.saveWidgetData<String>('widgetStatus', '');
     await HomeWidget.saveWidgetData<String>('widgetStatusVisibleUntil', '0');
     await HomeWidget.saveWidgetData<String>('widgetIsSyncing', 'false');
+    await HomeWidget.saveWidgetData<String>(
+      'widgetDark',
+      widgetDarkFlag(settings),
+    );
     await HomeWidget.saveWidgetData<String>(
       'widgetLastSync',
       buildLessonWidgetLastSyncLabel(lastSuccessfulSync, settings, _timeZones),
@@ -96,6 +141,10 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       'emptyLabel',
       _label(settings.localeTag, 'empty'),
     );
+    await HomeWidget.saveWidgetData<String>(
+      'widgetDark',
+      widgetDarkFlag(settings),
+    );
     await _update();
   }
 
@@ -103,6 +152,12 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     qualifiedAndroidName: lessonWidgetQualifiedProvider,
   );
 }
+
+/// RemoteViews cannot read the app's ThemeData and `values-night` would follow
+/// the OS instead of the in-app choice, so the resolved mode travels to Kotlin
+/// as data and the provider tints the views itself.
+String widgetDarkFlag(AppSettings settings) =>
+    resolveDark(settings.themeMode) ? 'true' : 'false';
 
 List<DateTime> buildLessonWidgetUpdateTimes(
   List<Map<String, Object?>> payload,
@@ -138,12 +193,14 @@ List<Map<String, Object?>> buildLessonWidgetPayload(
       final start = timeZones.parseWebsiteTime(lesson.websiteStart);
       final groupKey = buildLessonWidgetGroupKey(start, settings, timeZones);
       payload.add({
+        'key': lesson.callKey,
         'title': lesson.title,
         'start': start.millisecondsSinceEpoch,
         'displayStart': buildLessonWidgetLessonTime(start, settings, timeZones),
         'group': _label(settings.localeTag, groupKey),
         'groupKey': groupKey,
         'meetingUrl': lesson.meetingUrl,
+        'callEnabled': settings.callEnabledFor(lesson),
       });
     } on FormatException {
       continue;
@@ -153,13 +210,50 @@ List<Map<String, Object?>> buildLessonWidgetPayload(
   return payload;
 }
 
+/// Future, call-enabled occurrences only, ready for native alarm arming.
+/// `requestCode` reuses [stableNotificationId] rather than duplicating the
+/// hash on the Kotlin side.
+List<Map<String, Object?>> buildLessonCallPayload(
+  List<Lesson> lessons,
+  AppSettings settings,
+  TimeZoneService timeZones, {
+  DateTime? now,
+}) {
+  final cutoff = now ?? DateTime.now();
+  final payload = <Map<String, Object?>>[];
+  for (final lesson in lessons) {
+    if (!settings.callEnabledFor(lesson)) continue;
+    DateTime start;
+    try {
+      start = timeZones.parseWebsiteTime(lesson.websiteStart);
+    } on FormatException {
+      continue;
+    }
+    if (!start.isAfter(cutoff)) continue;
+    payload.add({
+      'key': lesson.callKey,
+      'requestCode': stableNotificationId('call|${lesson.callKey}'),
+      'title': lesson.title,
+      'displayStart': buildLessonWidgetLessonTime(start, settings, timeZones),
+      'start': start.millisecondsSinceEpoch,
+      'meetingUrl': lesson.meetingUrl,
+    });
+  }
+  payload.sort((a, b) => (a['start']! as int).compareTo(b['start']! as int));
+  return payload;
+}
+
 String buildLessonWidgetLessonTime(
   DateTime instant,
   AppSettings settings,
   TimeZoneService timeZones,
-) =>
-    DateFormat('HH:mm | dd-MM-yyyy')
-        .format(timeZones.inZone(instant, settings.timeZoneId));
+) {
+  final zoned = timeZones.inZone(instant, settings.timeZoneId);
+  final time = DateFormat('HH:mm').format(zoned);
+  final day = zoned.day.toString().padLeft(2, '0');
+  final month = _monthName(settings.localeTag, zoned.month);
+  return '$time | $day-$month';
+}
 
 String buildLessonWidgetLastSyncTime(
   DateTime instant,
@@ -197,6 +291,33 @@ String buildLessonWidgetGroupKey(
   };
 }
 
+const _monthNamesEn = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const _monthNamesRu = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+const _monthNamesUz = [
+  'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+  'iyul', 'avgust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr',
+];
+const _monthNamesUzCyrl = [
+  'январ', 'феврал', 'март', 'апрел', 'май', 'июн',
+  'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр',
+];
+
+String _monthName(String locale, int month) {
+  final names = switch (locale) {
+    'ru' => _monthNamesRu,
+    'en' => _monthNamesEn,
+    'uz' => _monthNamesUz,
+    _ => _monthNamesUzCyrl,
+  };
+  return names[month - 1];
+}
+
 String _label(String locale, String key) => switch ((locale, key)) {
   ('ru', 'sync') => 'Обновить',
   ('ru', 'subtitle') => 'Запланированные онлайн-занятия',
@@ -209,6 +330,12 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('ru', 'today') => 'Сегодня',
   ('ru', 'tomorrow') => 'Завтра',
   ('ru', 'others') => 'Другие',
+  ('ru', 'callIncoming') => 'Урок начинается',
+  ('ru', 'callAnswer') => 'Ответить',
+  ('ru', 'callDecline') => 'Отклонить',
+  ('ru', 'callToggleOn') => 'Включить звонок для этого урока',
+  ('ru', 'callToggleOff') => 'Отключить звонок для этого урока',
+  ('ru', 'callJoin') => 'Присоединиться к уроку',
   ('en', 'sync') => 'Sync',
   ('en', 'subtitle') => 'Scheduled online lessons',
   ('en', 'syncing') => 'Synchronizing…',
@@ -220,6 +347,12 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('en', 'today') => 'Today',
   ('en', 'tomorrow') => 'Tomorrow',
   ('en', 'others') => 'Others',
+  ('en', 'callIncoming') => 'Lesson starting',
+  ('en', 'callAnswer') => 'Join',
+  ('en', 'callDecline') => 'Dismiss',
+  ('en', 'callToggleOn') => 'Turn on the call for this lesson',
+  ('en', 'callToggleOff') => 'Turn off the call for this lesson',
+  ('en', 'callJoin') => 'Join the lesson',
   ('uz', 'sync') => 'Yangilash',
   ('uz', 'subtitle') => 'Rejalashtirilgan onlayn darslar',
   ('uz', 'syncing') => 'Sinxronlanmoqda…',
@@ -231,6 +364,12 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('uz', 'today') => 'Bugun',
   ('uz', 'tomorrow') => 'Ertaga',
   ('uz', 'others') => 'Boshqalar',
+  ('uz', 'callIncoming') => 'Dars boshlanmoqda',
+  ('uz', 'callAnswer') => 'Qo‘shilish',
+  ('uz', 'callDecline') => 'Rad etish',
+  ('uz', 'callToggleOn') => 'Bu dars uchun qo‘ng‘iroqni yoqish',
+  ('uz', 'callToggleOff') => 'Bu dars uchun qo‘ng‘iroqni o‘chirish',
+  ('uz', 'callJoin') => 'Darsga qo‘shilish',
   (_, 'sync') => 'Янгилаш',
   (_, 'subtitle') => 'Режалаштирилган онлайн дарслар',
   (_, 'syncing') => 'Синхронланмоқда…',
@@ -242,5 +381,11 @@ String _label(String locale, String key) => switch ((locale, key)) {
   (_, 'today') => 'Бугун',
   (_, 'tomorrow') => 'Эртага',
   (_, 'others') => 'Бошқалар',
+  (_, 'callIncoming') => 'Дарс бошланмоқда',
+  (_, 'callAnswer') => 'Қўшилиш',
+  (_, 'callDecline') => 'Рад этиш',
+  (_, 'callToggleOn') => 'Бу дарс учун қўнғироқни ёқиш',
+  (_, 'callToggleOff') => 'Бу дарс учун қўнғироқни ўчириш',
+  (_, 'callJoin') => 'Дарсга қўшилиш',
   _ => '',
 };

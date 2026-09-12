@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 String playbackRateScript(double rate) {
-  final encodedRate = jsonEncode(rate.clamp(0.25, 4.0));
+  final encodedRate = jsonEncode(rate.clamp(0.5, 4.0));
   return '''
 (() => {
   const rate = $encodedRate;
@@ -36,6 +36,36 @@ String playbackRateScript(double rate) {
     });
   }
   return document.querySelectorAll('video').length;
+})();
+''';
+}
+
+/// Drives the LMS theme the same way the site's own `theme-script.js` does:
+/// `localStorage.darkMode` is the source of truth and the site applies it as a
+/// `dark`/`light` class on `<html>` on every load. Writing both directly (in
+/// place of clicking `#dark-mode-toggle`) also survives navigation, since the
+/// site re-reads localStorage before first paint.
+String siteThemeScript(bool dark) {
+  final encodedDark = jsonEncode(dark);
+  return '''
+(() => {
+  const dark = $encodedDark;
+  try {
+    window.localStorage.setItem('darkMode', dark ? 'enabled' : 'disabled');
+  } catch (error) {
+    // Storage can be blocked; the class below still themes this page.
+  }
+  const root = document.documentElement;
+  root.classList.toggle('dark', dark);
+  root.classList.toggle('light', !dark);
+  // The header keeps two buttons; `activate` marks the one still available,
+  // so the icon for the mode we just left is the visible one.
+  const darkToggle = document.getElementById('dark-mode-toggle');
+  const lightToggle = document.getElementById('light-mode-toggle');
+  if (!darkToggle || !lightToggle) return 'applied';
+  darkToggle.classList.toggle('activate', !dark);
+  lightToggle.classList.toggle('activate', dark);
+  return 'synced';
 })();
 ''';
 }

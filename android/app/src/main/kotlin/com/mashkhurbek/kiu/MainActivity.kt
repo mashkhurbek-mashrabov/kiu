@@ -1,5 +1,6 @@
 package com.mashkhurbek.kiu
 
+import android.app.NotificationManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -35,7 +36,34 @@ class MainActivity : FlutterActivity() {
                 RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
             )
         }
-        result.success(sound?.toString())
+        if (sound == null) {
+            result.success(null)
+            return
+        }
+        val name = RingtoneManager.getRingtone(applicationContext, sound)
+            ?.getTitle(applicationContext)
+            ?: sound.lastPathSegment
+        result.success(mapOf("uri" to sound.toString(), "name" to name))
+    }
+
+    /**
+     * Opens Android's "Display over other apps" screen.
+     *
+     * The `package:` URI is honoured on OEM builds that support it and lands straight on KIU's
+     * own toggle; AOSP ignores it and shows the full app list instead, which is accepted.
+     *
+     * Do not try to deep-link Settings' per-app overlay screen directly: launching
+     * `Settings$AppDrawOverlaySettingsActivity` fails with "requires
+     * android.permission.INTERNAL_SYSTEM_WINDOW", a signature permission no third-party app can
+     * hold. Verified on an API-33 emulator.
+     */
+    private fun openOverlaySettings() {
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                    .setData(Uri.parse("package:$packageName")),
+            )
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -74,6 +102,36 @@ class MainActivity : FlutterActivity() {
                     startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                     result.success(null)
                 }
+                "canUseFullScreenIntent" -> {
+                    val canUse = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                            .canUseFullScreenIntent()
+                    } else {
+                        true
+                    }
+                    result.success(canUse)
+                }
+                "openFullScreenIntentSettings" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        startActivity(
+                            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                                .setData(Uri.parse("package:$packageName")),
+                        )
+                    }
+                    result.success(null)
+                }
+                "canDrawOverlays" -> {
+                    val canDraw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        Settings.canDrawOverlays(this)
+                    } else {
+                        true
+                    }
+                    result.success(canDraw)
+                }
+                "openOverlaySettings" -> {
+                    openOverlaySettings()
+                    result.success(null)
+                }
                 "selectNotificationSound" -> {
                     if (pendingSoundResult != null) {
                         result.error("sound_picker_in_progress", "Sound picker is already open", null)
@@ -81,11 +139,13 @@ class MainActivity : FlutterActivity() {
                     }
                     pendingSoundResult = result
                     val currentSound = call.argument<String>("currentSound")
+                    val ringtoneType = if (call.argument<String>("type") == "ringtone") {
+                        RingtoneManager.TYPE_RINGTONE
+                    } else {
+                        RingtoneManager.TYPE_NOTIFICATION
+                    }
                     val picker = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-                        .putExtra(
-                            RingtoneManager.EXTRA_RINGTONE_TYPE,
-                            RingtoneManager.TYPE_NOTIFICATION,
-                        )
+                        .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, ringtoneType)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
                     currentSound?.let {

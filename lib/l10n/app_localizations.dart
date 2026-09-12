@@ -520,6 +520,126 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Мослаш'**
   String get customizeSound;
+
+  /// No description provided for @scheduledLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Режалаштирилган дарслар'**
+  String get scheduledLessons;
+
+  /// No description provided for @noScheduledLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Режалаштирилган дарслар йўқ'**
+  String get noScheduledLessons;
+
+  /// No description provided for @lessonCalls.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс қўнғироқлари'**
+  String get lessonCalls;
+
+  /// No description provided for @lessonCallsHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади'**
+  String get lessonCallsHelp;
+
+  /// No description provided for @ringDuration.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қўнғироқ давомийлиги'**
+  String get ringDuration;
+
+  /// No description provided for @ringDurationValue.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'{seconds} сония'**
+  String ringDurationValue(int seconds);
+
+  /// No description provided for @callRingtone.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қўнғироқ оҳанги'**
+  String get callRingtone;
+
+  /// No description provided for @fullScreenAccess.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тўлиқ экран рухсати'**
+  String get fullScreenAccess;
+
+  /// No description provided for @fullScreenAccessHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қулфланган экранда қўнғироқ кўрсатиш учун тизим созламаларида рухсат беринг'**
+  String get fullScreenAccessHelp;
+
+  /// No description provided for @overlayAccess.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бошқа иловалар устида кўрсатиш'**
+  String get overlayAccess;
+
+  /// No description provided for @overlayAccessHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Телефондан фойдаланаётганингизда қўнғироқ экрани очилишига имкон беради. Бўлмаса, қўнғироқ фақат билдиришнома сифатида кўринади.'**
+  String get overlayAccessHelp;
+
+  /// No description provided for @callForThisLesson.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ушбу дарс учун қўнғироқ'**
+  String get callForThisLesson;
+
+  /// No description provided for @appearance.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Кўриниш'**
+  String get appearance;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тизим бўйича'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ёруғ'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тунги'**
+  String get themeDark;
+
+  /// No description provided for @usefulLinks.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фойдали ҳаволалар'**
+  String get usefulLinks;
+
+  /// No description provided for @testPlatforms.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тест платформалари'**
+  String get testPlatforms;
+
+  /// No description provided for @pdfBooks.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'PDF китоблар'**
+  String get pdfBooks;
+
+  /// No description provided for @apps.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Иловалар'**
+  String get apps;
 }
 
 class _AppLocalizationsDelegate

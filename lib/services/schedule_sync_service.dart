@@ -33,11 +33,12 @@ class ScheduleSyncService {
     if (userAgent != null && userAgent.isNotEmpty) {
       await _repository.saveWebViewUserAgent(userAgent);
     }
+    final settings = _repository.loadSettings();
     try {
       final lessons = await _fetcher.fetch(
         userAgent: userAgent ?? _repository.webViewUserAgent,
+        localeTag: settings.localeTag,
       );
-      final settings = _repository.loadSettings();
       await _reconciler.reconcile(lessons, settings);
       final syncedAt = DateTime.now();
       await _repository.recordSuccess(syncedAt);

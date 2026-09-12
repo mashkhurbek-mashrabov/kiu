@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app.dart';
 import 'package:kiu/app/app_controller.dart';
 import 'package:kiu/data/settings_repository.dart';
+import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
@@ -12,12 +13,15 @@ import 'package:webview_flutter_platform_interface/webview_flutter_platform_inte
 import 'support/fake_webview_platform.dart';
 import 'support/fakes.dart';
 
-Future<AppController> controller() async {
+Future<AppController> controller([
+  FakeNotificationGateway? notifications,
+  FakeBackgroundAccessGateway? backgroundAccess,
+]) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
-  final notifications = FakeNotificationGateway();
+  final notificationGateway = notifications ?? FakeNotificationGateway();
   final reconciler = ReminderReconciler(
     repository: repository,
-    notifications: notifications,
+    notifications: notificationGateway,
   );
   return AppController(
     repository: repository,
@@ -27,8 +31,9 @@ Future<AppController> controller() async {
       reconciler: reconciler,
     ),
     reconciler: reconciler,
-    notifications: notifications,
+    notifications: notificationGateway,
     scheduler: FakeBackgroundScheduler(),
+    backgroundAccess: backgroundAccess,
   );
 }
 
@@ -36,6 +41,9 @@ void main() {
   setUp(() {
     WebViewPlatform.instance = FakeWebViewPlatform();
     SharedPreferences.setMockInitialValues({});
+    injectedScripts.clear();
+    loadedUrls.clear();
+    navigateTo = null;
   });
 
   testWidgets('uses headerless compact five-action bottom bar', (tester) async {
@@ -62,6 +70,62 @@ void main() {
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
   });
 
+  testWidgets('paints the dark surface when dark mode is saved', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.themeMode': 'dark'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
+        .colorScheme;
+    expect(colors.brightness, Brightness.dark);
+    expect(colors.surface, const Color(0xFF2B2939));
+  });
+
+  testWidgets('paints the light surface when light mode is saved', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.themeMode': 'light'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
+        .colorScheme;
+    expect(colors.brightness, Brightness.light);
+    expect(colors.surface, const Color(0xFFF2F1EA));
+  });
+
+  testWidgets('switches appearance from More', (tester) async {
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('theme-mode-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('theme-mode-dark')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.themeMode, ThemeMode.dark);
+    expect(
+      Theme.of(tester.element(find.byType(BottomAppBar))).colorScheme.surface,
+      const Color(0xFF2B2939),
+    );
+    expect(injectedScripts.last, contains("setItem('darkMode'"));
+    expect(injectedScripts.last, contains('const dark = true'));
+  });
+
   testWidgets('does not highlight Home on another trusted page', (
     tester,
   ) async {
@@ -76,6 +140,222 @@ void main() {
     );
     expect(find.byKey(const Key('home-selected')), findsNothing);
   });
+
+  testWidgets('highlights Home on the Russian lessons page', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+        navigationRequests: ValueNotifier<Uri?>(
+          Uri.parse('https://uz.do-kazankiu.ru/ru/profile/my-online-lessons'),
+        ),
+      ),
+    );
+    expect(find.byKey(const Key('home-selected')), findsOneWidget);
+  });
+
+  testWidgets('opens the lessons page in the saved language', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    expect(
+      loadedUrls.single,
+      'https://uz.do-kazankiu.ru/ru/profile/my-online-lessons',
+    );
+  });
+
+  testWidgets('reloads the current page when the language changes', (
+    tester,
+  ) async {
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: appController,
+        homeRequests: ValueNotifier<int>(0),
+        navigationRequests: ValueNotifier<Uri?>(
+          Uri.parse('https://uz.do-kazankiu.ru/uz/profile/lesson/42'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-ru')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.localeTag, 'ru');
+    // Same page, Russian prefix: the user keeps their place.
+    expect(loadedUrls.last, 'https://uz.do-kazankiu.ru/ru/profile/lesson/42');
+  });
+
+  testWidgets('switches the exam platform language too', (tester) async {
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    // The exam host is reached by a link in the LMS menu, so drive the same
+    // page callback a real navigation there would.
+    navigateTo!('https://test.do-kazankiu.ru/uz/tests');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-ru')));
+    await tester.pumpAndSettle();
+
+    expect(loadedUrls.last, 'https://test.do-kazankiu.ru/ru/tests');
+  });
+
+  testWidgets('leaves the exam platform free of injected scripts', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    injectedScripts.clear();
+    navigateTo!('https://test.do-kazankiu.ru/uz/tests');
+    await tester.pumpAndSettle();
+
+    // Theme, playback and the KiuBridge stay LMS-only: the exam host shares a
+    // session with the LMS, so anything injected there is a real leak path.
+    expect(injectedScripts, isEmpty);
+  });
+
+  testWidgets('never sends an English prefix to the site', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('language-en')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.localeTag, 'en');
+    // App UI turns English, but the servers only understand uz/ru and would
+    // blindly persist a bogus `lang=en` cookie.
+    expect(loadedUrls.last, contains('/uz/'));
+    expect(loadedUrls, everyElement(isNot(contains('/en/'))));
+  });
+
+  testWidgets('shows cached scheduled lessons from More', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'kiu.lessonSnapshot':
+          '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00"}]',
+    });
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scheduled-lessons-list')), findsOneWidget);
+    expect(find.text('Aqidah'), findsOneWidget);
+    expect(find.text('19:00 | 09-сентябр'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('scheduled-lessons-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scheduled-lessons-list')), findsNothing);
+    expect(find.byKey(const Key('scheduled-lessons-menu')), findsOneWidget);
+  });
+
+  testWidgets('opens Useful links with test platforms, books and apps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Фойдали ҳаволалар'), findsOneWidget);
+    expect(find.text('Тест платформалари'), findsOneWidget);
+    expect(find.text('nurul-izoh.com'), findsOneWidget);
+    expect(find.text('PDF китоблар'), findsOneWidget);
+    expect(find.text('Nurul Izoh'), findsOneWidget);
+    expect(find.text('Mabdaul qiroat 2'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Riyozus solihiyn'), 300);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иловалар'), findsOneWidget);
+    expect(find.text('Riyozus solihiyn'), findsOneWidget);
+  });
+
+  testWidgets(
+    'toggles a lesson call from the phone icon in Scheduled lessons',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'kiu.lessonSnapshot':
+            '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00"}]',
+      });
+      final appController = await controller();
+      await tester.pumpWidget(
+        KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+      );
+      await tester.tap(find.byKey(const Key('actions-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+      await tester.pumpAndSettle();
+
+      final toggle = find.byKey(const Key('scheduled-lesson-call-0'));
+      // Calls are off globally by default, so the icon starts struck through.
+      expect(
+        tester
+            .widget<Icon>(
+              find.descendant(of: toggle, matching: find.byType(Icon)),
+            )
+            .icon,
+        Icons.phone_disabled,
+      );
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<Icon>(
+              find.descendant(of: toggle, matching: find.byType(Icon)),
+            )
+            .icon,
+        Icons.call,
+      );
+      final lesson = appController.scheduledLessons.single;
+      expect(appController.settings.callEnabledFor(lesson), isTrue);
+    },
+  );
 
   testWidgets('lists custom reminder inline with remove action', (
     tester,
@@ -120,7 +400,11 @@ void main() {
     await tester.tap(find.byKey(const Key('notification-settings-back')));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ChoiceChip), findsNWidgets(7));
+    expect(find.byType(ChoiceChip), findsNWidgets(5));
+    expect(find.text('0.5×'), findsNothing);
+    expect(find.text('3×'), findsNothing);
+    expect(tester.widget<Slider>(find.byType(Slider)).min, 0.5);
+    expect(tester.widget<Slider>(find.byType(Slider)).divisions, 70);
   });
 
   testWidgets('shows main sound and inherited reminder sounds on sound page', (
@@ -144,5 +428,101 @@ void main() {
     expect(find.byKey(const Key('notification-sound-60')), findsOneWidget);
     expect(find.byKey(const Key('notification-sound-0')), findsOneWidget);
     expect(find.text('Асосий овоз ишлатилади'), findsNWidgets(2));
+  });
+
+  testWidgets('shows selected sound name', (tester) async {
+    final notifications = FakeNotificationGateway()
+      ..selectedSound = const NotificationSound(
+        uri: 'content://media/internal/audio/media/42',
+        name: 'Morning bell',
+      );
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(notifications),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('notification-sound-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Овозни танлаш'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Morning bell'), findsOneWidget);
+  });
+
+  Future<void> openNotificationSettings(
+    WidgetTester tester,
+    AppController appController,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('overlay access switch reads off while permission is missing', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    final tile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('overlay-access-tile')),
+    );
+    expect(tile.value, isFalse);
+  });
+
+  testWidgets('overlay access switch stays visible and on once granted', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = true;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    final tile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('overlay-access-tile')),
+    );
+    expect(tile.value, isTrue);
+  });
+
+  testWidgets('hides overlay access switch while calls are off', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await openNotificationSettings(tester, appController);
+
+    expect(find.byKey(const Key('overlay-access-tile')), findsNothing);
+  });
+
+  testWidgets('tapping the overlay access switch opens Android settings', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    final tile = find.byKey(const Key('overlay-access-tile'));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: tile, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+
+    expect(backgroundAccess.overlaySettingsOpened, 1);
   });
 }

@@ -1,6 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
+/// Scripts the shell injected, newest last. Tests clear it in setUp.
+final List<String> injectedScripts = <String>[];
+
+/// URLs the shell asked the WebView to load, newest last. Tests clear it in
+/// setUp.
+final List<String> loadedUrls = <String>[];
+
+/// Drives the shell's `onPageStarted` so a test can put the WebView on a page
+/// the way a real navigation would, e.g. a link out to the exam platform.
+PageEventCallback? navigateTo;
+
 class FakeWebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewController createPlatformWebViewController(
@@ -38,7 +49,12 @@ class _FakeController extends PlatformWebViewController {
   ) async {}
 
   @override
-  Future<void> loadRequest(LoadRequestParams params) async {}
+  Future<void> loadRequest(LoadRequestParams params) async =>
+      loadedUrls.add(params.uri.toString());
+
+  @override
+  Future<void> runJavaScript(String javaScript) async =>
+      injectedScripts.add(javaScript);
 
   @override
   Future<bool> canGoBack() async => false;
@@ -56,7 +72,8 @@ class _FakeNavigationDelegate extends PlatformNavigationDelegate {
   ) async {}
 
   @override
-  Future<void> setOnPageStarted(PageEventCallback onPageStarted) async {}
+  Future<void> setOnPageStarted(PageEventCallback onPageStarted) async =>
+      navigateTo = onPageStarted;
 
   @override
   Future<void> setOnPageFinished(PageEventCallback onPageFinished) async {}

@@ -1,4 +1,6 @@
+import 'package:flutter/services.dart';
 import 'package:kiu/app/app_controller.dart';
+import 'package:kiu/services/background_access_service.dart';
 import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/lesson_widget_service.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
@@ -9,9 +11,10 @@ import 'package:timezone/timezone.dart' as tz;
 class FakeNotificationGateway implements NotificationGateway {
   bool permission = true;
   bool exact = true;
-  String? selectedSound;
+  NotificationSound? selectedSound;
   final Map<int, ScheduledCall> scheduled = {};
   final List<int> cancelled = [];
+  final Set<int> failScheduleIds = {};
 
   @override
   Future<bool> canScheduleExactly() async => exact;
@@ -31,8 +34,16 @@ class FakeNotificationGateway implements NotificationGateway {
   @override
   Future<bool> requestNotificationPermission() async => permission;
 
+  bool? lastSelectSoundRingtone;
+
   @override
-  Future<String?> selectSound({String? currentSound}) async => selectedSound;
+  Future<NotificationSound?> selectSound({
+    String? currentSound,
+    bool ringtone = false,
+  }) async {
+    lastSelectSoundRingtone = ringtone;
+    return selectedSound;
+  }
 
   @override
   Future<void> schedule({
@@ -45,6 +56,9 @@ class FakeNotificationGateway implements NotificationGateway {
     required int reminderOffsetMinutes,
     String? soundUri,
   }) async {
+    if (failScheduleIds.contains(id)) {
+      throw PlatformException(code: 'exact_alarms_not_permitted');
+    }
     scheduled[id] = ScheduledCall(
       when: when,
       title: title,
@@ -84,6 +98,32 @@ class FakeBackgroundScheduler implements BackgroundScheduler {
   Future<void> setEnabled(bool value) async => enabled = value;
 }
 
+class FakeBackgroundAccessGateway implements BackgroundAccessGateway {
+  bool batteryOptimizationDisabled = true;
+  bool fullScreenIntentAllowed = true;
+  bool overlaysAllowed = true;
+  int overlaySettingsOpened = 0;
+
+  @override
+  Future<bool> isBatteryOptimizationDisabled() async =>
+      batteryOptimizationDisabled;
+
+  @override
+  Future<void> openBatteryOptimizationSettings() async {}
+
+  @override
+  Future<bool> canUseFullScreenIntent() async => fullScreenIntentAllowed;
+
+  @override
+  Future<void> openFullScreenIntentSettings() async {}
+
+  @override
+  Future<bool> canDrawOverlays() async => overlaysAllowed;
+
+  @override
+  Future<void> openOverlaySettings() async => overlaySettingsOpened++;
+}
+
 class EmptyCookieProvider implements CookieProvider {
   @override
   Future<Map<String, String>> cookiesFor(Uri uri) async => const {};
@@ -95,10 +135,15 @@ class CapturingScheduleFetcher extends ScheduleFetcher {
 
   final List<Lesson> lessons;
   String? userAgent;
+  String? localeTag;
 
   @override
-  Future<List<Lesson>> fetch({String? userAgent}) async {
+  Future<List<Lesson>> fetch({
+    String? userAgent,
+    String localeTag = 'uz_Cyrl',
+  }) async {
     this.userAgent = userAgent;
+    this.localeTag = localeTag;
     return lessons;
   }
 }

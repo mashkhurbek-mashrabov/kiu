@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import '../core/theme.dart';
 import '../l10n/app_localizations.dart';
 import '../ui/browser_page.dart';
 import 'app_controller.dart';
@@ -33,10 +34,9 @@ class KiuApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF176B45)),
-        useMaterial3: true,
-      ),
+      theme: kiuTheme(Brightness.light),
+      darkTheme: kiuTheme(Brightness.dark),
+      themeMode: controller.settings.themeMode,
       home:
           homeOverride ??
           BrowserPage(

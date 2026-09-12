@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/domain/app_settings.dart';
 import 'package:kiu/domain/lesson.dart';
@@ -26,8 +27,37 @@ void main() {
       payload.first['start'],
       DateTime.utc(2026, 9, 9, 14).millisecondsSinceEpoch,
     );
-    expect(payload.first['displayStart'], '15:00 | 09-09-2026');
+    expect(payload.first['displayStart'], '15:00 | 09-сентябр');
     expect(payload.last['meetingUrl'], 'https://meet.example/second');
+    expect(payload.first['key'], lessons.last.callKey);
+    expect(payload.first['callEnabled'], isFalse);
+  });
+
+  test('widget dark flag follows the in-app appearance choice', () {
+    expect(
+      widgetDarkFlag(const AppSettings(themeMode: ThemeMode.dark)),
+      'true',
+    );
+    expect(
+      widgetDarkFlag(const AppSettings(themeMode: ThemeMode.light)),
+      'false',
+    );
+    // System mode resolves against the platform, which reports light in tests.
+    expect(widgetDarkFlag(const AppSettings()), 'false');
+  });
+
+  test('payload carries per-occurrence call state', () {
+    const lesson = Lesson(title: 'Tahfiz', websiteStart: '2026-09-09 19:00');
+    final settings = AppSettings(callOverrides: {lesson.callKey: true});
+
+    final payload = buildLessonWidgetPayload(
+      [lesson],
+      settings,
+      TimeZoneService(),
+    );
+
+    expect(payload.single['key'], lesson.callKey);
+    expect(payload.single['callEnabled'], isTrue);
   });
 
   test('widget last sync uses selected time zone', () {

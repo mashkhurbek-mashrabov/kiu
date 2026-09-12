@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -73,7 +73,16 @@ class AppController extends ChangeNotifier {
   ScheduleSyncStatus syncStatus = ScheduleSyncStatus.idle;
   DateTime? lastSuccessfulSync;
   bool exactTiming = false;
+  // Cached rather than queried inline by the UI: unlike [_notifications],
+  // [_backgroundAccess] has no fake wired through the widget tests, and an
+  // unmocked platform channel call made while building UI never resolves in
+  // a widget test. Refreshed explicitly via [refreshFullScreenIntentAccess].
+  bool canUseFullScreenIntent = true;
+  // Cached for the same reason as [canUseFullScreenIntent] above.
+  bool canDrawOverlays = true;
   AppVersion? appVersion;
+
+  List<Lesson> get scheduledLessons => _repository.loadLessons();
 
   Future<void> initialize() async {
     try {
@@ -85,15 +94,32 @@ class AppController extends ChangeNotifier {
     }
     exactTiming = await _notifications.canScheduleExactly();
     await _scheduler.setEnabled(settings.backgroundSyncEnabled);
+    // Cold start must not depend on the WebView reaching the lessons page or
+    // on a background WorkManager chain that may have died: re-arm cached
+    // reminders against current time/permission state every launch.
+    await _rescheduleCached();
     await _refreshWidget();
     notifyListeners();
   }
 
   Future<void> setPlaybackRate(double value) async {
-    settings = settings.copyWith(playbackRate: value.clamp(0.25, 4.0));
+    settings = settings.copyWith(playbackRate: value.clamp(0.5, 4.0));
     await _repository.saveSettings(settings);
     notifyListeners();
   }
+
+  Future<void> setThemeMode(ThemeMode value) async {
+    settings = settings.copyWith(themeMode: value);
+    await _repository.saveSettings(settings);
+    // The home-screen widget is themed from published data, not from the
+    // system night-mode qualifier, so it needs a republish here.
+    await _refreshWidget();
+    notifyListeners();
+  }
+
+  /// Republishes widget data after something outside settings changed how it
+  /// should look, e.g. the OS flipped night mode while the app follows it.
+  Future<void> refreshWidget() => _refreshWidget();
 
   Future<void> setLocale(String value) async {
     settings = settings.copyWith(localeTag: value);
@@ -141,6 +167,72 @@ class AppController extends ChangeNotifier {
   Future<void> openBatteryOptimizationSettings() =>
       _backgroundAccess.openBatteryOptimizationSettings();
 
+  Future<void> openFullScreenIntentSettings() async {
+    await _backgroundAccess.openFullScreenIntentSettings();
+    await refreshFullScreenIntentAccess();
+  }
+
+  Future<void> refreshFullScreenIntentAccess() async {
+    canUseFullScreenIntent = await _backgroundAccess.canUseFullScreenIntent();
+    notifyListeners();
+  }
+
+  Future<void> openOverlaySettings() async {
+    await _backgroundAccess.openOverlaySettings();
+    await refreshOverlayAccess();
+  }
+
+  Future<void> refreshOverlayAccess() async {
+    canDrawOverlays = await _backgroundAccess.canDrawOverlays();
+    notifyListeners();
+  }
+
+  Future<bool> setCallsEnabled(bool enabled) async {
+    if (enabled && !await _notifications.requestNotificationPermission()) {
+      return false;
+    }
+    settings = settings.copyWith(callsEnabled: enabled);
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> setCallRingSeconds(int seconds) async {
+    settings = settings.copyWith(callRingSeconds: seconds.clamp(10, 300));
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
+  Future<void> selectCallRingtone() async {
+    final sound = await _notifications.selectSound(
+      currentSound: settings.callRingtoneUri,
+      ringtone: true,
+    );
+    if (sound == null) return;
+    settings = settings.copyWith(
+      callRingtoneUri: sound.uri,
+      callRingtoneName: sound.name,
+    );
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
+  Future<void> setLessonCallEnabled(Lesson lesson, bool enabled) async {
+    final overrides = Map<String, bool>.from(settings.callOverrides);
+    if (enabled == settings.callsEnabled) {
+      overrides.remove(lesson.callKey);
+    } else {
+      overrides[lesson.callKey] = enabled;
+    }
+    settings = settings.copyWith(callOverrides: overrides);
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
   Future<void> setReminderOffsets(List<int> values) async {
     final normalized = values.toSet().where((value) {
       return value >= 0 && value <= 10080;
@@ -156,7 +248,10 @@ class AppController extends ChangeNotifier {
       currentSound: settings.reminderSoundUri,
     );
     if (sound == null) return;
-    settings = settings.copyWith(reminderSoundUri: sound);
+    settings = settings.copyWith(
+      reminderSoundUri: sound.uri,
+      reminderSoundName: sound.name,
+    );
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();
@@ -169,8 +264,13 @@ class AppController extends ChangeNotifier {
     final sound = await _notifications.selectSound(currentSound: currentSound);
     if (sound == null) return;
     final sounds = Map<int, String>.from(settings.reminderSoundOverrides)
-      ..[offsetMinutes] = sound;
-    settings = settings.copyWith(reminderSoundOverrides: sounds);
+      ..[offsetMinutes] = sound.uri;
+    final names = Map<int, String>.from(settings.reminderSoundOverrideNames)
+      ..[offsetMinutes] = sound.name;
+    settings = settings.copyWith(
+      reminderSoundOverrides: sounds,
+      reminderSoundOverrideNames: names,
+    );
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();
@@ -179,7 +279,12 @@ class AppController extends ChangeNotifier {
   Future<void> clearReminderSoundOverride(int offsetMinutes) async {
     final sounds = Map<int, String>.from(settings.reminderSoundOverrides)
       ..remove(offsetMinutes);
-    settings = settings.copyWith(reminderSoundOverrides: sounds);
+    final names = Map<int, String>.from(settings.reminderSoundOverrideNames)
+      ..remove(offsetMinutes);
+    settings = settings.copyWith(
+      reminderSoundOverrides: sounds,
+      reminderSoundOverrideNames: names,
+    );
     await _repository.saveSettings(settings);
     await _rescheduleCached();
     notifyListeners();
