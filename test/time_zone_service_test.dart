@@ -21,4 +21,9 @@ void main() {
   test('rejects invalid LMS date', () {
     expect(() => service.parseWebsiteTime('09/09/2026'), throwsFormatException);
   });
+
+  test('formats UTC offset label', () {
+    expect(service.offsetLabel('Asia/Tashkent'), 'UTC+05:00');
+    expect(service.offsetLabel('Asia/Kolkata'), 'UTC+05:30');
+  });
 }
