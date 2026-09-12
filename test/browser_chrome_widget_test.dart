@@ -158,7 +158,7 @@ void main() {
 
     expect(find.byKey(const Key('scheduled-lessons-list')), findsOneWidget);
     expect(find.text('Aqidah'), findsOneWidget);
-    expect(find.text('19:00 | 09-09-2027'), findsOneWidget);
+    expect(find.text('19:00 | 09-сентябр'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('scheduled-lessons-back')));
     await tester.pumpAndSettle();

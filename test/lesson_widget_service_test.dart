@@ -27,7 +27,7 @@ void main() {
       payload.first['start'],
       DateTime.utc(2026, 9, 9, 14).millisecondsSinceEpoch,
     );
-    expect(payload.first['displayStart'], '15:00 | 09-09-2026');
+    expect(payload.first['displayStart'], '15:00 | 09-сентябр');
     expect(payload.last['meetingUrl'], 'https://meet.example/second');
     expect(payload.first['key'], lessons.last.callKey);
     expect(payload.first['callEnabled'], isFalse);

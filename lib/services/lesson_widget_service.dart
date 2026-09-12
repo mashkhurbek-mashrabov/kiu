@@ -243,9 +243,13 @@ String buildLessonWidgetLessonTime(
   DateTime instant,
   AppSettings settings,
   TimeZoneService timeZones,
-) =>
-    DateFormat('HH:mm | dd-MM-yyyy')
-        .format(timeZones.inZone(instant, settings.timeZoneId));
+) {
+  final zoned = timeZones.inZone(instant, settings.timeZoneId);
+  final time = DateFormat('HH:mm').format(zoned);
+  final day = zoned.day.toString().padLeft(2, '0');
+  final month = _monthName(settings.localeTag, zoned.month);
+  return '$time | $day-$month';
+}
 
 String buildLessonWidgetLastSyncTime(
   DateTime instant,
@@ -281,6 +285,33 @@ String buildLessonWidgetGroupKey(
     1 => 'tomorrow',
     _ => 'others',
   };
+}
+
+const _monthNamesEn = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const _monthNamesRu = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+const _monthNamesUz = [
+  'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+  'iyul', 'avgust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr',
+];
+const _monthNamesUzCyrl = [
+  'январ', 'феврал', 'март', 'апрел', 'май', 'июн',
+  'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр',
+];
+
+String _monthName(String locale, int month) {
+  final names = switch (locale) {
+    'ru' => _monthNamesRu,
+    'en' => _monthNamesEn,
+    'uz' => _monthNamesUz,
+    _ => _monthNamesUzCyrl,
+  };
+  return names[month - 1];
 }
 
 String _label(String locale, String key) => switch ((locale, key)) {
