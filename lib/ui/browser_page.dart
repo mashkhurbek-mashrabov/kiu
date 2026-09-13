@@ -1751,6 +1751,14 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
                   ('nurul-izoh.com', 'https://nurul-izoh.com'),
                   ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+                  (
+                    'mukammal-sarf-darsligi',
+                    'https://mukammal-sarf-darsligi-app.netlify.app',
+                  ),
+                  (
+                    'ar-rahiq-al-maxtum',
+                    'https://ar-rahiq-al-maxtum.netlify.app',
+                  ),
                 ])
                   SettingsRow(
                     icon: Icons.language_rounded,
