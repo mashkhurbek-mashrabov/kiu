@@ -389,7 +389,9 @@ void main() {
     );
   });
 
-  testWidgets('a Google Doc opens read-only, never the editor', (tester) async {
+  testWidgets('a shared Drive link drops its query and opens the preview', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       KiuApp(
         controller: await controller(),
@@ -410,12 +412,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Shipping the /edit URL would hand every user the editor.
+    // The ?usp=sharing a share link carries must not reach the embed.
     expect(
       loadedUrls.last,
-      'https://docs.google.com/document/d/1HktWF2VUKFqi2RgGmJi3_Uykqy6znqaS2SKvEzAghxw/preview',
+      'https://drive.google.com/file/d/1lKshAbXGkmOPuojCpaVz_z5XlAoZTKNw/preview',
     );
-    expect(loadedUrls.last, isNot(contains('/edit')));
   });
 
   testWidgets(

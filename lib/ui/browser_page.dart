@@ -1742,14 +1742,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ),
                   (
                     strings.bookRussianLessons,
-                    'https://docs.google.com/document/d/1HktWF2VUKFqi2RgGmJi3_Uykqy6znqaS2SKvEzAghxw/edit?usp=sharing',
+                    'https://drive.google.com/file/d/1lKshAbXGkmOPuojCpaVz_z5XlAoZTKNw/view?usp=sharing',
                   ),
                 ])
                   SettingsRow(
-                    // A Google Doc is not a PDF; the icon says which it is.
-                    icon: link.$2.contains('/document/d/')
-                        ? Icons.article_rounded
-                        : Icons.picture_as_pdf_rounded,
+                    icon: Icons.picture_as_pdf_rounded,
                     title: link.$1,
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _openPdfViewer(link.$1, link.$2),
@@ -1830,44 +1827,28 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _launchExternal(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
-  /// Maps a Google share link to its read-only `/preview` embed, or returns
-  /// null for anything else. Covers `drive.google.com/file/d/<id>/...` and
-  /// Docs editors (`docs.google.com/document|spreadsheets|presentation/d/<id>`).
+  /// Maps a `drive.google.com/file/d/<id>/...` share link to its read-only
+  /// `/preview` embed, or returns null for anything else.
   ///
   /// Matches on the parsed host so a lookalike path on another domain cannot
-  /// pose as Google, and always rewrites the trailing segment: shipping an
-  /// `/edit` URL would hand every user the editor.
-  static String? _googlePreviewUrl(String url) {
+  /// pose as Drive, and drops the trailing segment rather than trusting it.
+  static String? _drivePreviewUrl(String url) {
     final uri = Uri.tryParse(url);
-    final segments = uri?.pathSegments ?? const <String>[];
-    if (uri?.host == 'drive.google.com') {
-      if (segments.length < 3 || segments[0] != 'file' || segments[1] != 'd') {
-        return null;
-      }
-      final id = segments[2];
-      return id.isEmpty ? null : 'https://drive.google.com/file/d/$id/preview';
+    if (uri?.host != 'drive.google.com') return null;
+    final segments = uri!.pathSegments;
+    if (segments.length < 3 || segments[0] != 'file' || segments[1] != 'd') {
+      return null;
     }
-    if (uri?.host == 'docs.google.com') {
-      const editors = {'document', 'spreadsheets', 'presentation'};
-      if (segments.length < 3 ||
-          !editors.contains(segments[0]) ||
-          segments[1] != 'd') {
-        return null;
-      }
-      final id = segments[2];
-      return id.isEmpty
-          ? null
-          : 'https://docs.google.com/${segments[0]}/d/$id/preview';
-    }
-    return null;
+    final id = segments[2];
+    return id.isEmpty ? null : 'https://drive.google.com/file/d/$id/preview';
   }
 
   /// Opens [pdfUrl] in a throwaway WebView using Google's public docs
   /// viewer. Uses its own [WebViewController] — no cookies or trusted-host
   /// gating needed for a public PDF rendered by Google.
   ///
-  /// A Google share link is not a direct file URL, so the docs viewer would
-  /// render the sharing page instead of the document. Those load from their
+  /// A Drive share link is not a direct file URL, so the docs viewer would
+  /// render the sharing page instead of the PDF. Drive serves those from its
   /// own `/preview` endpoint, which embeds as-is and is read-only.
   Future<void> _openPdfViewer(
     String title,
@@ -1876,7 +1857,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     MaterialPageRoute<void>(
       builder: (context) {
         final viewerUrl =
-            _googlePreviewUrl(pdfUrl) ??
+            _drivePreviewUrl(pdfUrl) ??
             'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
         var loading = true;
         void Function()? onPageFinished;
