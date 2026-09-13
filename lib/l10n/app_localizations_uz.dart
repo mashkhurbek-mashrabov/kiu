@@ -277,6 +277,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get pdfBooks => 'PDF kitoblar';
 
   @override
+  String get bookRussianDictionary => 'Rus tili lug‘ati';
+
+  @override
+  String get bookRussianLessons => 'Rus tili darslari';
+
+  @override
   String get apps => 'Ilovalar';
 
   @override
@@ -670,6 +676,12 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get pdfBooks => 'PDF китоблар';
+
+  @override
+  String get bookRussianDictionary => 'Рус тили луғати';
+
+  @override
+  String get bookRussianLessons => 'Рус тили дарслари';
 
   @override
   String get apps => 'Иловалар';

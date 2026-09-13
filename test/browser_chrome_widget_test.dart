@@ -375,9 +375,9 @@ void main() {
     await tester.tap(find.byKey(const Key('useful-links-menu')));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Rus tili lug\'at'));
+    await tester.ensureVisible(find.text('Рус тили луғати'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Rus tili lug\'at'));
+    await tester.tap(find.text('Рус тили луғати'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -404,9 +404,9 @@ void main() {
     await tester.tap(find.byKey(const Key('useful-links-menu')));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Russian lessons'));
+    await tester.ensureVisible(find.text('Рус тили дарслари'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Russian lessons'));
+    await tester.tap(find.text('Рус тили дарслари'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

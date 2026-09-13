@@ -1709,7 +1709,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
               title: strings.pdfBooks,
               icon: Icons.menu_book_rounded,
               children: [
-                for (final link in const [
+                // Not const: the last two titles are descriptive rather than
+                // proper nouns, so they come from the localizations.
+                for (final link in [
                   (
                     'E\'tiqod durdonalari',
                     'https://uz.do-kazankiu.ru/files/upload/books/2024-10-19-17-14-55_51415d09fa306b663e1d1f9ba25f8bf6.pdf',
@@ -1735,11 +1737,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
                   ),
                   (
-                    'Rus tili lug\'at',
+                    strings.bookRussianDictionary,
                     'https://drive.google.com/file/d/1U6uYlS2ae3QHUYBtW7DXOi4MLjCFjr1M/view',
                   ),
                   (
-                    'Russian lessons',
+                    strings.bookRussianLessons,
                     'https://docs.google.com/document/d/1HktWF2VUKFqi2RgGmJi3_Uykqy6znqaS2SKvEzAghxw/edit?usp=sharing',
                   ),
                 ])

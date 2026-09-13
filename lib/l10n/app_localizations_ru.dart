@@ -277,6 +277,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get pdfBooks => 'Книги в PDF';
 
   @override
+  String get bookRussianDictionary => 'Словарь русского языка';
+
+  @override
+  String get bookRussianLessons => 'Уроки русского языка';
+
+  @override
   String get apps => 'Приложения';
 
   @override
