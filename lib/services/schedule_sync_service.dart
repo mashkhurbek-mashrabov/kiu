@@ -28,7 +28,6 @@ class ScheduleSyncService {
   final LessonWidgetGateway? _lessonWidgets;
 
   Future<SyncResult> synchronize({String? userAgent}) async {
-    await _repository.recordAttempt();
     await _publishStatus(ScheduleSyncStatus.syncing);
     if (userAgent != null && userAgent.isNotEmpty) {
       await _repository.saveWebViewUserAgent(userAgent);
