@@ -1734,6 +1734,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     'Mabdaun nahv',
                     'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
                   ),
+                  (
+                    'Rus tili lug\'at',
+                    'https://drive.google.com/file/d/1U6uYlS2ae3QHUYBtW7DXOi4MLjCFjr1M/view',
+                  ),
                 ])
                   SettingsRow(
                     icon: Icons.picture_as_pdf_rounded,
@@ -1817,17 +1821,36 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _launchExternal(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
+  /// Returns the file id of a `drive.google.com/file/d/<id>/...` URL, or null
+  /// for anything else. Matches on the parsed host so a lookalike path on
+  /// another domain cannot pose as Drive.
+  static String? _driveFileId(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri?.host != 'drive.google.com') return null;
+    final segments = uri!.pathSegments;
+    if (segments.length < 3 || segments[0] != 'file' || segments[1] != 'd') {
+      return null;
+    }
+    return segments[2].isEmpty ? null : segments[2];
+  }
+
   /// Opens [pdfUrl] in a throwaway WebView using Google's public docs
   /// viewer. Uses its own [WebViewController] — no cookies or trusted-host
   /// gating needed for a public PDF rendered by Google.
+  ///
+  /// A Drive share link is not a direct file URL, so the docs viewer would
+  /// render the sharing page instead of the PDF. Drive serves those from its
+  /// own `/preview` endpoint, which embeds as-is.
   Future<void> _openPdfViewer(
     String title,
     String pdfUrl,
   ) => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) {
-        final viewerUrl =
-            'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
+        final driveId = _driveFileId(pdfUrl);
+        final viewerUrl = driveId != null
+            ? 'https://drive.google.com/file/d/$driveId/preview'
+            : 'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
         var loading = true;
         void Function()? onPageFinished;
         final controller = WebViewController()

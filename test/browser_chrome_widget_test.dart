@@ -358,6 +358,37 @@ void main() {
     expect(loadedUrls.last, startsWith('https://docs.google.com/viewer?url='));
   });
 
+  testWidgets('a Drive book loads its preview, not the docs viewer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Rus tili lug\'at'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rus tili lug\'at'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // A share link wrapped in the docs viewer renders Drive's sharing page
+    // instead of the PDF, so it must use Drive's own /preview endpoint.
+    expect(
+      loadedUrls.last,
+      'https://drive.google.com/file/d/1U6uYlS2ae3QHUYBtW7DXOi4MLjCFjr1M/preview',
+    );
+  });
+
   testWidgets(
     'toggles a lesson call from the phone icon in Scheduled lessons',
     (tester) async {
