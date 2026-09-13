@@ -257,6 +257,25 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Drops the custom main reminder sound, falling back to the system default.
+  Future<void> clearReminderSound() async {
+    settings = settings.copyWith(
+      reminderSoundUri: null,
+      reminderSoundName: null,
+    );
+    await _repository.saveSettings(settings);
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
+  /// Drops the custom call ringtone, falling back to the system default.
+  Future<void> clearCallRingtone() async {
+    settings = settings.copyWith(callRingtoneUri: null, callRingtoneName: null);
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
   Future<void> selectReminderSoundOverride(int offsetMinutes) async {
     final currentSound =
         settings.reminderSoundOverrides[offsetMinutes] ??

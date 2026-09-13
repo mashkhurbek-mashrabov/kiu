@@ -51,6 +51,15 @@ class AppSettings {
   bool callEnabledFor(Lesson lesson) =>
       callOverrides[lesson.callKey] ?? callsEnabled;
 
+  /// Distinguishes "argument omitted" from an explicit `null`. Without it the
+  /// usual `value ?? this.value` makes the nullable sound fields impossible to
+  /// clear back to the system default — passing null would silently keep the
+  /// old value. Pass `null` to clear; omit to keep.
+  static const Object _unset = Object();
+
+  static String? _resolve(Object? value, String? current) =>
+      identical(value, _unset) ? current : value as String?;
+
   AppSettings copyWith({
     double? playbackRate,
     ThemeMode? themeMode,
@@ -59,14 +68,14 @@ class AppSettings {
     bool? remindersEnabled,
     bool? backgroundSyncEnabled,
     List<int>? reminderOffsetsMinutes,
-    String? reminderSoundUri,
-    String? reminderSoundName,
+    Object? reminderSoundUri = _unset,
+    Object? reminderSoundName = _unset,
     Map<int, String>? reminderSoundOverrides,
     Map<int, String>? reminderSoundOverrideNames,
     bool? callsEnabled,
     int? callRingSeconds,
-    String? callRingtoneUri,
-    String? callRingtoneName,
+    Object? callRingtoneUri = _unset,
+    Object? callRingtoneName = _unset,
     Map<String, bool>? callOverrides,
   }) => AppSettings(
     playbackRate: playbackRate ?? this.playbackRate,
@@ -77,16 +86,16 @@ class AppSettings {
     backgroundSyncEnabled: backgroundSyncEnabled ?? this.backgroundSyncEnabled,
     reminderOffsetsMinutes:
         reminderOffsetsMinutes ?? this.reminderOffsetsMinutes,
-    reminderSoundUri: reminderSoundUri ?? this.reminderSoundUri,
-    reminderSoundName: reminderSoundName ?? this.reminderSoundName,
+    reminderSoundUri: _resolve(reminderSoundUri, this.reminderSoundUri),
+    reminderSoundName: _resolve(reminderSoundName, this.reminderSoundName),
     reminderSoundOverrides:
         reminderSoundOverrides ?? this.reminderSoundOverrides,
     reminderSoundOverrideNames:
         reminderSoundOverrideNames ?? this.reminderSoundOverrideNames,
     callsEnabled: callsEnabled ?? this.callsEnabled,
     callRingSeconds: callRingSeconds ?? this.callRingSeconds,
-    callRingtoneUri: callRingtoneUri ?? this.callRingtoneUri,
-    callRingtoneName: callRingtoneName ?? this.callRingtoneName,
+    callRingtoneUri: _resolve(callRingtoneUri, this.callRingtoneUri),
+    callRingtoneName: _resolve(callRingtoneName, this.callRingtoneName),
     callOverrides: callOverrides ?? this.callOverrides,
   );
 }

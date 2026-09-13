@@ -744,7 +744,19 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       subtitle: Text(
                         settings.callRingtoneName ?? strings.defaultSound,
                       ),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing:
+                          settings.callsEnabled &&
+                              settings.callRingtoneUri != null
+                          ? IconButton(
+                              key: const Key('call-ringtone-reset'),
+                              tooltip: strings.defaultSound,
+                              icon: const Icon(Icons.settings_backup_restore),
+                              onPressed: () async {
+                                await widget.controller.clearCallRingtone();
+                                setSheetState(() {});
+                              },
+                            )
+                          : const Icon(Icons.chevron_right),
                       onTap: settings.callsEnabled
                           ? () async {
                               await widget.controller.selectCallRingtone();
@@ -1015,12 +1027,28 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                         ? strings.defaultSound
                         : settings.reminderSoundName ?? strings.soundSelected,
                   ),
-                  trailing: TextButton(
-                    onPressed: () async {
-                      await widget.controller.selectMainReminderSound();
-                      setPageState(() {});
-                    },
-                    child: Text(strings.chooseSound),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Only offered once a custom sound is set; with none
+                      // there is nothing to reset back to.
+                      if (settings.reminderSoundUri != null)
+                        TextButton(
+                          key: const Key('main-notification-sound-reset'),
+                          onPressed: () async {
+                            await widget.controller.clearReminderSound();
+                            setPageState(() {});
+                          },
+                          child: Text(strings.defaultSound),
+                        ),
+                      TextButton(
+                        onPressed: () async {
+                          await widget.controller.selectMainReminderSound();
+                          setPageState(() {});
+                        },
+                        child: Text(strings.chooseSound),
+                      ),
+                    ],
                   ),
                 ),
                 const Divider(),
