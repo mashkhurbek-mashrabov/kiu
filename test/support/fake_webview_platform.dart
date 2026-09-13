@@ -12,6 +12,18 @@ final List<String> loadedUrls = <String>[];
 /// the way a real navigation would, e.g. a link out to the exam platform.
 PageEventCallback? navigateTo;
 
+/// Drives the shell's `onPageFinished`, the hook that injects the page
+/// scripts. Tests clear it in setUp.
+PageEventCallback? finishPage;
+
+/// Posts a message to the shell's `KiuBridge` channel, standing in for the
+/// injected JavaScript. Tests clear it in setUp.
+void Function(String message)? postToBridge;
+
+/// Number of times the shell asked the WebView to reload. Tests clear it in
+/// setUp.
+int reloadCount = 0;
+
 class FakeWebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewController createPlatformWebViewController(
@@ -41,7 +53,8 @@ class _FakeController extends PlatformWebViewController {
   @override
   Future<void> addJavaScriptChannel(
     JavaScriptChannelParams javaScriptChannelParams,
-  ) async {}
+  ) async => postToBridge = (message) => javaScriptChannelParams
+      .onMessageReceived(JavaScriptMessage(message: message));
 
   @override
   Future<void> setPlatformNavigationDelegate(
@@ -55,6 +68,9 @@ class _FakeController extends PlatformWebViewController {
   @override
   Future<void> runJavaScript(String javaScript) async =>
       injectedScripts.add(javaScript);
+
+  @override
+  Future<void> reload() async => reloadCount++;
 
   @override
   Future<bool> canGoBack() async => false;
@@ -81,7 +97,8 @@ class _FakeNavigationDelegate extends PlatformNavigationDelegate {
       navigateTo = onPageStarted;
 
   @override
-  Future<void> setOnPageFinished(PageEventCallback onPageFinished) async {}
+  Future<void> setOnPageFinished(PageEventCallback onPageFinished) async =>
+      finishPage = onPageFinished;
 
   @override
   Future<void> setOnProgress(ProgressCallback onProgress) async {}

@@ -46,6 +46,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   bool _marking = false;
   bool _fullscreenOpen = false;
   bool _backgroundPromptOpen = false;
+  double _pullDistance = 0;
+  Timer? _pullWatchdog;
   Completer<Map<String, dynamic>>? _markCompleter;
   String? _markRequestId;
 
@@ -174,10 +176,12 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
 
   void _pageStarted(String url) {
     final uri = Uri.tryParse(url);
+    _pullWatchdog?.cancel();
     setState(() {
       if (uri != null) _currentUri = uri;
       _pageFailed = false;
       _progress = 0;
+      _pullDistance = 0;
     });
   }
 
@@ -188,6 +192,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (uri != null && isTrustedHttps(uri)) {
       await _applyPlaybackRate();
       await _applySiteTheme();
+      await _webView.runJavaScript(
+        pullToRefreshScript(thresholdPx: _pullThreshold.round()),
+      );
       if (isRussianCourseVideoUri(uri)) {
         await _webView.runJavaScript(videoIframeFixScript());
       }
@@ -298,8 +305,12 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (!isTrustedHttps(_currentUri)) return;
     try {
       final decoded = jsonDecode(message.message);
-      if (decoded is! Map<String, dynamic> ||
-          decoded['type'] != 'markWatchedResult' ||
+      if (decoded is! Map<String, dynamic>) return;
+      if (decoded['type'] == 'pullRefresh') {
+        _handlePullRefresh(decoded);
+        return;
+      }
+      if (decoded['type'] != 'markWatchedResult' ||
           decoded['requestId'] != _markRequestId ||
           decoded['ok'] is! bool ||
           decoded['code'] is! String) {
@@ -311,6 +322,42 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     } on FormatException {
       return;
     }
+  }
+
+  /// Distance past which a release reloads. Also the point the indicator
+  /// stops following the finger, so "it stopped moving" reads as "let go now".
+  static const double _pullThreshold = 90;
+
+  /// Renders the pull reported by [pullToRefreshScript] and reloads on a
+  /// release past the threshold. The page only ever reports the gesture; the
+  /// reload decision stays here.
+  void _handlePullRefresh(Map<String, dynamic> message) {
+    if (!mounted) return;
+    final phase = message['phase'];
+    final distance = message['distance'];
+    if (phase == 'move' && distance is num) {
+      _armPullWatchdog();
+      setState(() => _pullDistance = distance.toDouble());
+      return;
+    }
+    _pullWatchdog?.cancel();
+    final release = phase == 'end' && _pullDistance >= _pullThreshold;
+    setState(() => _pullDistance = 0);
+    if (release) unawaited(_webView.reload());
+  }
+
+  /// Clears the indicator when a pull stops reporting without ever ending.
+  ///
+  /// The page cannot always deliver a final `touchend`: lifting the finger
+  /// outside the WebView, or the system claiming the gesture mid-drag, ends
+  /// the touch stream silently. Without this the spinner sits on screen until
+  /// the next navigation. Re-armed on every `move`, so it only fires once the
+  /// drag has genuinely stopped feeding us.
+  void _armPullWatchdog() {
+    _pullWatchdog?.cancel();
+    _pullWatchdog = Timer(const Duration(milliseconds: 600), () {
+      if (mounted && _pullDistance > 0) setState(() => _pullDistance = 0);
+    });
   }
 
   Future<void> _markWatched() async {
@@ -2076,6 +2123,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     widget.homeRequests.removeListener(_goHome);
     widget.navigationRequests?.removeListener(_goToRequestedPage);
     _foregroundTimer?.cancel();
+    _pullWatchdog?.cancel();
     super.dispose();
   }
 
@@ -2089,6 +2137,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         child: Stack(
           children: [
             WebViewWidget(controller: _webView),
+            if (_pullDistance > 0) _pullIndicator(),
             if (_pageFailed)
               ColoredBox(
                 color: Theme.of(context).colorScheme.surface,
@@ -2189,6 +2238,47 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       ),
     ),
   );
+
+  /// The pull indicator: a spinner that rides down with the finger and fills
+  /// as it approaches the threshold, so the release point is visible rather
+  /// than guessed. `IgnorePointer` because the gesture lives in the page —
+  /// this is a read-out, and must not eat the touches it is reporting on.
+  Widget _pullIndicator() {
+    final progress = (_pullDistance / _pullThreshold).clamp(0.0, 1.0);
+    final colors = Theme.of(context).colorScheme;
+    return Positioned(
+      top: (_pullDistance * 0.5).clamp(0.0, _pullThreshold) + 8,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: Center(
+          child: Material(
+            key: const Key('pull-refresh-indicator'),
+            elevation: 2,
+            shape: const CircleBorder(),
+            color: colors.surfaceContainerHigh,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: progress < 1
+                    ? CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        value: progress,
+                      )
+                    : Icon(
+                        Icons.refresh_rounded,
+                        size: 22,
+                        color: colors.primary,
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _navAction({
     required Key key,
