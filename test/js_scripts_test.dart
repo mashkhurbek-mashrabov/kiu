@@ -30,6 +30,15 @@ void main() {
     expect(siteThemeScript(false), contains('const dark = false'));
   });
 
+  test('video iframe fix gives the player a 16:9 box and stays idempotent', () {
+    final script = videoIframeFixScript();
+    expect(script, contains('#lesson-content iframe'));
+    expect(script, contains('aspect-ratio: 16 / 9'));
+    expect(script, contains('width: 100%'));
+    // Re-injection on a reload must not stack duplicate <style> nodes.
+    expect(script, contains("getElementById(id)"));
+  });
+
   test('mark watched script carries both LMS events and token support', () {
     final script = markWatchedScript('request-1');
     expect(script, contains('lessonVideoIsEnded'));

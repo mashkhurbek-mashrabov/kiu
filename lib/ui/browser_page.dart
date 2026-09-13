@@ -185,6 +185,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (uri != null && isTrustedHttps(uri)) {
       await _applyPlaybackRate();
       await _applySiteTheme();
+      if (isRussianCourseVideoUri(uri)) {
+        await _webView.runJavaScript(videoIframeFixScript());
+      }
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
         unawaited(_maybeExplainBackgroundAccess());
