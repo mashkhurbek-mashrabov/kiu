@@ -3,7 +3,11 @@
     android:color="#66FFFFFF">
     <item>
         <shape android:shape="oval">
-            <solid android:color="#1DA05F" />
+            <gradient
+                android:angle="270"
+                android:startColor="@color/call_answer_top"
+                android:endColor="@color/call_answer"
+                android:type="linear" />
         </shape>
     </item>
 </ripple>

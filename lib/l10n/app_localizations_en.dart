@@ -58,14 +58,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlyLesson => 'This action is available only on a video lesson';
 
   @override
-  String get notificationSettings => 'Notification settings';
+  String get notificationSettings => 'Notifications & calls';
 
   @override
   String get reminders => 'Lesson reminders';
 
   @override
-  String get remindersHelp =>
-      'Checks for schedule changes in the background about every 5 minutes';
+  String get remindersHelp => 'Notifies you before each lesson starts.';
 
   @override
   String get threeHours => '3 hours before';
@@ -124,8 +123,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exactTiming => 'Exact reminders';
 
   @override
-  String get reducedPrecision =>
-      'Exact-alarm access is off; reminders may be delayed';
+  String get reducedPrecision => 'Reminders may be delayed';
 
   @override
   String get grantPermission => 'Grant access';
@@ -164,10 +162,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backgroundSyncHelp =>
-      'Checks lessons every 5 minutes while KIU is closed';
+      'Checks for schedule changes every 5 minutes while KIU is closed.';
 
   @override
-  String get backgroundAccess => 'Background access';
+  String get backgroundAccess => 'Battery access';
 
   @override
   String get backgroundAccessHelp =>
@@ -205,7 +203,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get soundOverridesHelp =>
-      'Each reminder uses Main sound until you customize it.';
+      'Each reminder uses the main sound until you give it its own.';
 
   @override
   String get customSound => 'Custom sound';
@@ -223,10 +221,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noScheduledLessons => 'No scheduled lessons';
 
   @override
-  String get lessonCalls => 'Lesson calls';
+  String get lessonCalls => 'Calls';
 
   @override
-  String get lessonCallsHelp => 'Shows a full-screen call when a lesson starts';
+  String get lessonCallsHelp =>
+      'Rings a full-screen call when a lesson starts.';
 
   @override
   String get ringDuration => 'Ring duration';
@@ -240,14 +239,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get callRingtone => 'Call ringtone';
 
   @override
-  String get fullScreenAccess => 'Full-screen access';
+  String get fullScreenAccess => 'Full-screen calls';
 
   @override
   String get fullScreenAccessHelp =>
       'Allow full-screen calls over the lock screen in system settings';
 
   @override
-  String get overlayAccess => 'Display over other apps';
+  String get overlayAccess => 'Display over apps';
 
   @override
   String get overlayAccessHelp =>
@@ -289,4 +288,110 @@ class AppLocalizationsEn extends AppLocalizations {
   String offsetMinutes(int count) {
     return '$count min';
   }
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get sectionPlayback => 'Playback';
+
+  @override
+  String get sectionLessons => 'Lessons';
+
+  @override
+  String get sectionNotifications => 'Notifications';
+
+  @override
+  String get sectionCalls => 'Lesson calls';
+
+  @override
+  String get sectionAppearance => 'Appearance';
+
+  @override
+  String get sectionResources => 'Resources';
+
+  @override
+  String get sectionPermissions => 'Permissions';
+
+  @override
+  String get sectionReminderTimes => 'Remind me';
+
+  @override
+  String get sectionSync => 'Synchronization';
+
+  @override
+  String get speed => 'Speed';
+
+  @override
+  String get reminderTimes => 'Reminder times';
+
+  @override
+  String get sound => 'Sound';
+
+  @override
+  String get sounds => 'Sounds';
+
+  @override
+  String get addTime => 'Add time';
+
+  @override
+  String get amount => 'Amount';
+
+  @override
+  String get exactTimingHelp =>
+      'Android delivers reminders at the exact minute only with this access. Without it they may arrive late.';
+
+  @override
+  String get remindersTooltip =>
+      'Sends a notification before each lesson starts.';
+
+  @override
+  String get themeSystemHelp => 'Follows your Android light or dark setting.';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get on => 'On';
+
+  @override
+  String get off => 'Off';
+
+  @override
+  String get granted => 'Granted';
+
+  @override
+  String get notGranted => 'Not granted';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get markWatchedShort => 'Mark watched';
+
+  @override
+  String get openLink => 'Open';
+
+  @override
+  String get searchHint => 'Search';
+
+  @override
+  String get reset => 'Reset';
+
+  @override
+  String get custom => 'Custom';
+
+  @override
+  String get preset => 'Preset';
+
+  @override
+  String get noResults => 'Nothing found';
+
+  @override
+  String get reminderTimesHelp =>
+      'Pick how long before a lesson you want to be notified. Each time you turn on sends its own notification, so several can fire for one lesson.';
+
+  @override
+  String get ringDurationHelp =>
+      'How long the call screen keeps ringing before it gives up and stops on its own.';
 }

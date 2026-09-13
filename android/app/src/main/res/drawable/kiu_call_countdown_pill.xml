@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Countdown chip. Sits apart from the time pill above it: this one is the
+     live value, so it gets a filled bed rather than an outline. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/call_countdown_bg" />
+    <corners android:radius="18dp" />
+</shape>

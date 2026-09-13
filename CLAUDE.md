@@ -15,6 +15,8 @@ KIU: Android-only Flutter LMS companion app (`com.mashkhurbek.kiu`, Android API 
 - `lib/web/` — injected JavaScript
 - `lib/ui/` — WebView shell
 - `lib/l10n/` — `.arb` sources (template `app_uz_Cyrl.arb`) + committed generated output
+- `lib/ui/widgets/` — shared settings building blocks (`SettingsSection`,
+  `SettingsRow`, `SettingsSwitchRow`, `InfoHint`, `SheetHeader`)
 - `lib/core/` — constants, trusted-host rules, theme
 - `test/` — mirrors lib/ structure; shared fakes in `test/support/`
 - `android/app/src/main/kotlin/com/mashkhurbek/kiu/` — native channels, home-screen widget, lesson calls (alarms, receiver, activity, boot, link routing)
@@ -80,6 +82,48 @@ listed in `android/app/proguard-rules.pro`. A missing `-keep` breaks the widget
 or lesson calls **silently at runtime** — no crash, no log. Keep the rules
 narrow: an over-broad `-keep pkg.** { *; }` measurably *grows* the dex under
 `proguard-android-optimize`. Re-verify on a device after touching either file.
+
+**Settings rows stay one line; long prose goes in an `InfoHint`.** A row shows
+a short label and at most its current value. Any explanation longer than that
+is passed as `hint:` and reached by tapping the ⓘ — never as a wrapped
+subtitle, which is what made the old sheets scroll for pages. `InfoHint` uses
+`TooltipTriggerMode.manual` on purpose: hover tooltips never fire on a touch
+screen, so a plain `Tooltip` would make the help unreachable on the only
+platform this app ships to.
+
+**A settings container must be a `Material`, not a `DecoratedBox`.**
+`ListTile` paints its ink splash on the nearest `Material` ancestor, so a bare
+colored box around the rows silently swallows every tap ripple — no error, the
+taps just stop feeling like taps. `SettingsSection` already does this; reuse it
+rather than hand-rolling a container.
+
+**The widget palette is duplicated, not shared.** `res/values/colors.xml` and
+`WidgetTheme.kt` mirror `lib/core/theme.dart` on purpose: `RemoteViews`
+`setTextColor` needs a resolved int, and the widget follows the in-app
+Appearance setting rather than the `-night` resource qualifier, so Android
+cannot pick the variant. Change the Dart palette and both native copies
+together or the widget drifts from the app.
+
+**The call screen must never scroll.** `kiu_lesson_call.xml` is a plain
+`LinearLayout`, not a `ScrollView`: the brand row, countdown and button row are
+fixed and the identity block takes `layout_weight="1"`, so Answer can never be
+pushed off screen. It also draws edge to edge and re-applies the system-bar
+insets as padding in `applyWindowInsets()` — framework `WindowInsets`, not
+androidx, because the activity extends plain `Activity` and the module declares
+no androidx.core dependency of its own.
+
+**`clipChildren="false"` must be set on *every* ancestor.** The answer button's
+idle nudge translates it beyond its row, and a single parent still clipping
+shears a flat edge off the circle. The root `call_root`, the button row and both
+button columns all carry it — setting it on the inner containers alone is not
+enough and looks correct until the animation reaches its peak.
+
+**`values-hNdp` means "at least N dp", never "at most".** A height qualifier
+can only add space for taller screens; it cannot rescue a shorter one. So the
+compact call metrics live in plain `values/dimens.xml` as the floor and
+`values-h700dp` opens the layout up on a normal phone. Getting this backwards
+silently clips the start-time pill on small devices while looking fine on the
+one you happen to be testing.
 
 **Reminder text is localized.** `ReminderReconciler` loads
 `AppLocalizations.delegate` directly (no `BuildContext` in the background

@@ -1,26 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Day separator in the widget list. Mirrors the in-app lesson list header. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="6dp"
-    android:layout_marginBottom="4dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="2dp"
     android:gravity="center_vertical"
-    android:orientation="horizontal">
+    android:orientation="horizontal"
+    android:paddingStart="2dp">
 
     <TextView
         android:id="@+id/lesson_group_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#68746D"
-        android:textSize="11sp"
+        android:letterSpacing="0.06"
+        android:textAllCaps="true"
+        android:textColor="@color/widget_on_surface_variant"
+        android:textSize="10sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/lesson_group_rule"
         android:layout_width="0dp"
         android:layout_height="1dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="9dp"
         android:layout_weight="1"
-        android:background="#D9E4DC"
+        android:background="@color/widget_outline"
         android:text="" />
 </LinearLayout>

@@ -200,7 +200,7 @@ abstract class AppLocalizations {
   /// No description provided for @notificationSettings.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Эслатма созламалари'**
+  /// **'Билдиришнома ва қўнғироқлар'**
   String get notificationSettings;
 
   /// No description provided for @reminders.
@@ -212,7 +212,7 @@ abstract class AppLocalizations {
   /// No description provided for @remindersHelp.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Жадвални фонда тахминан ҳар 5 дақиқада текширади'**
+  /// **'Ҳар бир дарс бошланишидан олдин хабар беради.'**
   String get remindersHelp;
 
   /// No description provided for @threeHours.
@@ -326,7 +326,7 @@ abstract class AppLocalizations {
   /// No description provided for @reducedPrecision.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Аниқ вақт рухсати йўқ; эслатма кечикиши мумкин'**
+  /// **'Эслатмалар кечикиши мумкин'**
   String get reducedPrecision;
 
   /// No description provided for @grantPermission.
@@ -398,13 +398,13 @@ abstract class AppLocalizations {
   /// No description provided for @backgroundSyncHelp.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'KIU ёпиқ бўлганда дарсларни ҳар 5 дақиқада текширади'**
+  /// **'KIU ёпиқ бўлганда жадвални ҳар 5 дақиқада текширади.'**
   String get backgroundSyncHelp;
 
   /// No description provided for @backgroundAccess.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Фонда ишлаш'**
+  /// **'Батарея рухсати'**
   String get backgroundAccess;
 
   /// No description provided for @backgroundAccessHelp.
@@ -476,7 +476,7 @@ abstract class AppLocalizations {
   /// No description provided for @soundOverridesHelp.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.'**
+  /// **'Алоҳида овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.'**
   String get soundOverridesHelp;
 
   /// No description provided for @customSound.
@@ -512,13 +512,13 @@ abstract class AppLocalizations {
   /// No description provided for @lessonCalls.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Дарс қўнғироқлари'**
+  /// **'Қўнғироқлар'**
   String get lessonCalls;
 
   /// No description provided for @lessonCallsHelp.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади'**
+  /// **'Дарс бошланганда тўлиқ экранли қўнғироқ қилади.'**
   String get lessonCallsHelp;
 
   /// No description provided for @ringDuration.
@@ -542,7 +542,7 @@ abstract class AppLocalizations {
   /// No description provided for @fullScreenAccess.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Тўлиқ экран рухсати'**
+  /// **'Тўлиқ экранли қўнғироқ'**
   String get fullScreenAccess;
 
   /// No description provided for @fullScreenAccessHelp.
@@ -554,7 +554,7 @@ abstract class AppLocalizations {
   /// No description provided for @overlayAccess.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Бошқа иловалар устида кўрсатиш'**
+  /// **'Иловалар устида кўрсатиш'**
   String get overlayAccess;
 
   /// No description provided for @overlayAccessHelp.
@@ -628,6 +628,210 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'{count} дақиқа'**
   String offsetMinutes(int count);
+
+  /// No description provided for @settings.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Созламалар'**
+  String get settings;
+
+  /// No description provided for @sectionPlayback.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ижро'**
+  String get sectionPlayback;
+
+  /// No description provided for @sectionLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарслар'**
+  String get sectionLessons;
+
+  /// No description provided for @sectionNotifications.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Билдиришномалар'**
+  String get sectionNotifications;
+
+  /// No description provided for @sectionCalls.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс қўнғироқлари'**
+  String get sectionCalls;
+
+  /// No description provided for @sectionAppearance.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Кўриниш'**
+  String get sectionAppearance;
+
+  /// No description provided for @sectionResources.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Манбалар'**
+  String get sectionResources;
+
+  /// No description provided for @sectionPermissions.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Рухсатлар'**
+  String get sectionPermissions;
+
+  /// No description provided for @sectionReminderTimes.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Эслатиш вақти'**
+  String get sectionReminderTimes;
+
+  /// No description provided for @sectionSync.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Синхронлаш'**
+  String get sectionSync;
+
+  /// No description provided for @speed.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тезлик'**
+  String get speed;
+
+  /// No description provided for @reminderTimes.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Эслатма вақтлари'**
+  String get reminderTimes;
+
+  /// No description provided for @sound.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Овоз'**
+  String get sound;
+
+  /// No description provided for @sounds.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Овозлар'**
+  String get sounds;
+
+  /// No description provided for @addTime.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Вақт қўшиш'**
+  String get addTime;
+
+  /// No description provided for @amount.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Миқдор'**
+  String get amount;
+
+  /// No description provided for @exactTimingHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Android эслатмаларни аниқ дақиқада фақат шу рухсат билан етказади. Бўлмаса, улар кечикиши мумкин.'**
+  String get exactTimingHelp;
+
+  /// No description provided for @remindersTooltip.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳар бир дарс бошланишидан олдин билдиришнома юборади.'**
+  String get remindersTooltip;
+
+  /// No description provided for @themeSystemHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Android’даги ёруғ ёки тунги созламага эргашади.'**
+  String get themeSystemHelp;
+
+  /// No description provided for @close.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ёпиш'**
+  String get close;
+
+  /// No description provided for @on.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ёниқ'**
+  String get on;
+
+  /// No description provided for @off.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ўчиқ'**
+  String get off;
+
+  /// No description provided for @granted.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Берилган'**
+  String get granted;
+
+  /// No description provided for @notGranted.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Берилмаган'**
+  String get notGranted;
+
+  /// No description provided for @about.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Илова ҳақида'**
+  String get about;
+
+  /// No description provided for @markWatchedShort.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Кўрилган'**
+  String get markWatchedShort;
+
+  /// No description provided for @openLink.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Очиш'**
+  String get openLink;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қидириш'**
+  String get searchHint;
+
+  /// No description provided for @reset.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тиклаш'**
+  String get reset;
+
+  /// No description provided for @custom.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Махсус'**
+  String get custom;
+
+  /// No description provided for @preset.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Тайёр'**
+  String get preset;
+
+  /// No description provided for @noResults.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳеч нарса топилмади'**
+  String get noResults;
+
+  /// No description provided for @reminderTimesHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс бошланишидан қанча вақт олдин хабар беришни танланг. Ёқилган ҳар бир вақт алоҳида билдиришнома юборади, шунинг учун битта дарсга бир нечтаси келиши мумкин.'**
+  String get reminderTimesHelp;
+
+  /// No description provided for @ringDurationHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қўнғироқ экрани ўзи тўхтагунга қадар қанча вақт жиринглаши.'**
+  String get ringDurationHelp;
 }
 
 class _AppLocalizationsDelegate

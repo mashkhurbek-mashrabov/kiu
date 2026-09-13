@@ -53,6 +53,7 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       'callToggleOnLabel': _label(settings.localeTag, 'callToggleOn'),
       'callToggleOffLabel': _label(settings.localeTag, 'callToggleOff'),
       'callJoinLabel': _label(settings.localeTag, 'callJoin'),
+      'callSecondsLabel': _label(settings.localeTag, 'callSeconds'),
       'widgetStatus': '',
       'widgetIsSyncing': 'false',
       'widgetLastSync': buildLessonWidgetLastSyncLabel(
@@ -311,6 +312,7 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('ru', 'callToggleOn') => 'Включить звонок для этого урока',
   ('ru', 'callToggleOff') => 'Отключить звонок для этого урока',
   ('ru', 'callJoin') => 'Присоединиться к уроку',
+  ('ru', 'callSeconds') => 'с',
   ('en', 'sync') => 'Sync',
   ('en', 'subtitle') => 'Scheduled online lessons',
   ('en', 'syncing') => 'Synchronizing…',
@@ -328,6 +330,7 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('en', 'callToggleOn') => 'Turn on the call for this lesson',
   ('en', 'callToggleOff') => 'Turn off the call for this lesson',
   ('en', 'callJoin') => 'Join the lesson',
+  ('en', 'callSeconds') => 's',
   ('uz', 'sync') => 'Yangilash',
   ('uz', 'subtitle') => 'Rejalashtirilgan onlayn darslar',
   ('uz', 'syncing') => 'Sinxronlanmoqda…',
@@ -345,6 +348,7 @@ String _label(String locale, String key) => switch ((locale, key)) {
   ('uz', 'callToggleOn') => 'Bu dars uchun qo‘ng‘iroqni yoqish',
   ('uz', 'callToggleOff') => 'Bu dars uchun qo‘ng‘iroqni o‘chirish',
   ('uz', 'callJoin') => 'Darsga qo‘shilish',
+  ('uz', 'callSeconds') => 's',
   (_, 'sync') => 'Янгилаш',
   (_, 'subtitle') => 'Режалаштирилган онлайн дарслар',
   (_, 'syncing') => 'Синхронланмоқда…',
@@ -362,5 +366,6 @@ String _label(String locale, String key) => switch ((locale, key)) {
   (_, 'callToggleOn') => 'Бу дарс учун қўнғироқни ёқиш',
   (_, 'callToggleOff') => 'Бу дарс учун қўнғироқни ўчириш',
   (_, 'callJoin') => 'Дарсга қўшилиш',
+  (_, 'callSeconds') => 'с',
   _ => '',
 };

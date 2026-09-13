@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Avatar disc. A vertical gradient rather than a flat fill so the circle
+     reads as lit from above, matching the screen's own top-down gradient. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#1F5C41" />
+    <gradient
+        android:angle="270"
+        android:startColor="@color/call_avatar_top"
+        android:endColor="@color/call_avatar"
+        android:type="linear" />
     <stroke
         android:width="2dp"
-        android:color="#2E7F5B" />
+        android:color="@color/call_avatar_stroke" />
 </shape>

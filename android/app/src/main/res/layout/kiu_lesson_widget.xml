@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget.
+
+  Header is one line: brand, then the status/last-sync line under it, then the
+  list. The old layout spent three lines on "KIU | Scheduled online lessons"
+  plus a status and a last-sync row, which on a 180dp-tall widget left room
+  for barely two lessons.
+
+  Ids are bound by KiuLessonWidgetProvider - do not rename without updating it.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/kiu_widget_background"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:paddingHorizontal="12dp"
+    android:paddingTop="11dp"
+    android:paddingBottom="10dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,47 +25,33 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.04"
+            android:text="KIU"
+            android:textColor="@color/kiu_green"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_subtitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
             android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/widget_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="KIU"
-                android:textColor="#176B45"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/widget_divider"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="7dp"
-                android:text="|"
-                android:textColor="#A6B4AB"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/widget_subtitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="Scheduled online lessons"
-                android:textColor="#176B45"
-                android:textSize="14sp" />
-        </LinearLayout>
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Scheduled online lessons"
+            android:textColor="@color/widget_on_surface_variant"
+            android:textSize="12sp" />
 
         <FrameLayout
             android:id="@+id/widget_sync"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
             android:contentDescription="@string/kiu_widget_sync">
 
             <ImageButton
@@ -62,7 +60,7 @@
                 android:layout_height="match_parent"
                 android:background="@drawable/kiu_widget_sync_button"
                 android:contentDescription="@string/kiu_widget_sync"
-                android:padding="9dp"
+                android:padding="8dp"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_widget_sync" />
 
@@ -72,30 +70,34 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:indeterminate="true"
-                android:indeterminateTint="#176B45"
+                android:indeterminateTint="@color/kiu_green"
+                android:padding="7dp"
                 android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>
 
+    <!-- Only one of these two carries text at a time, so they share a line
+         rather than each reserving one. -->
     <TextView
         android:id="@+id/widget_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="#176B45"
-        android:textSize="12sp"
+        android:textColor="@color/kiu_green"
+        android:textSize="11sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/widget_last_sync"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:layout_marginTop="2dp"
-        android:textColor="#68746D"
-        android:textSize="11sp" />
+        android:textColor="@color/widget_on_surface_variant"
+        android:textSize="10sp" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -117,6 +119,7 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:text="No scheduled lessons"
-            android:textColor="#68746D" />
+            android:textColor="@color/widget_on_surface_variant"
+            android:textSize="13sp" />
     </FrameLayout>
 </LinearLayout>

@@ -61,6 +61,11 @@ class _FakeController extends PlatformWebViewController {
 
   @override
   Future<bool> canGoForward() async => false;
+
+  // The base implementation throws UnimplementedError rather than returning
+  // null, so any test that reaches a sync needs this stubbed.
+  @override
+  Future<String?> getUserAgent() async => 'FakeUserAgent';
 }
 
 class _FakeNavigationDelegate extends PlatformNavigationDelegate {

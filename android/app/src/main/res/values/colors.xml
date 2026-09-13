@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Palette shared by the home-screen widget and the lesson-call screen.
+
+  These mirror lib/core/theme.dart: an app-launcher widget cannot read the
+  Flutter ColorScheme, so the values are duplicated here on purpose. Change
+  both together or the widget drifts away from the app it belongs to.
+-->
+<resources>
+    <!-- Brand -->
+    <color name="kiu_green">#176B45</color>
+    <color name="kiu_green_bright">#1DA05F</color>
+    <color name="kiu_amber">#9A6B00</color>
+
+    <!-- Widget, light -->
+    <color name="widget_surface">#FBFDFA</color>
+    <color name="widget_on_surface">#1A1C1A</color>
+    <color name="widget_on_surface_variant">#5C6660</color>
+    <color name="widget_outline">#DCE5DE</color>
+    <color name="widget_item">#EDF5EF</color>
+    <color name="widget_item_other">#FFFFFF</color>
+    <color name="widget_time_pill">#E1EDE5</color>
+    <color name="widget_sync_idle">#E7F3EA</color>
+    <color name="widget_sync_pressed">#D2E8DA</color>
+    <color name="widget_amber_text">#7A5500</color>
+    <color name="widget_amber_time">#8A6500</color>
+
+    <!-- Widget, dark -->
+    <color name="widget_surface_dark">#1B211E</color>
+    <color name="widget_on_surface_dark">#E3E6E3</color>
+    <color name="widget_on_surface_variant_dark">#A8B4AC</color>
+    <color name="widget_outline_dark">#3A423D</color>
+    <color name="widget_item_dark">#252D28</color>
+    <color name="widget_item_other_dark">#202723</color>
+    <color name="widget_time_pill_dark">#333C36</color>
+    <color name="widget_sync_idle_dark">#252D28</color>
+    <color name="widget_sync_pressed_dark">#33403A</color>
+    <color name="widget_green_dark">#6FD3A0</color>
+    <color name="widget_amber_dark">#E3B85F</color>
+
+    <!-- Accent bars: scheduled vs already started. -->
+    <color name="accent_scheduled">#F2B705</color>
+    <color name="accent_started">#176B45</color>
+
+    <!-- Lesson call screen -->
+    <color name="call_bg_top">#0E4630</color>
+    <color name="call_bg_mid">#0A2B1D</color>
+    <color name="call_bg_bottom">#061410</color>
+    <color name="call_brand">#BFE8D2</color>
+    <color name="call_label">#7FD7AC</color>
+    <color name="call_title">#FFFFFF</color>
+    <color name="call_subtle">#B9DCC9</color>
+    <color name="call_muted">#8FB3A2</color>
+    <color name="call_avatar">#175039</color>
+    <color name="call_avatar_top">#276E4E</color>
+    <color name="call_avatar_stroke">#39906A</color>
+    <color name="call_answer">#149652</color>
+    <color name="call_answer_top">#24B96C</color>
+    <color name="call_decline">#C7332A</color>
+    <color name="call_decline_top">#E24A3E</color>
+    <color name="call_halo_fill">#14318F63</color>
+    <color name="call_halo_ring">#3339906A</color>
+    <color name="call_halo_ring_faint">#1F39906A</color>
+    <color name="call_countdown_bg">#1FFFFFFF</color>
+    <color name="call_brand_pill">#14BFE8D2</color>
+</resources>

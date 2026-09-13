@@ -27,25 +27,28 @@ internal object WidgetTheme {
     fun lessonTime(dark: Boolean): Int =
         if (dark) R.drawable.kiu_widget_lesson_time_dark else R.drawable.kiu_widget_lesson_time
 
-    /** Brand green; lightened in dark mode so it stays readable on #2B2939. */
-    fun brand(dark: Boolean): Int = if (dark) Color.rgb(127, 209, 168) else Color.rgb(23, 107, 69)
+    /**
+     * Text colors. These duplicate res/values/colors.xml on purpose: RemoteViews
+     * setTextColor takes a resolved int, not a resource id, and the widget picks
+     * its mode from the in-app setting rather than the -night qualifier, so the
+     * resource system cannot pick the variant for us. Keep the two in step.
+     */
+    fun brand(dark: Boolean): Int = if (dark) Color.rgb(111, 211, 160) else Color.rgb(23, 107, 69)
 
-    fun muted(dark: Boolean): Int = if (dark) Color.rgb(169, 163, 188) else Color.rgb(104, 116, 109)
+    fun muted(dark: Boolean): Int = if (dark) Color.rgb(168, 180, 172) else Color.rgb(92, 102, 96)
 
-    fun divider(dark: Boolean): Int = if (dark) Color.rgb(92, 86, 112) else Color.rgb(166, 180, 171)
-
-    fun rule(dark: Boolean): Int = if (dark) Color.rgb(70, 65, 92) else Color.rgb(217, 228, 220)
+    fun rule(dark: Boolean): Int = if (dark) Color.rgb(58, 66, 61) else Color.rgb(220, 229, 222)
 
     fun lessonTitle(dark: Boolean, started: Boolean, today: Boolean): Int = when {
         started -> brand(dark)
-        today -> if (dark) Color.rgb(242, 201, 76) else Color.rgb(167, 120, 0)
-        dark -> Color.rgb(230, 227, 240)
-        else -> Color.rgb(52, 65, 58)
+        today -> if (dark) Color.rgb(227, 184, 95) else Color.rgb(122, 85, 0)
+        dark -> Color.rgb(227, 230, 227)
+        else -> Color.rgb(26, 28, 26)
     }
 
     fun lessonTimeText(dark: Boolean, started: Boolean, today: Boolean): Int = when {
         started -> brand(dark)
-        today -> if (dark) Color.rgb(224, 179, 65) else Color.rgb(138, 101, 0)
+        today -> if (dark) Color.rgb(212, 170, 82) else Color.rgb(138, 101, 0)
         else -> muted(dark)
     }
 }

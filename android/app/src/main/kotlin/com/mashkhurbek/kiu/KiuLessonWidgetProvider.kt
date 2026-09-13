@@ -30,8 +30,9 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 setInt(R.id.widget_container, "setBackgroundResource", WidgetTheme.background(dark))
                 setInt(R.id.widget_sync_icon, "setBackgroundResource", WidgetTheme.syncButton(dark))
                 setTextColor(R.id.widget_title, WidgetTheme.brand(dark))
-                setTextColor(R.id.widget_subtitle, WidgetTheme.brand(dark))
-                setTextColor(R.id.widget_divider, WidgetTheme.divider(dark))
+                // Subtitle is secondary now that it sits under the brand rather
+                // than beside it; brand green on both made the header shout.
+                setTextColor(R.id.widget_subtitle, WidgetTheme.muted(dark))
                 setTextColor(R.id.widget_status, WidgetTheme.brand(dark))
                 setTextColor(R.id.widget_last_sync, WidgetTheme.muted(dark))
                 setTextColor(R.id.lesson_empty, WidgetTheme.muted(dark))

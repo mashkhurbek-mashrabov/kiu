@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Call-screen metrics, compact baseline.
+
+  These are the SMALL values on purpose. Android's `hNdp` qualifier means "at
+  least N dp of available height", so a folder can only ever add space for
+  taller screens - it cannot rescue a shorter one. Putting the compact set here
+  means an unknown small device degrades gracefully, and values-h700dp opens
+  the layout up on a normal phone.
+-->
+<resources>
+    <dimen name="call_halo_size">112dp</dimen>
+    <dimen name="call_halo_inner">94dp</dimen>
+    <dimen name="call_avatar_size">74dp</dimen>
+    <dimen name="call_avatar_text">32sp</dimen>
+    <dimen name="call_title_text">20sp</dimen>
+    <dimen name="call_top_padding">10dp</dimen>
+    <!-- Seats the buttons clear of the bottom edge, the way OneUI does; the
+         navigation-bar inset is added on top of this at runtime. -->
+    <dimen name="call_bottom_padding">78dp</dimen>
+    <!-- Wide gap so the countdown reads as status, not a button label. -->
+    <dimen name="call_countdown_margin">30dp</dimen>
+    <dimen name="call_label_margin">12dp</dimen>
+    <dimen name="call_button_size">64dp</dimen>
+    <dimen name="call_button_padding">19dp</dimen>
+    <!-- Two lines: a third would eat the start-time pill below it. -->
+    <integer name="call_title_max_lines">2</integer>
+</resources>
