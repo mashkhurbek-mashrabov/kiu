@@ -613,6 +613,33 @@ void main() {
     expect(badgeGranted(tester, 'overlay-access-tile'), isTrue);
   });
 
+  testWidgets('battery badge updates on resume after granting in Settings', (
+    tester,
+  ) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false;
+    final appController = await controller(null, backgroundAccess);
+    await openNotificationSettings(tester, appController);
+    expect(badgeGranted(tester, 'battery-access'), isFalse);
+
+    // Tapping only starts the settings activity; the badge must not claim the
+    // exemption was granted just because the channel call returned.
+    final tile = find.byKey(const Key('battery-access'));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+    expect(backgroundAccess.batterySettingsOpened, 1);
+    expect(badgeGranted(tester, 'battery-access'), isFalse);
+
+    // The user grants it in Android settings and comes back.
+    backgroundAccess.batteryOptimizationDisabled = true;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(badgeGranted(tester, 'battery-access'), isTrue);
+  });
+
   testWidgets('hides call-only permissions while calls are off', (
     tester,
   ) async {

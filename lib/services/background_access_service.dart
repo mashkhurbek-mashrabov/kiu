@@ -13,9 +13,18 @@ class AndroidBackgroundAccessGateway implements BackgroundAccessGateway {
   static const _channel = MethodChannel('com.mashkhurbek.kiu/platform');
 
   @override
-  Future<bool> isBatteryOptimizationDisabled() async =>
-      await _channel.invokeMethod<bool>('isBatteryOptimizationDisabled') ??
-      false;
+  Future<bool> isBatteryOptimizationDisabled() async {
+    try {
+      return await _channel.invokeMethod<bool>(
+            'isBatteryOptimizationDisabled',
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
 
   @override
   Future<void> openBatteryOptimizationSettings() =>

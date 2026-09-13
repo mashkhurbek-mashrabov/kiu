@@ -142,6 +142,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _startForegroundSync();
       _synchronize();
+      // The user may have just granted a permission in Android settings.
+      unawaited(widget.controller.refreshBackgroundAccess());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _foregroundTimer?.cancel();
@@ -961,26 +963,19 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _openNotificationSettings() async {
     final customController = TextEditingController();
     var customUnitHours = false;
-    var fullScreenIntentRefreshStarted = false;
+    var backgroundAccessRefreshStarted = false;
     final returnToMainSettings = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
-          if (!fullScreenIntentRefreshStarted) {
-            fullScreenIntentRefreshStarted = true;
+          if (!backgroundAccessRefreshStarted) {
+            backgroundAccessRefreshStarted = true;
             // Fire-and-forget: the sheet must render immediately rather
             // than block on a platform channel round trip, so the
-            // full-screen-access tile appears a frame later once this
-            // resolves.
-            widget.controller.refreshFullScreenIntentAccess().then((_) {
-              if (mounted) setSheetState(() {});
-            });
-            widget.controller.refreshOverlayAccess().then((_) {
-              if (mounted) setSheetState(() {});
-            });
-            widget.controller.refreshBatteryOptimizationAccess().then((_) {
+            // permission tiles appear a frame later once this resolves.
+            widget.controller.refreshBackgroundAccess().then((_) {
               if (mounted) setSheetState(() {});
             });
           }
