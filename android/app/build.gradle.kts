@@ -30,6 +30,32 @@ android {
         versionName = flutter.versionName
     }
 
+    // 32-bit ARM is dropped on purpose. Every device this ships to is arm64;
+    // armeabi-v7a only added a third APK nobody installed. x86_64 stays for
+    // the emulator.
+    //
+    // Build with `flutter build apk --release --split-per-abi`. One APK per
+    // ABI keeps the arm64 download at ~20.8 MB; a combined APK carrying both
+    // is 41.6 MB, half of it x86_64 that no phone ever runs.
+    //
+    // This must be a `splits` block rather than `defaultConfig.ndk.abiFilters`
+    // -- Gradle refuses to configure when both are set ("Conflicting
+    // configuration ... in ndk abiFilters cannot be present when splits abi
+    // filters are set"), and `--split-per-abi` populates the splits side
+    // itself. `reset()` clears Flutter's default list before naming our own.
+    //
+    // Flutter's tooling still expects an armeabi-v7a file afterwards and
+    // prints "Gradle build failed to produce an .apk file"; the APKs in
+    // build/app/outputs/flutter-apk/ are built and valid regardless.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
