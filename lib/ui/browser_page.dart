@@ -1738,9 +1738,16 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     'Rus tili lug\'at',
                     'https://drive.google.com/file/d/1U6uYlS2ae3QHUYBtW7DXOi4MLjCFjr1M/view',
                   ),
+                  (
+                    'Russian lessons',
+                    'https://docs.google.com/document/d/1HktWF2VUKFqi2RgGmJi3_Uykqy6znqaS2SKvEzAghxw/edit?usp=sharing',
+                  ),
                 ])
                   SettingsRow(
-                    icon: Icons.picture_as_pdf_rounded,
+                    // A Google Doc is not a PDF; the icon says which it is.
+                    icon: link.$2.contains('/document/d/')
+                        ? Icons.article_rounded
+                        : Icons.picture_as_pdf_rounded,
                     title: link.$1,
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _openPdfViewer(link.$1, link.$2),
@@ -1821,36 +1828,54 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _launchExternal(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
-  /// Returns the file id of a `drive.google.com/file/d/<id>/...` URL, or null
-  /// for anything else. Matches on the parsed host so a lookalike path on
-  /// another domain cannot pose as Drive.
-  static String? _driveFileId(String url) {
+  /// Maps a Google share link to its read-only `/preview` embed, or returns
+  /// null for anything else. Covers `drive.google.com/file/d/<id>/...` and
+  /// Docs editors (`docs.google.com/document|spreadsheets|presentation/d/<id>`).
+  ///
+  /// Matches on the parsed host so a lookalike path on another domain cannot
+  /// pose as Google, and always rewrites the trailing segment: shipping an
+  /// `/edit` URL would hand every user the editor.
+  static String? _googlePreviewUrl(String url) {
     final uri = Uri.tryParse(url);
-    if (uri?.host != 'drive.google.com') return null;
-    final segments = uri!.pathSegments;
-    if (segments.length < 3 || segments[0] != 'file' || segments[1] != 'd') {
-      return null;
+    final segments = uri?.pathSegments ?? const <String>[];
+    if (uri?.host == 'drive.google.com') {
+      if (segments.length < 3 || segments[0] != 'file' || segments[1] != 'd') {
+        return null;
+      }
+      final id = segments[2];
+      return id.isEmpty ? null : 'https://drive.google.com/file/d/$id/preview';
     }
-    return segments[2].isEmpty ? null : segments[2];
+    if (uri?.host == 'docs.google.com') {
+      const editors = {'document', 'spreadsheets', 'presentation'};
+      if (segments.length < 3 ||
+          !editors.contains(segments[0]) ||
+          segments[1] != 'd') {
+        return null;
+      }
+      final id = segments[2];
+      return id.isEmpty
+          ? null
+          : 'https://docs.google.com/${segments[0]}/d/$id/preview';
+    }
+    return null;
   }
 
   /// Opens [pdfUrl] in a throwaway WebView using Google's public docs
   /// viewer. Uses its own [WebViewController] — no cookies or trusted-host
   /// gating needed for a public PDF rendered by Google.
   ///
-  /// A Drive share link is not a direct file URL, so the docs viewer would
-  /// render the sharing page instead of the PDF. Drive serves those from its
-  /// own `/preview` endpoint, which embeds as-is.
+  /// A Google share link is not a direct file URL, so the docs viewer would
+  /// render the sharing page instead of the document. Those load from their
+  /// own `/preview` endpoint, which embeds as-is and is read-only.
   Future<void> _openPdfViewer(
     String title,
     String pdfUrl,
   ) => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) {
-        final driveId = _driveFileId(pdfUrl);
-        final viewerUrl = driveId != null
-            ? 'https://drive.google.com/file/d/$driveId/preview'
-            : 'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
+        final viewerUrl =
+            _googlePreviewUrl(pdfUrl) ??
+            'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
         var loading = true;
         void Function()? onPageFinished;
         final controller = WebViewController()

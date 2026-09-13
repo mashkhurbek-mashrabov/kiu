@@ -389,6 +389,35 @@ void main() {
     );
   });
 
+  testWidgets('a Google Doc opens read-only, never the editor', (tester) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Russian lessons'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Russian lessons'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Shipping the /edit URL would hand every user the editor.
+    expect(
+      loadedUrls.last,
+      'https://docs.google.com/document/d/1HktWF2VUKFqi2RgGmJi3_Uykqy6znqaS2SKvEzAghxw/preview',
+    );
+    expect(loadedUrls.last, isNot(contains('/edit')));
+  });
+
   testWidgets(
     'toggles a lesson call from the phone icon in Scheduled lessons',
     (tester) async {
