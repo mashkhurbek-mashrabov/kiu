@@ -94,7 +94,6 @@ class LessonCallReceiver : BroadcastReceiver() {
         // runCatching around it reports success either way and would leave the fallback mute.
         val willShowCallScreen = canDrawOverlays(context) || screenIsOff(context)
         val channelId = ensureChannel(context, ringtoneUri, silent = willShowCallScreen)
-        val launched = willShowCallScreen
         runCatching { context.startActivity(fullScreenIntent) }
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -109,12 +108,12 @@ class LessonCallReceiver : BroadcastReceiver() {
             .setContentText(title)
             .setSmallIcon(R.drawable.ic_notification)
             .setCategory(Notification.CATEGORY_CALL)
-            .setPriority(if (launched) Notification.PRIORITY_LOW else Notification.PRIORITY_HIGH)
+            .setPriority(if (willShowCallScreen) Notification.PRIORITY_LOW else Notification.PRIORITY_HIGH)
             .setOngoing(true)
             .setAutoCancel(false)
             // Re-asserting the full-screen intent while the screen is already up would make
             // Android relaunch it; only arm it when it is still needed.
-            .apply { if (!launched) setFullScreenIntent(fullScreenPendingIntent, true) }
+            .apply { if (!willShowCallScreen) setFullScreenIntent(fullScreenPendingIntent, true) }
             .setContentIntent(fullScreenPendingIntent)
             .addAction(
                 R.drawable.ic_lesson_call_decline,
@@ -182,12 +181,6 @@ class LessonCallReceiver : BroadcastReceiver() {
         )
     }
 
-    /**
-     * Creates (or reuses) the ring notification channel. Android caches a channel's sound once
-     * created, so the ringtone's hash rides in the channel id - the same trick
-     * `reminderNotificationChannelId` in `lib/services/notification_service.dart` uses - so
-     * changing the ringtone actually takes effect on the next ring.
-     */
     /** Holding this is what exempts the direct `startActivity` from background-launch blocking. */
     private fun canDrawOverlays(context: Context): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
@@ -202,6 +195,12 @@ class LessonCallReceiver : BroadcastReceiver() {
         return !power.isInteractive || keyguard.isKeyguardLocked
     }
 
+    /**
+     * Creates (or reuses) the ring notification channel. Android caches a channel's sound once
+     * created, so the ringtone's hash rides in the channel id - the same trick
+     * `reminderNotificationChannelId` in `lib/services/notification_service.dart` uses - so
+     * changing the ringtone actually takes effect on the next ring.
+     */
     private fun ensureChannel(context: Context, ringtoneUri: Uri, silent: Boolean): String {
         // Two channels: the loud one is the standalone fallback, the silent one only backs the
         // already-visible call screen (which does its own ringing and vibrating).

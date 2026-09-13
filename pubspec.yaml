@@ -32,8 +32,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
-  assets:
-    - kiu-logo.png
+  # No `assets:` block on purpose. The logo is consumed at build time by
+  # flutter_launcher_icons below and as res/drawable-*/ic_notification.png;
+  # bundling kiu-logo.png as a runtime asset added 545 KB to every APK with
+  # no Image.asset/rootBundle reference anywhere in lib/.
 
 flutter_launcher_icons:
   android: true
