@@ -611,11 +611,29 @@ abstract class AppLocalizations {
   /// **'PDF китоблар'**
   String get pdfBooks;
 
+  /// No description provided for @bookRussianDictionary.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Рус тили луғати'**
+  String get bookRussianDictionary;
+
+  /// No description provided for @bookRussianLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Рус тили дарслари'**
+  String get bookRussianLessons;
+
   /// No description provided for @apps.
   ///
   /// In uz_Cyrl, this message translates to:
   /// **'Иловалар'**
   String get apps;
+
+  /// No description provided for @feedback.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фикр ва саволлар'**
+  String get feedback;
 
   /// No description provided for @offsetHours.
   ///

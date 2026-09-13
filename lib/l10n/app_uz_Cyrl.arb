@@ -106,7 +106,10 @@
   "usefulLinks": "Фойдали ҳаволалар",
   "testPlatforms": "Тест платформалари",
   "pdfBooks": "PDF китоблар",
+  "bookRussianDictionary": "Рус тили луғати",
+  "bookRussianLessons": "Рус тили дарслари",
   "apps": "Иловалар",
+  "feedback": "Фикр ва саволлар",
   "offsetHours": "{count} соат",
   "@offsetHours": {
     "placeholders": {

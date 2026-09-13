@@ -1709,7 +1709,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
               title: strings.pdfBooks,
               icon: Icons.menu_book_rounded,
               children: [
-                for (final link in const [
+                // Not const: the last two titles are descriptive rather than
+                // proper nouns, so they come from the localizations.
+                for (final link in [
                   (
                     'E\'tiqod durdonalari',
                     'https://uz.do-kazankiu.ru/files/upload/books/2024-10-19-17-14-55_51415d09fa306b663e1d1f9ba25f8bf6.pdf',
@@ -1734,6 +1736,14 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     'Mabdaun nahv',
                     'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
                   ),
+                  (
+                    strings.bookRussianDictionary,
+                    'https://drive.google.com/file/d/1U6uYlS2ae3QHUYBtW7DXOi4MLjCFjr1M/view',
+                  ),
+                  (
+                    strings.bookRussianLessons,
+                    'https://drive.google.com/file/d/1lKshAbXGkmOPuojCpaVz_z5XlAoZTKNw/view?usp=sharing',
+                  ),
                 ])
                   SettingsRow(
                     icon: Icons.picture_as_pdf_rounded,
@@ -1751,6 +1761,14 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
                   ('nurul-izoh.com', 'https://nurul-izoh.com'),
                   ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+                  (
+                    'mukammal-sarf-darsligi',
+                    'https://mukammal-sarf-darsligi-app.netlify.app',
+                  ),
+                  (
+                    'ar-rahiq-al-maxtum',
+                    'https://ar-rahiq-al-maxtum.netlify.app',
+                  ),
                 ])
                   SettingsRow(
                     icon: Icons.language_rounded,
@@ -1788,6 +1806,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ),
               ],
             ),
+            SettingsSection(
+              title: strings.feedback,
+              icon: Icons.chat_bubble_outline_rounded,
+              children: [
+                SettingsRow(
+                  icon: Icons.telegram_rounded,
+                  title: '@developer_aka',
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                  onTap: () => _launchExternal('https://t.me/developer_aka'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1797,9 +1827,29 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _launchExternal(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
+  /// Maps a `drive.google.com/file/d/<id>/...` share link to its read-only
+  /// `/preview` embed, or returns null for anything else.
+  ///
+  /// Matches on the parsed host so a lookalike path on another domain cannot
+  /// pose as Drive, and drops the trailing segment rather than trusting it.
+  static String? _drivePreviewUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri?.host != 'drive.google.com') return null;
+    final segments = uri!.pathSegments;
+    if (segments.length < 3 || segments[0] != 'file' || segments[1] != 'd') {
+      return null;
+    }
+    final id = segments[2];
+    return id.isEmpty ? null : 'https://drive.google.com/file/d/$id/preview';
+  }
+
   /// Opens [pdfUrl] in a throwaway WebView using Google's public docs
   /// viewer. Uses its own [WebViewController] — no cookies or trusted-host
   /// gating needed for a public PDF rendered by Google.
+  ///
+  /// A Drive share link is not a direct file URL, so the docs viewer would
+  /// render the sharing page instead of the PDF. Drive serves those from its
+  /// own `/preview` endpoint, which embeds as-is and is read-only.
   Future<void> _openPdfViewer(
     String title,
     String pdfUrl,
@@ -1807,6 +1857,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     MaterialPageRoute<void>(
       builder: (context) {
         final viewerUrl =
+            _drivePreviewUrl(pdfUrl) ??
             'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
         var loading = true;
         void Function()? onPageFinished;

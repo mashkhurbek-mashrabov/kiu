@@ -277,7 +277,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pdfBooks => 'PDF books';
 
   @override
+  String get bookRussianDictionary => 'Russian dictionary';
+
+  @override
+  String get bookRussianLessons => 'Russian lessons';
+
+  @override
   String get apps => 'Apps';
+
+  @override
+  String get feedback => 'Feedback and questions';
 
   @override
   String offsetHours(int count) {

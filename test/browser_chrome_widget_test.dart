@@ -358,6 +358,67 @@ void main() {
     expect(loadedUrls.last, startsWith('https://docs.google.com/viewer?url='));
   });
 
+  testWidgets('a Drive book loads its preview, not the docs viewer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Рус тили луғати'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Рус тили луғати'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // A share link wrapped in the docs viewer renders Drive's sharing page
+    // instead of the PDF, so it must use Drive's own /preview endpoint.
+    expect(
+      loadedUrls.last,
+      'https://drive.google.com/file/d/1U6uYlS2ae3QHUYBtW7DXOi4MLjCFjr1M/preview',
+    );
+  });
+
+  testWidgets('a shared Drive link drops its query and opens the preview', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Рус тили дарслари'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Рус тили дарслари'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // The ?usp=sharing a share link carries must not reach the embed.
+    expect(
+      loadedUrls.last,
+      'https://drive.google.com/file/d/1lKshAbXGkmOPuojCpaVz_z5XlAoZTKNw/preview',
+    );
+  });
+
   testWidgets(
     'toggles a lesson call from the phone icon in Scheduled lessons',
     (tester) async {
