@@ -12,9 +12,13 @@ class TimeZoneService {
     _initialized = true;
   }
 
+  static List<String>? _zoneIds;
+
+  /// Cached: the picker rebuilds this list (341 zones) every time it opens, and
+  /// the set cannot change while the app runs.
   List<String> get availableZoneIds {
     initialize();
-    return tz.timeZoneDatabase.locations.keys.toList()..sort();
+    return _zoneIds ??= (tz.timeZoneDatabase.locations.keys.toList()..sort());
   }
 
   DateTime parseWebsiteTime(String value) {

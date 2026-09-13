@@ -12,8 +12,14 @@ void main() {
   });
 
   test('uses DST offset at the lesson date', () {
-    final summer = service.inZone(DateTime.utc(2026, 7, 1, 12), 'Europe/London');
-    final winter = service.inZone(DateTime.utc(2026, 12, 1, 12), 'Europe/London');
+    final summer = service.inZone(
+      DateTime.utc(2026, 7, 1, 12),
+      'Europe/London',
+    );
+    final winter = service.inZone(
+      DateTime.utc(2026, 12, 1, 12),
+      'Europe/London',
+    );
     expect(summer.timeZoneOffset, const Duration(hours: 1));
     expect(winter.timeZoneOffset, Duration.zero);
   });

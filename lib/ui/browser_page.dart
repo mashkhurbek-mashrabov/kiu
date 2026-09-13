@@ -898,14 +898,27 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                         leading: const Icon(Icons.alarm_on),
                         title: Text(strings.exactTiming),
                       ),
-                    ListTile(
-                      leading: const Icon(Icons.sync),
-                      title: Text(strings.syncNow),
-                      subtitle: Text(_syncStatusText()),
-                      onTap: () async {
-                        await _synchronize();
-                        setSheetState(() {});
-                      },
+                    // Listens to the sync notifier directly: this row is the
+                    // only thing sync progress renders, so a background sync
+                    // repaints it alone instead of the whole app.
+                    ValueListenableBuilder<
+                      ({
+                        ScheduleSyncStatus status,
+                        DateTime? lastSuccessfulSync,
+                      })
+                    >(
+                      valueListenable: widget.controller.syncState,
+                      builder: (context, syncState, _) => ListTile(
+                        leading: const Icon(Icons.sync),
+                        title: Text(strings.syncNow),
+                        subtitle: Text(
+                          _syncStatusText(
+                            syncState.status,
+                            syncState.lastSuccessfulSync,
+                          ),
+                        ),
+                        onTap: _synchronize,
+                      ),
                     ),
                   ],
                 ),
@@ -921,18 +934,16 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
-  String _syncStatusText() {
-    final status = widget.controller.syncStatus;
+  String _syncStatusText(ScheduleSyncStatus status, DateTime? lastSync) {
     if (status == ScheduleSyncStatus.syncing) return strings.syncing;
     if (status == ScheduleSyncStatus.signInRequired) {
       return strings.signInToSync;
     }
     if (status == ScheduleSyncStatus.failed) return strings.syncFailed;
-    final date = widget.controller.lastSuccessfulSync;
     return strings.lastSync(
-      date == null
+      lastSync == null
           ? strings.never
-          : DateFormat('yyyy-MM-dd HH:mm').format(date),
+          : DateFormat('yyyy-MM-dd HH:mm').format(lastSync),
     );
   }
 
