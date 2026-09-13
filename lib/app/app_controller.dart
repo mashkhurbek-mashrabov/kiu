@@ -90,7 +90,7 @@ class AppController extends ChangeNotifier {
   // Cached rather than queried inline by the UI: unlike [_notifications],
   // [_backgroundAccess] has no fake wired through the widget tests, and an
   // unmocked platform channel call made while building UI never resolves in
-  // a widget test. Refreshed explicitly via [refreshFullScreenIntentAccess].
+  // a widget test. Refreshed explicitly via [refreshBackgroundAccess].
   bool canUseFullScreenIntent = true;
   // Cached for the same reason as [canUseFullScreenIntent] above.
   bool canDrawOverlays = true;
@@ -181,36 +181,30 @@ class AppController extends ChangeNotifier {
   Future<bool> isBatteryOptimizationDisabled() =>
       _backgroundAccess.isBatteryOptimizationDisabled();
 
-  Future<void> openBatteryOptimizationSettings() async {
-    await _backgroundAccess.openBatteryOptimizationSettings();
-    await refreshBatteryOptimizationAccess();
-  }
-
-  Future<void> refreshBatteryOptimizationAccess() async {
-    batteryOptimizationDisabled = await _backgroundAccess
-        .isBatteryOptimizationDisabled();
+  /// Re-queries every permission the user can only change in Android settings.
+  ///
+  /// Opening a settings screen returns as soon as the activity starts, long
+  /// before the user grants anything, so the open* methods cannot refresh
+  /// their own state. Resuming is the first moment the answer can differ.
+  Future<void> refreshBackgroundAccess() async {
+    final results = await Future.wait([
+      _backgroundAccess.isBatteryOptimizationDisabled(),
+      _backgroundAccess.canUseFullScreenIntent(),
+      _backgroundAccess.canDrawOverlays(),
+    ]);
+    batteryOptimizationDisabled = results[0];
+    canUseFullScreenIntent = results[1];
+    canDrawOverlays = results[2];
     notifyListeners();
   }
 
-  Future<void> openFullScreenIntentSettings() async {
-    await _backgroundAccess.openFullScreenIntentSettings();
-    await refreshFullScreenIntentAccess();
-  }
+  Future<void> openBatteryOptimizationSettings() =>
+      _backgroundAccess.openBatteryOptimizationSettings();
 
-  Future<void> refreshFullScreenIntentAccess() async {
-    canUseFullScreenIntent = await _backgroundAccess.canUseFullScreenIntent();
-    notifyListeners();
-  }
+  Future<void> openFullScreenIntentSettings() =>
+      _backgroundAccess.openFullScreenIntentSettings();
 
-  Future<void> openOverlaySettings() async {
-    await _backgroundAccess.openOverlaySettings();
-    await refreshOverlayAccess();
-  }
-
-  Future<void> refreshOverlayAccess() async {
-    canDrawOverlays = await _backgroundAccess.canDrawOverlays();
-    notifyListeners();
-  }
+  Future<void> openOverlaySettings() => _backgroundAccess.openOverlaySettings();
 
   Future<bool> setCallsEnabled(bool enabled) async {
     if (enabled && !await _notifications.requestNotificationPermission()) {
