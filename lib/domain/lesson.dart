@@ -31,6 +31,26 @@ class Lesson {
     meetingUrl: json['meetingUrl'] as String?,
   );
 
+  /// Tolerant counterpart to [Lesson.fromJson], for reading back a cached
+  /// snapshot that may predate a schema change or have been truncated: returns
+  /// null instead of throwing on anything unusable. Cached lessons are read
+  /// during cold start, where a throw is an unrecoverable launch crash.
+  static Lesson? tryFromJson(Object? json) {
+    if (json is! Map) return null;
+    final title = json['title'];
+    final websiteStart = json['websiteStart'];
+    if (title is! String || title.isEmpty) return null;
+    if (websiteStart is! String || websiteStart.isEmpty) return null;
+    final lessonId = json['lessonId'];
+    final meetingUrl = json['meetingUrl'];
+    return Lesson(
+      title: title,
+      websiteStart: websiteStart,
+      lessonId: lessonId is String ? lessonId : null,
+      meetingUrl: meetingUrl is String ? meetingUrl : null,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       other is Lesson &&

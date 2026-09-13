@@ -744,7 +744,19 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       subtitle: Text(
                         settings.callRingtoneName ?? strings.defaultSound,
                       ),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing:
+                          settings.callsEnabled &&
+                              settings.callRingtoneUri != null
+                          ? IconButton(
+                              key: const Key('call-ringtone-reset'),
+                              tooltip: strings.defaultSound,
+                              icon: const Icon(Icons.settings_backup_restore),
+                              onPressed: () async {
+                                await widget.controller.clearCallRingtone();
+                                setSheetState(() {});
+                              },
+                            )
+                          : const Icon(Icons.chevron_right),
                       onTap: settings.callsEnabled
                           ? () async {
                               await widget.controller.selectCallRingtone();
@@ -886,14 +898,27 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                         leading: const Icon(Icons.alarm_on),
                         title: Text(strings.exactTiming),
                       ),
-                    ListTile(
-                      leading: const Icon(Icons.sync),
-                      title: Text(strings.syncNow),
-                      subtitle: Text(_syncStatusText()),
-                      onTap: () async {
-                        await _synchronize();
-                        setSheetState(() {});
-                      },
+                    // Listens to the sync notifier directly: this row is the
+                    // only thing sync progress renders, so a background sync
+                    // repaints it alone instead of the whole app.
+                    ValueListenableBuilder<
+                      ({
+                        ScheduleSyncStatus status,
+                        DateTime? lastSuccessfulSync,
+                      })
+                    >(
+                      valueListenable: widget.controller.syncState,
+                      builder: (context, syncState, _) => ListTile(
+                        leading: const Icon(Icons.sync),
+                        title: Text(strings.syncNow),
+                        subtitle: Text(
+                          _syncStatusText(
+                            syncState.status,
+                            syncState.lastSuccessfulSync,
+                          ),
+                        ),
+                        onTap: _synchronize,
+                      ),
                     ),
                   ],
                 ),
@@ -909,18 +934,16 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
-  String _syncStatusText() {
-    final status = widget.controller.syncStatus;
+  String _syncStatusText(ScheduleSyncStatus status, DateTime? lastSync) {
     if (status == ScheduleSyncStatus.syncing) return strings.syncing;
     if (status == ScheduleSyncStatus.signInRequired) {
       return strings.signInToSync;
     }
     if (status == ScheduleSyncStatus.failed) return strings.syncFailed;
-    final date = widget.controller.lastSuccessfulSync;
     return strings.lastSync(
-      date == null
+      lastSync == null
           ? strings.never
-          : DateFormat('yyyy-MM-dd HH:mm').format(date),
+          : DateFormat('yyyy-MM-dd HH:mm').format(lastSync),
     );
   }
 
@@ -1015,12 +1038,28 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                         ? strings.defaultSound
                         : settings.reminderSoundName ?? strings.soundSelected,
                   ),
-                  trailing: TextButton(
-                    onPressed: () async {
-                      await widget.controller.selectMainReminderSound();
-                      setPageState(() {});
-                    },
-                    child: Text(strings.chooseSound),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Only offered once a custom sound is set; with none
+                      // there is nothing to reset back to.
+                      if (settings.reminderSoundUri != null)
+                        TextButton(
+                          key: const Key('main-notification-sound-reset'),
+                          onPressed: () async {
+                            await widget.controller.clearReminderSound();
+                            setPageState(() {});
+                          },
+                          child: Text(strings.defaultSound),
+                        ),
+                      TextButton(
+                        onPressed: () async {
+                          await widget.controller.selectMainReminderSound();
+                          setPageState(() {});
+                        },
+                        child: Text(strings.chooseSound),
+                      ),
+                    ],
                   ),
                 ),
                 const Divider(),
@@ -1064,25 +1103,6 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Text(
-                strings.testPlatforms,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            for (final link in const [
-              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
-              ('nurul-izoh.com', 'https://nurul-izoh.com'),
-              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
-            ])
-              Card(
-                child: ListTile(
-                  title: Text(link.$1),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () => _launchExternal(link.$2),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
                 strings.pdfBooks,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
@@ -1108,11 +1128,34 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 'Mabdaul qiroat 3',
                 'https://arabic.uz/kitoblar/mabdaul-qiroat-3.pdf',
               ),
+              (
+                'Mabdaun nahv',
+                'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
+              ),
             ])
               Card(
                 child: ListTile(
                   title: Text(link.$1),
                   trailing: const Icon(Icons.picture_as_pdf_outlined),
+                  onTap: () => _openPdfViewer(link.$1, link.$2),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                strings.testPlatforms,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final link in const [
+              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
+              ('nurul-izoh.com', 'https://nurul-izoh.com'),
+              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+            ])
+              Card(
+                child: ListTile(
+                  title: Text(link.$1),
+                  trailing: const Icon(Icons.open_in_new),
                   onTap: () => _launchExternal(link.$2),
                 ),
               ),
@@ -1152,6 +1195,48 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
 
   Future<void> _launchExternal(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
+  /// Opens [pdfUrl] in a throwaway WebView using Google's public docs
+  /// viewer. Uses its own [WebViewController] — no cookies or trusted-host
+  /// gating needed for a public PDF rendered by Google.
+  Future<void> _openPdfViewer(
+    String title,
+    String pdfUrl,
+  ) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) {
+        final viewerUrl =
+            'https://docs.google.com/viewer?url=${Uri.encodeComponent(pdfUrl)}&embedded=true';
+        var loading = true;
+        void Function()? onPageFinished;
+        final controller = WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setBackgroundColor(surfaceFor(_brightness))
+          ..setNavigationDelegate(
+            NavigationDelegate(onPageFinished: (_) => onPageFinished?.call()),
+          )
+          ..loadRequest(Uri.parse(viewerUrl));
+        return StatefulBuilder(
+          builder: (context, setPageState) {
+            onPageFinished = () => setPageState(() => loading = false);
+            return Scaffold(
+              appBar: AppBar(title: Text(title)),
+              body: Stack(
+                children: [
+                  WebViewWidget(controller: controller),
+                  if (loading)
+                    const Center(
+                      key: Key('pdf-loading'),
+                      child: CircularProgressIndicator(),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
 
   Widget _reminderSoundOverrideTile(
     int offsetMinutes,

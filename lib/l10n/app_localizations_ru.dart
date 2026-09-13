@@ -10,9 +10,6 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get appTitle => 'KIU';
-
-  @override
   String get back => 'Назад';
 
   @override
@@ -110,11 +107,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get syncing => 'Синхронизация…';
 
   @override
-  String syncSuccess(int count) {
-    return 'Синхронизировано уроков: $count';
-  }
-
-  @override
   String get signInToSync => 'Войдите для синхронизации';
 
   @override
@@ -156,11 +148,6 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String lessonAt(String date, String zone) {
-    return '$date • $zone';
-  }
-
-  @override
   String get uzbekCyrillic => 'Ўзбекча (Кирилл)';
 
   @override
@@ -171,9 +158,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get russian => 'Русский';
-
-  @override
-  String get close => 'Закрыть';
 
   @override
   String get backgroundSync => 'Фоновая синхронизация';
@@ -296,4 +280,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get apps => 'Приложения';
+
+  @override
+  String offsetHours(int count) {
+    return '$count ч';
+  }
+
+  @override
+  String offsetMinutes(int count) {
+    return '$count мин';
+  }
 }

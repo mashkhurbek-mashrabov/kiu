@@ -35,6 +35,23 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // Measured on this project: without R8 the release APK is
+            // 25.2 MB with ~15.9 MB of dex (workmanager pulls in a large
+            // dependency tree); with it, 19.8 MB and ~1.9 MB of dex. Turning
+            // this off costs roughly 5 MB.
+            //
+            // Every class the manifest names reflectively is protected in
+            // proguard-rules.pro -- R8 cannot see those call sites, and a
+            // missing keep breaks the widget or lesson calls *silently*, with
+            // no crash. Re-verify calls, widget, alarms, and notifications on
+            // a device after touching either file.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

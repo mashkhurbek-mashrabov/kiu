@@ -137,6 +137,10 @@ class CapturingScheduleFetcher extends ScheduleFetcher {
   String? userAgent;
   String? localeTag;
 
+  /// Number of completed fetches, so tests can assert that overlapping syncs
+  /// coalesce instead of hitting the LMS twice.
+  int fetchCount = 0;
+
   @override
   Future<List<Lesson>> fetch({
     String? userAgent,
@@ -144,6 +148,9 @@ class CapturingScheduleFetcher extends ScheduleFetcher {
   }) async {
     this.userAgent = userAgent;
     this.localeTag = localeTag;
+    fetchCount++;
+    // Yield so a second caller in the same frame really overlaps this one.
+    await Future<void>.delayed(Duration.zero);
     return lessons;
   }
 }

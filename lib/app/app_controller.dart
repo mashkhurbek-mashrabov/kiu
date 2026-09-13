@@ -72,6 +72,20 @@ class AppController extends ChangeNotifier {
   AppSettings settings;
   ScheduleSyncStatus syncStatus = ScheduleSyncStatus.idle;
   DateTime? lastSuccessfulSync;
+
+  /// Sync progress is published here rather than through [notifyListeners] so
+  /// the 10-minute background sync cannot rebuild the whole app -- including
+  /// the WebView -- while the user is reading or watching a lesson. Only the
+  /// settings sheet renders this.
+  late final ValueNotifier<
+    ({ScheduleSyncStatus status, DateTime? lastSuccessfulSync})
+  >
+  syncState = ValueNotifier((
+    status: ScheduleSyncStatus.idle,
+    lastSuccessfulSync: lastSuccessfulSync,
+  ));
+
+  Future<SyncResult>? _inFlightSync;
   bool exactTiming = false;
   // Cached rather than queried inline by the UI: unlike [_notifications],
   // [_backgroundAccess] has no fake wired through the widget tests, and an
@@ -257,6 +271,25 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Drops the custom main reminder sound, falling back to the system default.
+  Future<void> clearReminderSound() async {
+    settings = settings.copyWith(
+      reminderSoundUri: null,
+      reminderSoundName: null,
+    );
+    await _repository.saveSettings(settings);
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
+  /// Drops the custom call ringtone, falling back to the system default.
+  Future<void> clearCallRingtone() async {
+    settings = settings.copyWith(callRingtoneUri: null, callRingtoneName: null);
+    await _repository.saveSettings(settings);
+    await _refreshWidget();
+    notifyListeners();
+  }
+
   Future<void> selectReminderSoundOverride(int offsetMinutes) async {
     final currentSound =
         settings.reminderSoundOverrides[offsetMinutes] ??
@@ -297,17 +330,41 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<SyncResult> synchronize({String? userAgent}) async {
-    syncStatus = ScheduleSyncStatus.syncing;
-    notifyListeners();
+  /// Coalesces overlapping syncs. Resuming the app while Home is open used to
+  /// start one sync from the lifecycle observer and a second from
+  /// `_pageFinished`, running two fetches, two reconciles, and two widget
+  /// publishes at once on the page the user is looking at.
+  Future<SyncResult> synchronize({String? userAgent}) {
+    return _inFlightSync ??= _synchronize(userAgent: userAgent)
+        .whenComplete(() {
+          _inFlightSync = null;
+        });
+  }
+
+  Future<SyncResult> _synchronize({String? userAgent}) async {
+    _setSyncStatus(ScheduleSyncStatus.syncing);
     final result = await _syncService.synchronize(userAgent: userAgent);
-    syncStatus = result.status;
     if (result.status == ScheduleSyncStatus.success) {
       lastSuccessfulSync = _repository.lastSuccessfulSync;
     }
+    final previousExactTiming = exactTiming;
     exactTiming = await _notifications.canScheduleExactly();
-    notifyListeners();
+    _setSyncStatus(result.status);
+    // Only an exact-alarm permission flip changes anything the main tree
+    // renders; a routine sync must not rebuild it (and the WebView with it).
+    if (exactTiming != previousExactTiming) notifyListeners();
     return result;
+  }
+
+  void _setSyncStatus(ScheduleSyncStatus status) {
+    syncStatus = status;
+    syncState.value = (status: status, lastSuccessfulSync: lastSuccessfulSync);
+  }
+
+  @override
+  void dispose() {
+    syncState.dispose();
+    super.dispose();
   }
 
   Future<void> _rescheduleCached() =>

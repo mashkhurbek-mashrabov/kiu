@@ -30,7 +30,6 @@ class SettingsRepository {
   static const _callOverrides = 'kiu.callOverrides';
   static const _lessons = 'kiu.lessonSnapshot';
   static const _scheduledIds = 'kiu.scheduledNotificationIds';
-  static const _lastAttempt = 'kiu.lastSyncAttempt';
   static const _lastSuccess = 'kiu.lastSyncSuccess';
   static const _syncStatus = 'kiu.syncStatus';
   static const _webViewUserAgent = 'kiu.webViewUserAgent';
@@ -45,9 +44,7 @@ class SettingsRepository {
     timeZoneId: _preferences.getString(_timeZone) ?? 'Asia/Tashkent',
     remindersEnabled: _preferences.getBool(_reminders) ?? false,
     backgroundSyncEnabled: _preferences.getBool(_backgroundSync) ?? true,
-    reminderOffsetsMinutes:
-        _preferences.getStringList(_offsets)?.map(int.parse).toList() ??
-        const [60, 0],
+    reminderOffsetsMinutes: _loadReminderOffsets(),
     reminderSoundUri: _preferences.getString(_soundUri),
     reminderSoundName: _preferences.getString(_soundName),
     reminderSoundOverrides: _loadReminderSoundOverrides(),
@@ -58,6 +55,15 @@ class SettingsRepository {
     callRingtoneName: _preferences.getString(_callRingtoneName),
     callOverrides: _loadCallOverrides(),
   );
+
+  /// A single unparsable entry must not throw out of [loadSettings], which runs
+  /// during cold start and in the background isolate. Same tolerant read as
+  /// [loadScheduledIds].
+  List<int> _loadReminderOffsets() {
+    final raw = _preferences.getStringList(_offsets);
+    if (raw == null) return const [60, 0];
+    return raw.map(int.tryParse).whereType<int>().toList();
+  }
 
   Map<String, bool> _loadCallOverrides() {
     final raw = _preferences.getString(_callOverrides);
@@ -124,10 +130,10 @@ class SettingsRepository {
             '${entry.key}': entry.value,
         }),
       ),
-      if (settings.reminderSoundUri != null)
-        _preferences.setString(_soundUri, settings.reminderSoundUri!),
-      if (settings.reminderSoundName != null)
-        _preferences.setString(_soundName, settings.reminderSoundName!),
+      // Write-or-remove, never skip: skipping would make a cleared sound
+      // silently resurrect the previous value on the next load.
+      _writeOrRemove(_soundUri, settings.reminderSoundUri),
+      _writeOrRemove(_soundName, settings.reminderSoundName),
       _preferences.remove(_legacySoundUris),
       _preferences.setBool(_callsEnabled, settings.callsEnabled),
       _preferences.setInt(_callRingSeconds, settings.callRingSeconds),
@@ -135,12 +141,14 @@ class SettingsRepository {
         _callOverrides,
         jsonEncode(settings.callOverrides),
       ),
-      if (settings.callRingtoneUri != null)
-        _preferences.setString(_callRingtoneUri, settings.callRingtoneUri!),
-      if (settings.callRingtoneName != null)
-        _preferences.setString(_callRingtoneName, settings.callRingtoneName!),
+      _writeOrRemove(_callRingtoneUri, settings.callRingtoneUri),
+      _writeOrRemove(_callRingtoneName, settings.callRingtoneName),
     ]);
   }
+
+  Future<bool> _writeOrRemove(String key, String? value) => value == null
+      ? _preferences.remove(key)
+      : _preferences.setString(key, value);
 
   /// Drops call overrides for occurrences no longer in the schedule so the
   /// map cannot grow without bound as recurring lessons churn.
@@ -158,9 +166,12 @@ class SettingsRepository {
     final raw = _preferences.getString(_lessons);
     if (raw == null) return const [];
     try {
-      return (jsonDecode(raw) as List<dynamic>)
-          .map((item) => Lesson.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .map(Lesson.tryFromJson)
+          .whereType<Lesson>()
+          .toList(growable: false);
     } on FormatException {
       return const [];
     }
@@ -185,8 +196,6 @@ class SettingsRepository {
   DateTime? get lastSuccessfulSync =>
       DateTime.tryParse(_preferences.getString(_lastSuccess) ?? '');
 
-  String get syncStatus => _preferences.getString(_syncStatus) ?? 'idle';
-
   String? get webViewUserAgent => _preferences.getString(_webViewUserAgent);
 
   Future<void> saveWebViewUserAgent(String value) =>
@@ -197,9 +206,6 @@ class SettingsRepository {
 
   Future<void> markBackgroundExplainerShown() =>
       _preferences.setBool(_backgroundExplainerShown, true);
-
-  Future<void> recordAttempt() =>
-      _preferences.setString(_lastAttempt, DateTime.now().toIso8601String());
 
   Future<void> recordSuccess(DateTime value) async {
     await _preferences.setString(_lastSuccess, value.toIso8601String());

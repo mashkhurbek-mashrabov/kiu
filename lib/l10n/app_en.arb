@@ -1,43 +1,112 @@
 {
   "@@locale": "en",
-  "appTitle": "KIU", "back": "Back", "forward": "Forward", "home": "Home", "refresh": "Refresh", "actions": "Actions", "version": "Version", "videoSpeed": "Video speed", "customSpeed": "Custom speed", "markWatched": "Mark as watched", "markWatchedQuestion": "Mark this lesson as watched?", "cancel": "Cancel", "confirm": "Confirm", "marking": "Marking…", "marked": "Lesson marked as watched", "markFailed": "Could not mark the lesson", "onlyLesson": "This action is available only on a video lesson", "notificationSettings": "Notification settings", "reminders": "Lesson reminders", "remindersHelp": "Checks for schedule changes in the background about every 5 minutes", "threeHours": "3 hours before", "oneHour": "1 hour before", "fifteenMinutes": "15 minutes before", "atStart": "When it starts", "customReminder": "Custom time", "minutes": "Minutes", "hours": "Hours", "add": "Add", "timezone": "Time zone", "searchTimezone": "Search time zones", "language": "Language", "syncNow": "Sync now", "syncing": "Synchronizing…", "syncSuccess": "Synchronized {count} lessons", "@syncSuccess": {"placeholders":{"count":{"type":"int"}}}, "signInToSync": "Sign in to synchronize", "syncFailed": "Could not synchronize the schedule", "lastSync": "Last sync: {value}", "@lastSync": {"placeholders":{"value":{"type":"String"}}}, "never": "Never", "exactTiming": "Exact reminders", "reducedPrecision": "Exact-alarm access is off; reminders may be delayed", "grantPermission": "Grant access", "pageError": "Could not open the page", "retry": "Retry", "unsupportedLink": "This link was blocked for your safety", "startsNow": "Starts now", "startsIn": "Starts in {offset}", "@startsIn": {"placeholders":{"offset":{"type":"String"}}}, "lessonAt": "{date} • {zone}", "@lessonAt": {"placeholders":{"date":{"type":"String"},"zone":{"type":"String"}}}, "uzbekCyrillic": "Ўзбекча (Кирилл)", "uzbekLatin": "O‘zbekcha (Lotin)", "english": "English", "russian": "Русский", "close": "Close"
-, "backgroundSync": "Background synchronization"
-, "backgroundSyncHelp": "Checks lessons every 5 minutes while KIU is closed"
-, "backgroundAccess": "Background access"
-, "backgroundAccessHelp": "Allow KIU in battery settings so Android can synchronize after the app is closed. Android may still delay work."
-, "openSettings": "Open settings"
-, "remove": "Remove"
-, "notificationSound": "Notification sound"
-, "defaultSound": "System default"
-, "soundSelected": "Selected system sound"
-, "chooseSound": "Choose sound"
-, "soundSettings": "Sound settings"
-, "mainSound": "Main sound"
-, "individualSounds": "Reminder sounds"
-, "inheritsMainSound": "Uses main sound"
-, "soundOverridesHelp": "Each reminder uses Main sound until you customize it."
-, "customSound": "Custom sound"
-, "useMainSound": "Use main"
-, "customizeSound": "Customize"
-, "scheduledLessons": "Scheduled lessons"
-, "noScheduledLessons": "No scheduled lessons"
-, "lessonCalls": "Lesson calls"
-, "lessonCallsHelp": "Shows a full-screen call when a lesson starts"
-, "ringDuration": "Ring duration"
-, "ringDurationValue": "{seconds} s"
-, "@ringDurationValue": {"placeholders":{"seconds":{"type":"int"}}}
-, "callRingtone": "Call ringtone"
-, "fullScreenAccess": "Full-screen access"
-, "fullScreenAccessHelp": "Allow full-screen calls over the lock screen in system settings"
-, "overlayAccess": "Display over other apps"
-, "overlayAccessHelp": "Lets the call screen open while you are using the phone. Without it the call shows only as a notification banner."
-, "callForThisLesson": "Call for this lesson"
-, "appearance": "Appearance"
-, "themeSystem": "System"
-, "themeLight": "Light"
-, "themeDark": "Dark"
-, "usefulLinks": "Useful links"
-, "testPlatforms": "Test platforms"
-, "pdfBooks": "PDF books"
-, "apps": "Apps"
+  "back": "Back",
+  "forward": "Forward",
+  "home": "Home",
+  "refresh": "Refresh",
+  "actions": "Actions",
+  "version": "Version",
+  "videoSpeed": "Video speed",
+  "customSpeed": "Custom speed",
+  "markWatched": "Mark as watched",
+  "markWatchedQuestion": "Mark this lesson as watched?",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "marking": "Marking…",
+  "marked": "Lesson marked as watched",
+  "markFailed": "Could not mark the lesson",
+  "onlyLesson": "This action is available only on a video lesson",
+  "notificationSettings": "Notification settings",
+  "reminders": "Lesson reminders",
+  "remindersHelp": "Checks for schedule changes in the background about every 5 minutes",
+  "threeHours": "3 hours before",
+  "oneHour": "1 hour before",
+  "fifteenMinutes": "15 minutes before",
+  "atStart": "When it starts",
+  "customReminder": "Custom time",
+  "minutes": "Minutes",
+  "hours": "Hours",
+  "add": "Add",
+  "timezone": "Time zone",
+  "searchTimezone": "Search time zones",
+  "language": "Language",
+  "syncNow": "Sync now",
+  "syncing": "Synchronizing…",
+  "signInToSync": "Sign in to synchronize",
+  "syncFailed": "Could not synchronize the schedule",
+  "lastSync": "Last sync: {value}",
+  "@lastSync": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "never": "Never",
+  "exactTiming": "Exact reminders",
+  "reducedPrecision": "Exact-alarm access is off; reminders may be delayed",
+  "grantPermission": "Grant access",
+  "pageError": "Could not open the page",
+  "retry": "Retry",
+  "unsupportedLink": "This link was blocked for your safety",
+  "startsNow": "Starts now",
+  "startsIn": "Starts in {offset}",
+  "@startsIn": {
+    "placeholders": {
+      "offset": {
+        "type": "String"
+      }
+    }
+  },
+  "uzbekCyrillic": "Ўзбекча (Кирилл)",
+  "uzbekLatin": "O‘zbekcha (Lotin)",
+  "english": "English",
+  "russian": "Русский",
+  "backgroundSync": "Background synchronization",
+  "backgroundSyncHelp": "Checks lessons every 5 minutes while KIU is closed",
+  "backgroundAccess": "Background access",
+  "backgroundAccessHelp": "Allow KIU in battery settings so Android can synchronize after the app is closed. Android may still delay work.",
+  "openSettings": "Open settings",
+  "remove": "Remove",
+  "notificationSound": "Notification sound",
+  "defaultSound": "System default",
+  "soundSelected": "Selected system sound",
+  "chooseSound": "Choose sound",
+  "soundSettings": "Sound settings",
+  "mainSound": "Main sound",
+  "individualSounds": "Reminder sounds",
+  "inheritsMainSound": "Uses main sound",
+  "soundOverridesHelp": "Each reminder uses Main sound until you customize it.",
+  "customSound": "Custom sound",
+  "useMainSound": "Use main",
+  "customizeSound": "Customize",
+  "scheduledLessons": "Scheduled lessons",
+  "noScheduledLessons": "No scheduled lessons",
+  "lessonCalls": "Lesson calls",
+  "lessonCallsHelp": "Shows a full-screen call when a lesson starts",
+  "ringDuration": "Ring duration",
+  "ringDurationValue": "{seconds} s",
+  "@ringDurationValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "callRingtone": "Call ringtone",
+  "fullScreenAccess": "Full-screen access",
+  "fullScreenAccessHelp": "Allow full-screen calls over the lock screen in system settings",
+  "overlayAccess": "Display over other apps",
+  "overlayAccessHelp": "Lets the call screen open while you are using the phone. Without it the call shows only as a notification banner.",
+  "callForThisLesson": "Call for this lesson",
+  "appearance": "Appearance",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "usefulLinks": "Useful links",
+  "testPlatforms": "Test platforms",
+  "pdfBooks": "PDF books",
+  "apps": "Apps",
+  "offsetHours": "{count} h",
+  "offsetMinutes": "{count} min"
 }

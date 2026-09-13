@@ -36,69 +36,32 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
   }) async {
     final payload = buildLessonWidgetPayload(lessons, settings, _timeZones);
     final now = DateTime.now();
-    await HomeWidget.saveWidgetData<String>('lessons', jsonEncode(payload));
     final callPayload = buildLessonCallPayload(
       lessons,
       settings,
       _timeZones,
       now: now,
     );
-    await HomeWidget.saveWidgetData<String>('calls', jsonEncode(callPayload));
-    await HomeWidget.saveWidgetData<String>(
-      'callRingSeconds',
-      '${settings.callRingSeconds}',
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callRingtoneUri',
-      settings.callRingtoneUri ?? '',
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callIncomingLabel',
-      _label(settings.localeTag, 'callIncoming'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callAnswerLabel',
-      _label(settings.localeTag, 'callAnswer'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callDeclineLabel',
-      _label(settings.localeTag, 'callDecline'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callToggleOnLabel',
-      _label(settings.localeTag, 'callToggleOn'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callToggleOffLabel',
-      _label(settings.localeTag, 'callToggleOff'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'callJoinLabel',
-      _label(settings.localeTag, 'callJoin'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'syncLabel',
-      _label(settings.localeTag, 'sync'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'widgetSubtitle',
-      _label(settings.localeTag, 'subtitle'),
-    );
-    await HomeWidget.saveWidgetData<String>('widgetStatus', '');
-    await HomeWidget.saveWidgetData<String>('widgetStatusVisibleUntil', '0');
-    await HomeWidget.saveWidgetData<String>('widgetIsSyncing', 'false');
-    await HomeWidget.saveWidgetData<String>(
-      'widgetDark',
-      widgetDarkFlag(settings),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'widgetLastSync',
-      buildLessonWidgetLastSyncLabel(lastSuccessfulSync, settings, _timeZones),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'emptyLabel',
-      _label(settings.localeTag, 'empty'),
-    );
+    await _write({
+      'lessons': jsonEncode(payload),
+      'calls': jsonEncode(callPayload),
+      'callRingSeconds': '${settings.callRingSeconds}',
+      'callRingtoneUri': settings.callRingtoneUri ?? '',
+      'callIncomingLabel': _label(settings.localeTag, 'callIncoming'),
+      'callAnswerLabel': _label(settings.localeTag, 'callAnswer'),
+      'callDeclineLabel': _label(settings.localeTag, 'callDecline'),
+      'callToggleOnLabel': _label(settings.localeTag, 'callToggleOn'),
+      'callToggleOffLabel': _label(settings.localeTag, 'callToggleOff'),
+      'callJoinLabel': _label(settings.localeTag, 'callJoin'),
+      'widgetStatus': '',
+      'widgetIsSyncing': 'false',
+      'widgetLastSync': buildLessonWidgetLastSyncLabel(
+        lastSuccessfulSync,
+        settings,
+        _timeZones,
+      ),
+      ..._sharedLabels(settings),
+    });
     await _update();
     await HomeWidget.cancelScheduledWidgetUpdates(
       qualifiedAndroidName: lessonWidgetQualifiedProvider,
@@ -120,33 +83,32 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       ScheduleSyncStatus.failed => 'failed',
       _ => '',
     };
-    await HomeWidget.saveWidgetData<String>(
-      'widgetStatus',
-      _label(settings.localeTag, key),
-    );
-    await HomeWidget.saveWidgetData<String>('widgetStatusVisibleUntil', '0');
-    await HomeWidget.saveWidgetData<String>(
-      'widgetIsSyncing',
-      status == ScheduleSyncStatus.syncing ? 'true' : 'false',
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'syncLabel',
-      _label(settings.localeTag, 'sync'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'widgetSubtitle',
-      _label(settings.localeTag, 'subtitle'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'emptyLabel',
-      _label(settings.localeTag, 'empty'),
-    );
-    await HomeWidget.saveWidgetData<String>(
-      'widgetDark',
-      widgetDarkFlag(settings),
-    );
+    await _write({
+      'widgetStatus': _label(settings.localeTag, key),
+      'widgetIsSyncing': status == ScheduleSyncStatus.syncing
+          ? 'true'
+          : 'false',
+      ..._sharedLabels(settings),
+    });
     await _update();
   }
+
+  /// Keys both [publish] and [publishStatus] must keep current. Shared so the
+  /// two cannot drift apart when a label is added.
+  Map<String, String> _sharedLabels(AppSettings settings) => {
+    'syncLabel': _label(settings.localeTag, 'sync'),
+    'widgetSubtitle': _label(settings.localeTag, 'subtitle'),
+    'emptyLabel': _label(settings.localeTag, 'empty'),
+    'widgetDark': widgetDarkFlag(settings),
+  };
+
+  /// One platform-channel round trip per key is unavoidable with `home_widget`,
+  /// but issuing them together instead of awaiting each in turn keeps a publish
+  /// off the critical path of whatever the user is doing.
+  Future<void> _write(Map<String, String> values) => Future.wait([
+    for (final entry in values.entries)
+      HomeWidget.saveWidgetData<String>(entry.key, entry.value),
+  ]);
 
   Future<void> _update() => HomeWidget.updateWidget(
     qualifiedAndroidName: lessonWidgetQualifiedProvider,
@@ -159,16 +121,25 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
 String widgetDarkFlag(AppSettings settings) =>
     resolveDark(settings.themeMode) ? 'true' : 'false';
 
+/// Each entry becomes an AlarmManager wake-up, so a busy term would otherwise
+/// arm one alarm per future lesson (60+ measured). Only the soonest handful
+/// matter -- the next sync re-arms the rest well before they arrive.
+const _maxScheduledWidgetUpdates = 16;
+
 List<DateTime> buildLessonWidgetUpdateTimes(
   List<Map<String, Object?>> payload,
   DateTime now,
 ) {
-  final times = payload
-      .map((item) => DateTime.fromMillisecondsSinceEpoch(item['start']! as int))
-      .where((value) => value.isAfter(now))
-      .toList();
-  times.sort();
-  return times;
+  final times =
+      payload
+          .map(
+            (item) =>
+                DateTime.fromMillisecondsSinceEpoch(item['start']! as int),
+          )
+          .where((value) => value.isAfter(now))
+          .toList()
+        ..sort();
+  return times.take(_maxScheduledWidgetUpdates).toList();
 }
 
 String buildLessonWidgetLastSyncLabel(
@@ -291,6 +262,9 @@ String buildLessonWidgetGroupKey(
   };
 }
 
+// Kept as 6-per-row grids: one month per line reads far worse for a lookup
+// table that is only ever indexed by month number.
+// dart format off
 const _monthNamesEn = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -307,6 +281,7 @@ const _monthNamesUzCyrl = [
   'январ', 'феврал', 'март', 'апрел', 'май', 'июн',
   'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр',
 ];
+// dart format on
 
 String _monthName(String locale, int month) {
   final names = switch (locale) {

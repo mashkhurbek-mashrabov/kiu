@@ -101,12 +101,6 @@ abstract class AppLocalizations {
     Locale.fromSubtags(languageCode: 'uz', scriptCode: 'Cyrl'),
   ];
 
-  /// No description provided for @appTitle.
-  ///
-  /// In uz_Cyrl, this message translates to:
-  /// **'KIU'**
-  String get appTitle;
-
   /// No description provided for @back.
   ///
   /// In uz_Cyrl, this message translates to:
@@ -299,12 +293,6 @@ abstract class AppLocalizations {
   /// **'Синхронланмоқда…'**
   String get syncing;
 
-  /// No description provided for @syncSuccess.
-  ///
-  /// In uz_Cyrl, this message translates to:
-  /// **'{count} та дарс синхронланди'**
-  String syncSuccess(int count);
-
   /// No description provided for @signInToSync.
   ///
   /// In uz_Cyrl, this message translates to:
@@ -377,12 +365,6 @@ abstract class AppLocalizations {
   /// **'{offset}дан кейин бошланади'**
   String startsIn(String offset);
 
-  /// No description provided for @lessonAt.
-  ///
-  /// In uz_Cyrl, this message translates to:
-  /// **'{date} • {zone}'**
-  String lessonAt(String date, String zone);
-
   /// No description provided for @uzbekCyrillic.
   ///
   /// In uz_Cyrl, this message translates to:
@@ -406,12 +388,6 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Русский'**
   String get russian;
-
-  /// No description provided for @close.
-  ///
-  /// In uz_Cyrl, this message translates to:
-  /// **'Ёпиш'**
-  String get close;
 
   /// No description provided for @backgroundSync.
   ///
@@ -640,6 +616,18 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Иловалар'**
   String get apps;
+
+  /// No description provided for @offsetHours.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'{count} соат'**
+  String offsetHours(int count);
+
+  /// No description provided for @offsetMinutes.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'{count} дақиқа'**
+  String offsetMinutes(int count);
 }
 
 class _AppLocalizationsDelegate

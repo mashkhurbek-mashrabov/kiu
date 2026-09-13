@@ -47,18 +47,10 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 val syncing = widgetData.getString("widgetIsSyncing", "false") == "true"
                 setViewVisibility(R.id.widget_sync_icon, if (syncing) View.GONE else View.VISIBLE)
                 setViewVisibility(R.id.widget_sync_progress, if (syncing) View.VISIBLE else View.GONE)
-                val statusVisibleUntil =
-                    widgetData.getString("widgetStatusVisibleUntil", "0")?.toLongOrNull() ?: 0L
                 setTextViewText(R.id.widget_status, status)
                 setViewVisibility(
                     R.id.widget_status,
-                    if (status.isNotBlank() &&
-                        (statusVisibleUntil <= 0L || System.currentTimeMillis() < statusVisibleUntil)
-                    ) {
-                        View.VISIBLE
-                    } else {
-                        View.GONE
-                    },
+                    if (status.isNotBlank()) View.VISIBLE else View.GONE,
                 )
                 setTextViewText(
                     R.id.widget_last_sync,
