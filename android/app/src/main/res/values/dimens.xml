@@ -23,6 +23,10 @@
     <dimen name="call_label_margin">12dp</dimen>
     <dimen name="call_button_size">64dp</dimen>
     <dimen name="call_button_padding">19dp</dimen>
+    <!-- Closest the dodging decline button may come to the screen edge. It
+         jumps to a random point on each of the first two taps and must land
+         fully on screen and fully tappable every time. -->
+    <dimen name="call_dodge_margin">12dp</dimen>
     <!-- Two lines: a third would eat the start-time pill below it. -->
     <integer name="call_title_max_lines">2</integer>
 </resources>
