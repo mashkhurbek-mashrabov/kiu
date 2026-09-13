@@ -55,3 +55,22 @@ bool isLessonUri(Uri uri) {
   final path = uri.path.toLowerCase();
   return path.contains('lesson') || path.contains('video');
 }
+
+/// The Russian course, whose lesson pages ship the video in an unsized iframe
+/// that collapses to a sliver; [videoIframeFixScript] gives it back a 16:9 box.
+/// Every other course renders the same player correctly, so this is deliberately
+/// narrow: course id 8 and only its `video-iframe` pages, not its tests.
+const String _russianCourseId = '8';
+
+bool isRussianCourseVideoUri(Uri uri) {
+  if (!isTrustedHttps(uri)) return false;
+  final segments = uri.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  // <lang>/my-course/<course>/<lesson>/video-iframe
+  if (segments.length != 5) return false;
+  return supportedSiteLanguages.contains(segments[0]) &&
+      segments[1] == 'my-course' &&
+      segments[2] == _russianCourseId &&
+      segments[4].toLowerCase() == 'video-iframe';
+}

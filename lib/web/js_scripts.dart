@@ -70,6 +70,28 @@ String siteThemeScript(bool dark) {
 ''';
 }
 
+/// Sizes the Russian course's video iframe, which the site ships without a
+/// height and so collapses to a few pixels tall. A stylesheet rather than
+/// inline styles on the element: the iframe is mounted after `onPageFinished`
+/// on some lessons, and CSS applies to it whenever it appears, so this needs no
+/// re-run and no observer. Idempotent — re-injecting replaces the same node.
+String videoIframeFixScript() => '''
+(() => {
+  const id = 'kiu-video-iframe-fix';
+  if (document.getElementById(id)) return 'present';
+  const style = document.createElement('style');
+  style.id = id;
+  style.textContent = `#lesson-content iframe {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }`;
+  (document.head || document.documentElement).appendChild(style);
+  return 'injected';
+})();
+''';
+
 String markWatchedScript(String requestId) {
   final encodedRequestId = jsonEncode(requestId);
   return '''
