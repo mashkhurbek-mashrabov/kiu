@@ -1796,6 +1796,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ),
               ],
             ),
+            SettingsSection(
+              title: strings.feedback,
+              icon: Icons.chat_bubble_outline_rounded,
+              children: [
+                SettingsRow(
+                  icon: Icons.telegram_rounded,
+                  title: '@developer_aka',
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                  onTap: () => _launchExternal('https://t.me/developer_aka'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

@@ -280,6 +280,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get apps => 'Ilovalar';
 
   @override
+  String get feedback => 'Fikr va savollar';
+
+  @override
   String offsetHours(int count) {
     return '$count soat';
   }
@@ -670,6 +673,9 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get apps => 'Иловалар';
+
+  @override
+  String get feedback => 'Фикр ва саволлар';
 
   @override
   String offsetHours(int count) {

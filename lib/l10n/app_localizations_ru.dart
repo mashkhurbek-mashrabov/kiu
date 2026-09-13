@@ -280,6 +280,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get apps => 'Приложения';
 
   @override
+  String get feedback => 'Отзывы и вопросы';
+
+  @override
   String offsetHours(int count) {
     return '$count ч';
   }

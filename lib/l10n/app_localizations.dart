@@ -617,6 +617,12 @@ abstract class AppLocalizations {
   /// **'Иловалар'**
   String get apps;
 
+  /// No description provided for @feedback.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фикр ва саволлар'**
+  String get feedback;
+
   /// No description provided for @offsetHours.
   ///
   /// In uz_Cyrl, this message translates to:

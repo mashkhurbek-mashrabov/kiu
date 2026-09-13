@@ -107,6 +107,7 @@
   "testPlatforms": "Тест платформалари",
   "pdfBooks": "PDF китоблар",
   "apps": "Иловалар",
+  "feedback": "Фикр ва саволлар",
   "offsetHours": "{count} соат",
   "@offsetHours": {
     "placeholders": {
