@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import '../l10n/app_localizations.dart';
 import 'lesson_widget_service.dart';
 import 'notification_service.dart';
 import 'time_zone_service.dart';
@@ -52,6 +53,7 @@ class ReminderReconciler {
     final now = _now().toUtc();
 
     if (settings.remindersEnabled) {
+      final strings = await AppLocalizations.delegate.load(settings.locale);
       final offsets = settings.reminderOffsetsMinutes.toSet().where(
         (offset) => offset >= 0 && offset <= 10080,
       );
@@ -80,7 +82,7 @@ class ReminderReconciler {
               id: id,
               when: _timeZones.inZone(trigger, settings.timeZoneId),
               title: lesson.title,
-              body: _notificationBody(settings, start, offset),
+              body: _notificationBody(strings, settings, start, offset),
               payload: homeUrl,
               exact: exact,
               reminderOffsetMinutes: offset,
@@ -118,43 +120,25 @@ class ReminderReconciler {
     );
   }
 
-  String _notificationBody(AppSettings settings, DateTime start, int offset) {
-    final locale = settings.localeTag;
+  /// Reminder text comes from the ARB files like the rest of the UI. This runs
+  /// in the WorkManager background isolate, which has no `BuildContext`, so the
+  /// delegate is loaded directly off the settings locale.
+  String _notificationBody(
+    AppLocalizations strings,
+    AppSettings settings,
+    DateTime start,
+    int offset,
+  ) {
     final date = buildLessonWidgetLessonTime(start, settings, _timeZones);
-    final timing = switch (locale) {
-      'ru' =>
-        offset == 0 ? 'Начинается сейчас' : 'Через ${_offset(locale, offset)}',
-      'en' =>
-        offset == 0 ? 'Starts now' : 'Starts in ${_offset(locale, offset)}',
-      'uz' =>
-        offset == 0
-            ? 'Hozir boshlanadi'
-            : '${_offset(locale, offset)}dan keyin boshlanadi',
-      _ =>
-        offset == 0
-            ? 'Ҳозир бошланади'
-            : '${_offset(locale, offset)}дан кейин бошланади',
-    };
+    final timing = offset == 0
+        ? strings.startsNow
+        : strings.startsIn(_offset(strings, offset));
     return '$date\n$timing';
   }
 
-  String _offset(String locale, int minutes) {
-    if (minutes % 60 == 0) {
-      final hours = minutes ~/ 60;
-      return switch (locale) {
-        'ru' => '$hours ч',
-        'en' => '$hours h',
-        'uz' => '$hours soat',
-        _ => '$hours соат',
-      };
-    }
-    return switch (locale) {
-      'ru' => '$minutes мин',
-      'en' => '$minutes min',
-      'uz' => '$minutes daqiqa',
-      _ => '$minutes дақиқа',
-    };
-  }
+  String _offset(AppLocalizations strings, int minutes) => minutes % 60 == 0
+      ? strings.offsetHours(minutes ~/ 60)
+      : strings.offsetMinutes(minutes);
 }
 
 int stableNotificationId(String value) {

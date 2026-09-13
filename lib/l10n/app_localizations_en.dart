@@ -10,9 +10,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'KIU';
-
-  @override
   String get back => 'Back';
 
   @override
@@ -110,11 +107,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncing => 'Synchronizing…';
 
   @override
-  String syncSuccess(int count) {
-    return 'Synchronized $count lessons';
-  }
-
-  @override
   String get signInToSync => 'Sign in to synchronize';
 
   @override
@@ -156,11 +148,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String lessonAt(String date, String zone) {
-    return '$date • $zone';
-  }
-
-  @override
   String get uzbekCyrillic => 'Ўзбекча (Кирилл)';
 
   @override
@@ -171,9 +158,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get russian => 'Русский';
-
-  @override
-  String get close => 'Close';
 
   @override
   String get backgroundSync => 'Background synchronization';
@@ -295,4 +279,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apps => 'Apps';
+
+  @override
+  String offsetHours(int count) {
+    return '$count h';
+  }
+
+  @override
+  String offsetMinutes(int count) {
+    return '$count min';
+  }
 }

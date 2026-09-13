@@ -1,6 +1,5 @@
 {
   "@@locale": "uz_Cyrl",
-  "appTitle": "KIU",
   "back": "Орқага",
   "forward": "Олдинга",
   "home": "Бош саҳифа",
@@ -33,12 +32,16 @@
   "language": "Тил",
   "syncNow": "Ҳозир синхронлаш",
   "syncing": "Синхронланмоқда…",
-  "syncSuccess": "{count} та дарс синхронланди",
-  "@syncSuccess": {"placeholders": {"count": {"type": "int"}}},
   "signInToSync": "Синхронлаш учун тизимга киринг",
   "syncFailed": "Жадвални синхронлаб бўлмади",
   "lastSync": "Охирги синхронлаш: {value}",
-  "@lastSync": {"placeholders": {"value": {"type": "String"}}},
+  "@lastSync": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "never": "Ҳали йўқ",
   "exactTiming": "Аниқ эслатмалар",
   "reducedPrecision": "Аниқ вақт рухсати йўқ; эслатма кечикиши мумкин",
@@ -48,51 +51,76 @@
   "unsupportedLink": "Бу ҳавола хавфсизлик сабабли очилмади",
   "startsNow": "Ҳозир бошланади",
   "startsIn": "{offset}дан кейин бошланади",
-  "@startsIn": {"placeholders": {"offset": {"type": "String"}}},
-  "lessonAt": "{date} • {zone}",
-  "@lessonAt": {"placeholders": {"date": {"type": "String"}, "zone": {"type": "String"}}},
+  "@startsIn": {
+    "placeholders": {
+      "offset": {
+        "type": "String"
+      }
+    }
+  },
   "uzbekCyrillic": "Ўзбекча (Кирилл)",
   "uzbekLatin": "O‘zbekcha (Lotin)",
   "english": "English",
   "russian": "Русский",
-  "close": "Ёпиш"
-, "backgroundSync": "Фонда синхронлаш"
-, "backgroundSyncHelp": "KIU ёпиқ бўлганда дарсларни ҳар 5 дақиқада текширади"
-, "backgroundAccess": "Фонда ишлаш"
-, "backgroundAccessHelp": "Илова ёпилганда синхронлаш учун батарея созламаларида KIUга рухсат беринг. Android барибир вазифани кечиктириши мумкин."
-, "openSettings": "Созламаларни очиш"
-, "remove": "Ўчириш"
-, "notificationSound": "Билдиришнома овози"
-, "defaultSound": "Тизим стандарт овози"
-, "soundSelected": "Тизим овози танланган"
-, "chooseSound": "Овозни танлаш"
-, "soundSettings": "Овоз созламалари"
-, "mainSound": "Асосий овоз"
-, "individualSounds": "Эслатма овозлари"
-, "inheritsMainSound": "Асосий овоз ишлатилади"
-, "soundOverridesHelp": "Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади."
-, "customSound": "Махсус овоз"
-, "useMainSound": "Асосий овоз"
-, "customizeSound": "Мослаш"
-, "scheduledLessons": "Режалаштирилган дарслар"
-, "noScheduledLessons": "Режалаштирилган дарслар йўқ"
-, "lessonCalls": "Дарс қўнғироқлари"
-, "lessonCallsHelp": "Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади"
-, "ringDuration": "Қўнғироқ давомийлиги"
-, "ringDurationValue": "{seconds} сония"
-, "@ringDurationValue": {"placeholders": {"seconds": {"type": "int"}}}
-, "callRingtone": "Қўнғироқ оҳанги"
-, "fullScreenAccess": "Тўлиқ экран рухсати"
-, "fullScreenAccessHelp": "Қулфланган экранда қўнғироқ кўрсатиш учун тизим созламаларида рухсат беринг"
-, "overlayAccess": "Бошқа иловалар устида кўрсатиш"
-, "overlayAccessHelp": "Телефондан фойдаланаётганингизда қўнғироқ экрани очилишига имкон беради. Бўлмаса, қўнғироқ фақат билдиришнома сифатида кўринади."
-, "callForThisLesson": "Ушбу дарс учун қўнғироқ"
-, "appearance": "Кўриниш"
-, "themeSystem": "Тизим бўйича"
-, "themeLight": "Ёруғ"
-, "themeDark": "Тунги"
-, "usefulLinks": "Фойдали ҳаволалар"
-, "testPlatforms": "Тест платформалари"
-, "pdfBooks": "PDF китоблар"
-, "apps": "Иловалар"
+  "backgroundSync": "Фонда синхронлаш",
+  "backgroundSyncHelp": "KIU ёпиқ бўлганда дарсларни ҳар 5 дақиқада текширади",
+  "backgroundAccess": "Фонда ишлаш",
+  "backgroundAccessHelp": "Илова ёпилганда синхронлаш учун батарея созламаларида KIUга рухсат беринг. Android барибир вазифани кечиктириши мумкин.",
+  "openSettings": "Созламаларни очиш",
+  "remove": "Ўчириш",
+  "notificationSound": "Билдиришнома овози",
+  "defaultSound": "Тизим стандарт овози",
+  "soundSelected": "Тизим овози танланган",
+  "chooseSound": "Овозни танлаш",
+  "soundSettings": "Овоз созламалари",
+  "mainSound": "Асосий овоз",
+  "individualSounds": "Эслатма овозлари",
+  "inheritsMainSound": "Асосий овоз ишлатилади",
+  "soundOverridesHelp": "Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.",
+  "customSound": "Махсус овоз",
+  "useMainSound": "Асосий овоз",
+  "customizeSound": "Мослаш",
+  "scheduledLessons": "Режалаштирилган дарслар",
+  "noScheduledLessons": "Режалаштирилган дарслар йўқ",
+  "lessonCalls": "Дарс қўнғироқлари",
+  "lessonCallsHelp": "Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади",
+  "ringDuration": "Қўнғироқ давомийлиги",
+  "ringDurationValue": "{seconds} сония",
+  "@ringDurationValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "callRingtone": "Қўнғироқ оҳанги",
+  "fullScreenAccess": "Тўлиқ экран рухсати",
+  "fullScreenAccessHelp": "Қулфланган экранда қўнғироқ кўрсатиш учун тизим созламаларида рухсат беринг",
+  "overlayAccess": "Бошқа иловалар устида кўрсатиш",
+  "overlayAccessHelp": "Телефондан фойдаланаётганингизда қўнғироқ экрани очилишига имкон беради. Бўлмаса, қўнғироқ фақат билдиришнома сифатида кўринади.",
+  "callForThisLesson": "Ушбу дарс учун қўнғироқ",
+  "appearance": "Кўриниш",
+  "themeSystem": "Тизим бўйича",
+  "themeLight": "Ёруғ",
+  "themeDark": "Тунги",
+  "usefulLinks": "Фойдали ҳаволалар",
+  "testPlatforms": "Тест платформалари",
+  "pdfBooks": "PDF китоблар",
+  "apps": "Иловалар",
+  "offsetHours": "{count} соат",
+  "@offsetHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "offsetMinutes": "{count} дақиқа",
+  "@offsetMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

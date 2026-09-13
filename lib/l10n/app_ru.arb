@@ -1,43 +1,112 @@
 {
   "@@locale": "ru",
-  "appTitle": "KIU", "back": "Назад", "forward": "Вперёд", "home": "Главная", "refresh": "Обновить", "actions": "Действия", "version": "Версия", "videoSpeed": "Скорость видео", "customSpeed": "Своя скорость", "markWatched": "Отметить просмотренным", "markWatchedQuestion": "Отметить урок как просмотренный?", "cancel": "Отмена", "confirm": "Подтвердить", "marking": "Отмечаем…", "marked": "Урок отмечен просмотренным", "markFailed": "Не удалось отметить урок", "onlyLesson": "Действие доступно только на видеоуроке", "notificationSettings": "Настройки уведомлений", "reminders": "Напоминания об уроках", "remindersHelp": "Проверяет изменения расписания в фоне примерно каждые 5 минут", "threeHours": "За 3 часа", "oneHour": "За 1 час", "fifteenMinutes": "За 15 минут", "atStart": "При начале", "customReminder": "Своё время", "minutes": "Минуты", "hours": "Часы", "add": "Добавить", "timezone": "Часовой пояс", "searchTimezone": "Поиск часового пояса", "language": "Язык", "syncNow": "Синхронизировать", "syncing": "Синхронизация…", "syncSuccess": "Синхронизировано уроков: {count}", "@syncSuccess": {"placeholders":{"count":{"type":"int"}}}, "signInToSync": "Войдите для синхронизации", "syncFailed": "Не удалось синхронизировать расписание", "lastSync": "Последняя синхронизация: {value}", "@lastSync": {"placeholders":{"value":{"type":"String"}}}, "never": "Никогда", "exactTiming": "Точные напоминания", "reducedPrecision": "Нет доступа к точным будильникам; напоминания могут задерживаться", "grantPermission": "Разрешить", "pageError": "Не удалось открыть страницу", "retry": "Повторить", "unsupportedLink": "Ссылка заблокирована для вашей безопасности", "startsNow": "Начинается сейчас", "startsIn": "Начинается через {offset}", "@startsIn": {"placeholders":{"offset":{"type":"String"}}}, "lessonAt": "{date} • {zone}", "@lessonAt": {"placeholders":{"date":{"type":"String"},"zone":{"type":"String"}}}, "uzbekCyrillic": "Ўзбекча (Кирилл)", "uzbekLatin": "O‘zbekcha (Lotin)", "english": "English", "russian": "Русский", "close": "Закрыть"
-, "backgroundSync": "Фоновая синхронизация"
-, "backgroundSyncHelp": "Проверяет уроки каждые 5 минут при закрытом KIU"
-, "backgroundAccess": "Работа в фоне"
-, "backgroundAccessHelp": "Разрешите KIU фоновую работу в настройках батареи. Android всё ещё может отложить задачу."
-, "openSettings": "Открыть настройки"
-, "remove": "Удалить"
-, "notificationSound": "Звук уведомления"
-, "defaultSound": "Системный по умолчанию"
-, "soundSelected": "Выбран системный звук"
-, "chooseSound": "Выбрать звук"
-, "soundSettings": "Настройки звука"
-, "mainSound": "Основной звук"
-, "individualSounds": "Звуки напоминаний"
-, "inheritsMainSound": "Использует основной звук"
-, "soundOverridesHelp": "Каждое напоминание использует основной звук, пока вы не выберете другой."
-, "customSound": "Свой звук"
-, "useMainSound": "Основной"
-, "customizeSound": "Изменить"
-, "scheduledLessons": "Запланированные занятия"
-, "noScheduledLessons": "Нет запланированных уроков"
-, "lessonCalls": "Звонки об уроках"
-, "lessonCallsHelp": "Показывает полноэкранный звонок при начале урока"
-, "ringDuration": "Длительность звонка"
-, "ringDurationValue": "{seconds} с"
-, "@ringDurationValue": {"placeholders":{"seconds":{"type":"int"}}}
-, "callRingtone": "Мелодия звонка"
-, "fullScreenAccess": "Полноэкранный доступ"
-, "fullScreenAccessHelp": "Разрешите полноэкранные звонки поверх блокировки экрана в настройках системы"
-, "overlayAccess": "Отображение поверх других приложений"
-, "overlayAccessHelp": "Позволяет экрану звонка открываться, даже когда вы используете телефон. Без этого звонок показывается только как уведомление."
-, "callForThisLesson": "Звонок для этого урока"
-, "appearance": "Оформление"
-, "themeSystem": "Как в системе"
-, "themeLight": "Светлая"
-, "themeDark": "Тёмная"
-, "usefulLinks": "Полезные ссылки"
-, "testPlatforms": "Платформы тестирования"
-, "pdfBooks": "Книги в PDF"
-, "apps": "Приложения"
+  "back": "Назад",
+  "forward": "Вперёд",
+  "home": "Главная",
+  "refresh": "Обновить",
+  "actions": "Действия",
+  "version": "Версия",
+  "videoSpeed": "Скорость видео",
+  "customSpeed": "Своя скорость",
+  "markWatched": "Отметить просмотренным",
+  "markWatchedQuestion": "Отметить урок как просмотренный?",
+  "cancel": "Отмена",
+  "confirm": "Подтвердить",
+  "marking": "Отмечаем…",
+  "marked": "Урок отмечен просмотренным",
+  "markFailed": "Не удалось отметить урок",
+  "onlyLesson": "Действие доступно только на видеоуроке",
+  "notificationSettings": "Настройки уведомлений",
+  "reminders": "Напоминания об уроках",
+  "remindersHelp": "Проверяет изменения расписания в фоне примерно каждые 5 минут",
+  "threeHours": "За 3 часа",
+  "oneHour": "За 1 час",
+  "fifteenMinutes": "За 15 минут",
+  "atStart": "При начале",
+  "customReminder": "Своё время",
+  "minutes": "Минуты",
+  "hours": "Часы",
+  "add": "Добавить",
+  "timezone": "Часовой пояс",
+  "searchTimezone": "Поиск часового пояса",
+  "language": "Язык",
+  "syncNow": "Синхронизировать",
+  "syncing": "Синхронизация…",
+  "signInToSync": "Войдите для синхронизации",
+  "syncFailed": "Не удалось синхронизировать расписание",
+  "lastSync": "Последняя синхронизация: {value}",
+  "@lastSync": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "never": "Никогда",
+  "exactTiming": "Точные напоминания",
+  "reducedPrecision": "Нет доступа к точным будильникам; напоминания могут задерживаться",
+  "grantPermission": "Разрешить",
+  "pageError": "Не удалось открыть страницу",
+  "retry": "Повторить",
+  "unsupportedLink": "Ссылка заблокирована для вашей безопасности",
+  "startsNow": "Начинается сейчас",
+  "startsIn": "Начинается через {offset}",
+  "@startsIn": {
+    "placeholders": {
+      "offset": {
+        "type": "String"
+      }
+    }
+  },
+  "uzbekCyrillic": "Ўзбекча (Кирилл)",
+  "uzbekLatin": "O‘zbekcha (Lotin)",
+  "english": "English",
+  "russian": "Русский",
+  "backgroundSync": "Фоновая синхронизация",
+  "backgroundSyncHelp": "Проверяет уроки каждые 5 минут при закрытом KIU",
+  "backgroundAccess": "Работа в фоне",
+  "backgroundAccessHelp": "Разрешите KIU фоновую работу в настройках батареи. Android всё ещё может отложить задачу.",
+  "openSettings": "Открыть настройки",
+  "remove": "Удалить",
+  "notificationSound": "Звук уведомления",
+  "defaultSound": "Системный по умолчанию",
+  "soundSelected": "Выбран системный звук",
+  "chooseSound": "Выбрать звук",
+  "soundSettings": "Настройки звука",
+  "mainSound": "Основной звук",
+  "individualSounds": "Звуки напоминаний",
+  "inheritsMainSound": "Использует основной звук",
+  "soundOverridesHelp": "Каждое напоминание использует основной звук, пока вы не выберете другой.",
+  "customSound": "Свой звук",
+  "useMainSound": "Основной",
+  "customizeSound": "Изменить",
+  "scheduledLessons": "Запланированные занятия",
+  "noScheduledLessons": "Нет запланированных уроков",
+  "lessonCalls": "Звонки об уроках",
+  "lessonCallsHelp": "Показывает полноэкранный звонок при начале урока",
+  "ringDuration": "Длительность звонка",
+  "ringDurationValue": "{seconds} с",
+  "@ringDurationValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "callRingtone": "Мелодия звонка",
+  "fullScreenAccess": "Полноэкранный доступ",
+  "fullScreenAccessHelp": "Разрешите полноэкранные звонки поверх блокировки экрана в настройках системы",
+  "overlayAccess": "Отображение поверх других приложений",
+  "overlayAccessHelp": "Позволяет экрану звонка открываться, даже когда вы используете телефон. Без этого звонок показывается только как уведомление.",
+  "callForThisLesson": "Звонок для этого урока",
+  "appearance": "Оформление",
+  "themeSystem": "Как в системе",
+  "themeLight": "Светлая",
+  "themeDark": "Тёмная",
+  "usefulLinks": "Полезные ссылки",
+  "testPlatforms": "Платформы тестирования",
+  "pdfBooks": "Книги в PDF",
+  "apps": "Приложения",
+  "offsetHours": "{count} ч",
+  "offsetMinutes": "{count} мин"
 }

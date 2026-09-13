@@ -10,9 +10,6 @@ class AppLocalizationsUz extends AppLocalizations {
   AppLocalizationsUz([String locale = 'uz']) : super(locale);
 
   @override
-  String get appTitle => 'KIU';
-
-  @override
   String get back => 'Orqaga';
 
   @override
@@ -110,11 +107,6 @@ class AppLocalizationsUz extends AppLocalizations {
   String get syncing => 'Sinxronlanmoqda…';
 
   @override
-  String syncSuccess(int count) {
-    return '$count ta dars sinxronlandi';
-  }
-
-  @override
   String get signInToSync => 'Sinxronlash uchun tizimga kiring';
 
   @override
@@ -156,11 +148,6 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
-  String lessonAt(String date, String zone) {
-    return '$date • $zone';
-  }
-
-  @override
   String get uzbekCyrillic => 'Ўзбекча (Кирилл)';
 
   @override
@@ -171,9 +158,6 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get russian => 'Рсский';
-
-  @override
-  String get close => 'Yopish';
 
   @override
   String get backgroundSync => 'Fonda sinxronlash';
@@ -296,14 +280,21 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get apps => 'Ilovalar';
+
+  @override
+  String offsetHours(int count) {
+    return '$count soat';
+  }
+
+  @override
+  String offsetMinutes(int count) {
+    return '$count daqiqa';
+  }
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
 class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   AppLocalizationsUzCyrl() : super('uz_Cyrl');
-
-  @override
-  String get appTitle => 'KIU';
 
   @override
   String get back => 'Орқага';
@@ -403,11 +394,6 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get syncing => 'Синхронланмоқда…';
 
   @override
-  String syncSuccess(int count) {
-    return '$count та дарс синхронланди';
-  }
-
-  @override
   String get signInToSync => 'Синхронлаш учун тизимга киринг';
 
   @override
@@ -449,11 +435,6 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   }
 
   @override
-  String lessonAt(String date, String zone) {
-    return '$date • $zone';
-  }
-
-  @override
   String get uzbekCyrillic => 'Ўзбекча (Кирилл)';
 
   @override
@@ -464,9 +445,6 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get russian => 'Русский';
-
-  @override
-  String get close => 'Ёпиш';
 
   @override
   String get backgroundSync => 'Фонда синхронлаш';
@@ -589,4 +567,14 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get apps => 'Иловалар';
+
+  @override
+  String offsetHours(int count) {
+    return '$count соат';
+  }
+
+  @override
+  String offsetMinutes(int count) {
+    return '$count дақиқа';
+  }
 }

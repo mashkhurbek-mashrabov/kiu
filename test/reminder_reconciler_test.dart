@@ -40,6 +40,59 @@ void main() {
     );
   });
 
+  group('reminder body is localized from the ARB files', () {
+    Future<Map<int, String>> bodiesFor(String localeTag) async {
+      final gateway = FakeNotificationGateway();
+      final reconciler = ReminderReconciler(
+        repository: repository,
+        notifications: gateway,
+        now: () => DateTime.utc(2026, 9, 9, 12),
+      );
+      await reconciler.reconcile(
+        const [Lesson(title: 'Tahfiz', websiteStart: '2026-09-09 19:00')],
+        AppSettings(
+          remindersEnabled: true,
+          localeTag: localeTag,
+          reminderOffsetsMinutes: const [60, 45, 0],
+        ),
+      );
+      return {
+        for (final call in gateway.scheduled.values)
+          call.reminderOffsetMinutes: call.body,
+      };
+    }
+
+    test('English uses whole-hour and minute units', () async {
+      final bodies = await bodiesFor('en');
+      expect(bodies[60], contains('Starts in 1 h'));
+      expect(bodies[45], contains('Starts in 45 min'));
+      expect(bodies[0], contains('Starts now'));
+    });
+
+    test('Russian', () async {
+      final bodies = await bodiesFor('ru');
+      expect(bodies[60], contains('Начинается через 1 ч'));
+      expect(bodies[0], contains('Начинается сейчас'));
+    });
+
+    test('Latin Uzbek', () async {
+      final bodies = await bodiesFor('uz');
+      expect(bodies[60], contains('1 soatdan keyin boshlanadi'));
+      expect(bodies[0], contains('Hozir boshlanadi'));
+    });
+
+    test('Cyrillic Uzbek is the default', () async {
+      final bodies = await bodiesFor('uz_Cyrl');
+      expect(bodies[60], contains('1 соатдан кейин бошланади'));
+      expect(bodies[0], contains('Ҳозир бошланади'));
+    });
+
+    test('every body still leads with the lesson time', () async {
+      final bodies = await bodiesFor('en');
+      expect(bodies.values.every((body) => body.startsWith('19:00')), isTrue);
+    });
+  });
+
   test('uses main sound unless reminder has an override', () async {
     final reconciler = ReminderReconciler(
       repository: repository,
