@@ -58,14 +58,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get onlyLesson => 'Действие доступно только на видеоуроке';
 
   @override
-  String get notificationSettings => 'Настройки уведомлений';
+  String get notificationSettings => 'Уведомления и звонки';
 
   @override
   String get reminders => 'Напоминания об уроках';
 
   @override
-  String get remindersHelp =>
-      'Проверяет изменения расписания в фоне примерно каждые 5 минут';
+  String get remindersHelp => 'Уведомляет перед началом каждого урока.';
 
   @override
   String get threeHours => 'За 3 часа';
@@ -124,8 +123,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get exactTiming => 'Точные напоминания';
 
   @override
-  String get reducedPrecision =>
-      'Нет доступа к точным будильникам; напоминания могут задерживаться';
+  String get reducedPrecision => 'Напоминания могут опаздывать';
 
   @override
   String get grantPermission => 'Разрешить';
@@ -164,10 +162,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get backgroundSyncHelp =>
-      'Проверяет уроки каждые 5 минут при закрытом KIU';
+      'Проверяет расписание каждые 5 минут, пока KIU закрыт.';
 
   @override
-  String get backgroundAccess => 'Работа в фоне';
+  String get backgroundAccess => 'Доступ к батарее';
 
   @override
   String get backgroundAccessHelp =>
@@ -205,7 +203,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get soundOverridesHelp =>
-      'Каждое напоминание использует основной звук, пока вы не выберете другой.';
+      'Каждое напоминание использует основной звук, пока вы не зададите свой.';
 
   @override
   String get customSound => 'Свой звук';
@@ -223,11 +221,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get noScheduledLessons => 'Нет запланированных уроков';
 
   @override
-  String get lessonCalls => 'Звонки об уроках';
+  String get lessonCalls => 'Звонки';
 
   @override
   String get lessonCallsHelp =>
-      'Показывает полноэкранный звонок при начале урока';
+      'Показывает полноэкранный звонок в начале урока.';
 
   @override
   String get ringDuration => 'Длительность звонка';
@@ -241,14 +239,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get callRingtone => 'Мелодия звонка';
 
   @override
-  String get fullScreenAccess => 'Полноэкранный доступ';
+  String get fullScreenAccess => 'Полноэкранные звонки';
 
   @override
   String get fullScreenAccessHelp =>
       'Разрешите полноэкранные звонки поверх блокировки экрана в настройках системы';
 
   @override
-  String get overlayAccess => 'Отображение поверх других приложений';
+  String get overlayAccess => 'Поверх других приложений';
 
   @override
   String get overlayAccessHelp =>
@@ -290,4 +288,110 @@ class AppLocalizationsRu extends AppLocalizations {
   String offsetMinutes(int count) {
     return '$count мин';
   }
+
+  @override
+  String get settings => 'Настройки';
+
+  @override
+  String get sectionPlayback => 'Воспроизведение';
+
+  @override
+  String get sectionLessons => 'Уроки';
+
+  @override
+  String get sectionNotifications => 'Уведомления';
+
+  @override
+  String get sectionCalls => 'Звонки об уроках';
+
+  @override
+  String get sectionAppearance => 'Оформление';
+
+  @override
+  String get sectionResources => 'Ресурсы';
+
+  @override
+  String get sectionPermissions => 'Разрешения';
+
+  @override
+  String get sectionReminderTimes => 'Напоминать';
+
+  @override
+  String get sectionSync => 'Синхронизация';
+
+  @override
+  String get speed => 'Скорость';
+
+  @override
+  String get reminderTimes => 'Время напоминаний';
+
+  @override
+  String get sound => 'Звук';
+
+  @override
+  String get sounds => 'Звуки';
+
+  @override
+  String get addTime => 'Добавить время';
+
+  @override
+  String get amount => 'Значение';
+
+  @override
+  String get exactTimingHelp =>
+      'Android доставляет напоминания минута в минуту только с этим доступом. Без него они могут опаздывать.';
+
+  @override
+  String get remindersTooltip =>
+      'Отправляет уведомление перед началом каждого урока.';
+
+  @override
+  String get themeSystemHelp => 'Следует светлой или тёмной теме Android.';
+
+  @override
+  String get close => 'Закрыть';
+
+  @override
+  String get on => 'Вкл.';
+
+  @override
+  String get off => 'Выкл.';
+
+  @override
+  String get granted => 'Предоставлено';
+
+  @override
+  String get notGranted => 'Не предоставлено';
+
+  @override
+  String get about => 'О приложении';
+
+  @override
+  String get markWatchedShort => 'Просмотрено';
+
+  @override
+  String get openLink => 'Открыть';
+
+  @override
+  String get searchHint => 'Поиск';
+
+  @override
+  String get reset => 'Сбросить';
+
+  @override
+  String get custom => 'Своё';
+
+  @override
+  String get preset => 'Готовое';
+
+  @override
+  String get noResults => 'Ничего не найдено';
+
+  @override
+  String get reminderTimesHelp =>
+      'Выберите, за сколько до начала урока вас уведомить. Каждое включённое время отправляет своё уведомление, поэтому для одного урока их может прийти несколько.';
+
+  @override
+  String get ringDurationHelp =>
+      'Сколько времени экран звонка звонит, прежде чем остановиться сам.';
 }

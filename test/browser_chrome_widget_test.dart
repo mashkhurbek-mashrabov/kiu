@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app.dart';
 import 'package:kiu/app/app_controller.dart';
+import 'package:kiu/core/theme.dart';
 import 'package:kiu/data/settings_repository.dart';
 import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
+import 'package:kiu/ui/widgets/settings_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -36,6 +38,9 @@ Future<AppController> controller([
     backgroundAccess: backgroundAccess,
   );
 }
+
+/// Finds a [SettingsSection] caption, which renders upper-cased.
+Finder findCaption(String label) => find.text(label.toUpperCase());
 
 void main() {
   setUp(() {
@@ -84,7 +89,7 @@ void main() {
     final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
         .colorScheme;
     expect(colors.brightness, Brightness.dark);
-    expect(colors.surface, const Color(0xFF2B2939));
+    expect(colors.surface, darkSurface);
   });
 
   testWidgets('paints the light surface when light mode is saved', (
@@ -101,7 +106,7 @@ void main() {
     final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
         .colorScheme;
     expect(colors.brightness, Brightness.light);
-    expect(colors.surface, const Color(0xFFF2F1EA));
+    expect(colors.surface, lightSurface);
   });
 
   testWidgets('switches appearance from More', (tester) async {
@@ -112,15 +117,21 @@ void main() {
 
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('theme-mode-menu')));
+    // Appearance is a three-segment control in the sheet now, so the mode is
+    // one tap away rather than a row that opens its own dialog.
+    final darkSegment = find.descendant(
+      of: find.byKey(const Key('theme-mode-menu')),
+      matching: find.byIcon(Icons.dark_mode_rounded),
+    );
+    await tester.ensureVisible(darkSegment);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('theme-mode-dark')));
+    await tester.tap(darkSegment);
     await tester.pumpAndSettle();
 
     expect(appController.settings.themeMode, ThemeMode.dark);
     expect(
       Theme.of(tester.element(find.byType(BottomAppBar))).colorScheme.surface,
-      const Color(0xFF2B2939),
+      darkSurface,
     );
     expect(injectedScripts.last, contains("setItem('darkMode'"));
     expect(injectedScripts.last, contains('const dark = true'));
@@ -186,6 +197,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('language-menu')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('language-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('language-ru')));
@@ -207,6 +220,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('language-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('language-menu')));
     await tester.pumpAndSettle();
@@ -242,6 +257,8 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('language-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('language-menu')));
     await tester.pumpAndSettle();
@@ -300,17 +317,19 @@ void main() {
     await tester.tap(find.byKey(const Key('useful-links-menu')));
     await tester.pumpAndSettle();
 
+    // Section captions render upper-cased, so match them case-insensitively
+    // rather than pinning the test to the display transform.
     expect(find.text('Фойдали ҳаволалар'), findsOneWidget);
-    expect(find.text('Тест платформалари'), findsOneWidget);
+    expect(findCaption('Тест платформалари'), findsOneWidget);
     expect(find.text('nurul-izoh.com'), findsOneWidget);
-    expect(find.text('PDF китоблар'), findsOneWidget);
+    expect(findCaption('PDF китоблар'), findsOneWidget);
     expect(find.text('Nurul Izoh'), findsOneWidget);
     expect(find.text('Mabdaul qiroat 2'), findsOneWidget);
 
     await tester.scrollUntilVisible(find.text('Riyozus solihiyn'), 300);
     await tester.pumpAndSettle();
 
-    expect(find.text('Иловалар'), findsOneWidget);
+    expect(findCaption('Иловалар'), findsOneWidget);
     expect(find.text('Riyozus solihiyn'), findsOneWidget);
   });
 
@@ -382,30 +401,37 @@ void main() {
     },
   );
 
-  testWidgets('lists custom reminder inline with remove action', (
+  testWidgets('shows custom reminders as chips that can be removed', (
     tester,
   ) async {
     final appController = await controller();
+    // The chip row is only interactive while reminders are on, which is what
+    // the offsets are for in the first place.
+    await appController.setRemindersEnabled(true);
     await appController.setReminderOffsets([75, 45, 60, 15, 0]);
     await tester.pumpWidget(
       KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
     );
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
     await tester.pumpAndSettle();
 
-    final custom = find.text('1 Соат 15 Дақиқа');
+    // Custom offsets share the chip row with the presets rather than living in
+    // their own list below the form.
+    final custom = find.byKey(const Key('reminder-custom-75'));
     expect(custom, findsOneWidget);
+    expect(find.byKey(const Key('reminder-custom-45')), findsOneWidget);
+    expect(find.text('1 Соат 15 Дақиқа'), findsOneWidget);
     expect(find.text('45 Дақиқа'), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
-    expect(
-      tester.getTopLeft(custom).dy,
-      lessThan(tester.getTopLeft(find.text('Махсус вақт')).dy),
-    );
-    await tester.ensureVisible(find.byIcon(Icons.delete_outline).first);
+    // Presets stay selectable alongside them.
+    expect(find.byKey(const Key('reminder-offset-60')), findsOneWidget);
+
+    await tester.ensureVisible(custom);
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    // The chip's delete button renders outside the keyed chip subtree, so
+    // reach it by its tooltip.
+    await tester.tap(find.byTooltip('Ўчириш').first);
     await tester.pump();
     expect(appController.settings.reminderOffsetsMinutes, isNot(contains(75)));
   });
@@ -419,7 +445,7 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('notification-settings-back')));
@@ -443,7 +469,7 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('notification-sound-settings')));
@@ -469,7 +495,7 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('notification-sound-settings')));
     await tester.pumpAndSettle();
@@ -488,11 +514,21 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Эслатма созламалари'));
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('overlay access switch reads off while permission is missing', (
+  /// Reads the granted/not-granted badge from a permission row.
+  bool badgeGranted(WidgetTester tester, String key) => tester
+      .widget<PermissionBadge>(
+        find.descendant(
+          of: find.byKey(Key(key)),
+          matching: find.byType(PermissionBadge),
+        ),
+      )
+      .granted;
+
+  testWidgets('overlay access badge reads not granted while missing', (
     tester,
   ) async {
     final backgroundAccess = FakeBackgroundAccessGateway()
@@ -501,13 +537,10 @@ void main() {
     await appController.setCallsEnabled(true);
     await openNotificationSettings(tester, appController);
 
-    final tile = tester.widget<SwitchListTile>(
-      find.byKey(const Key('overlay-access-tile')),
-    );
-    expect(tile.value, isFalse);
+    expect(badgeGranted(tester, 'overlay-access-tile'), isFalse);
   });
 
-  testWidgets('overlay access switch stays visible and on once granted', (
+  testWidgets('overlay access badge reads granted once allowed', (
     tester,
   ) async {
     final backgroundAccess = FakeBackgroundAccessGateway()
@@ -516,13 +549,10 @@ void main() {
     await appController.setCallsEnabled(true);
     await openNotificationSettings(tester, appController);
 
-    final tile = tester.widget<SwitchListTile>(
-      find.byKey(const Key('overlay-access-tile')),
-    );
-    expect(tile.value, isTrue);
+    expect(badgeGranted(tester, 'overlay-access-tile'), isTrue);
   });
 
-  testWidgets('hides overlay access switch while calls are off', (
+  testWidgets('hides call-only permissions while calls are off', (
     tester,
   ) async {
     final backgroundAccess = FakeBackgroundAccessGateway()
@@ -531,9 +561,13 @@ void main() {
     await openNotificationSettings(tester, appController);
 
     expect(find.byKey(const Key('overlay-access-tile')), findsNothing);
+    expect(find.byKey(const Key('full-screen-access')), findsNothing);
+    // The two that are not call-specific stay listed either way.
+    expect(find.byKey(const Key('battery-access')), findsOneWidget);
+    expect(find.byKey(const Key('exact-timing')), findsOneWidget);
   });
 
-  testWidgets('tapping the overlay access switch opens Android settings', (
+  testWidgets('tapping the overlay access row opens Android settings', (
     tester,
   ) async {
     final backgroundAccess = FakeBackgroundAccessGateway()
@@ -545,9 +579,99 @@ void main() {
     final tile = find.byKey(const Key('overlay-access-tile'));
     await tester.ensureVisible(tile);
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: tile, matching: find.byType(Switch)));
+    await tester.tap(tile);
     await tester.pumpAndSettle();
 
     expect(backgroundAccess.overlaySettingsOpened, 1);
+  });
+
+  testWidgets('every permission row shows its granted state', (tester) async {
+    // A granted permission used to be indistinguishable from an absent row.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false
+      ..fullScreenIntentAllowed = true
+      ..overlaysAllowed = false;
+    final appController = await controller(null, backgroundAccess);
+    await appController.setCallsEnabled(true);
+    await openNotificationSettings(tester, appController);
+
+    expect(badgeGranted(tester, 'battery-access'), isFalse);
+    expect(badgeGranted(tester, 'full-screen-access'), isTrue);
+    expect(badgeGranted(tester, 'overlay-access-tile'), isFalse);
+  });
+
+  testWidgets('tapping the battery row opens Android settings', (tester) async {
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false;
+    final appController = await controller(null, backgroundAccess);
+    await openNotificationSettings(tester, appController);
+
+    final tile = find.byKey(const Key('battery-access'));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+
+    expect(backgroundAccess.batterySettingsOpened, 1);
+  });
+
+  testWidgets('scheduled lessons page can sync and shows the last sync', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'kiu.lessonSnapshot':
+          '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00"}]',
+    });
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+    await tester.pumpAndSettle();
+
+    final syncBar = find.byKey(const Key('scheduled-lessons-sync'));
+    expect(syncBar, findsOneWidget);
+    // Never synced yet, so the bar reports that rather than a timestamp.
+    expect(
+      find.descendant(
+        of: syncBar,
+        matching: find.text('Охирги синхронлаш: Ҳали йўқ'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(syncBar);
+    await tester.pumpAndSettle();
+
+    // The list is still there: syncing rebuilds the sheet in place.
+    expect(find.byKey(const Key('scheduled-lessons-list')), findsOneWidget);
+  });
+
+  testWidgets('Useful links returns to the settings sheet, not the WebView', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BackButton), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    // Back must land back in Settings rather than dropping to the WebView.
+    expect(find.byKey(const Key('useful-links-menu')), findsOneWidget);
   });
 }

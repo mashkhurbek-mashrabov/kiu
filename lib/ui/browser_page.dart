@@ -17,6 +17,7 @@ import '../l10n/app_localizations.dart';
 import '../services/lesson_widget_service.dart';
 import '../services/time_zone_service.dart';
 import '../web/js_scripts.dart';
+import 'widgets/settings_widgets.dart';
 
 class BrowserPage extends StatefulWidget {
   const BrowserPage({
@@ -269,6 +270,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     final openSettings = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        icon: const Icon(Icons.battery_saver_rounded),
         title: Text(strings.backgroundAccess),
         content: Text(strings.backgroundAccessHelp),
         actions: [
@@ -276,9 +278,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             onPressed: () => Navigator.pop(context, false),
             child: Text(strings.cancel),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(strings.openSettings),
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: Text(strings.openSettings),
           ),
         ],
       ),
@@ -317,6 +320,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        icon: const Icon(Icons.task_alt_rounded),
         title: Text(strings.markWatched),
         content: Text(strings.markWatchedQuestion),
         actions: [
@@ -363,149 +367,334 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
+  /// Main settings sheet.
+  ///
+  /// Grouped into sections rather than one flat list: playback sits at the top
+  /// because it is the only control used mid-lesson, and everything a user
+  /// touches once during setup sinks below it.
   Future<void> _openActions() async {
     var selected = widget.controller.settings.playbackRate;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  strings.videoSpeed,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children: <double>[1, 1.5, 1.7, 2, 2.5]
-                      .map(
-                        (rate) => ChoiceChip(
-                          label: Text(
-                            '${rate.toStringAsFixed(rate % 1 == 0 ? 0 : 1)}×',
-                          ),
-                          selected: (selected - rate).abs() < 0.01,
-                          onSelected: (_) async {
+        builder: (context, setSheetState) {
+          final settings = widget.controller.settings;
+          return SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .88,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                    child: Text(
+                      strings.settings,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _playbackSection(selected, (rate) {
                             selected = rate;
                             setSheetState(() {});
-                            await _setPlaybackRate(rate);
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 8),
-                Text('${strings.customSpeed}: ${selected.toStringAsFixed(2)}×'),
-                Slider(
-                  value: selected.clamp(0.5, 4.0).toDouble(),
-                  min: 0.5,
-                  max: 4,
-                  divisions: 70,
-                  onChanged: (value) => setSheetState(() => selected = value),
-                  onChangeEnd: _setPlaybackRate,
-                ),
-                const Divider(),
-                FilledButton.icon(
-                  onPressed: _marking
-                      ? null
-                      : () {
-                          Navigator.pop(sheetContext);
-                          _markWatched();
-                        },
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: Text(_marking ? strings.marking : strings.markWatched),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.notifications_outlined),
-                  title: Text(strings.notificationSettings),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _openNotificationSettings();
-                  },
-                ),
-                ListTile(
-                  key: const Key('scheduled-lessons-menu'),
-                  leading: const Icon(Icons.calendar_month_outlined),
-                  title: Text(strings.scheduledLessons),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _openScheduledLessons();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.public),
-                  title: Text(strings.timezone),
-                  subtitle: Text(widget.controller.settings.timeZoneId),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _selectTimeZone();
-                  },
-                ),
-                ListTile(
-                  key: const Key('theme-mode-menu'),
-                  leading: const Icon(Icons.brightness_6_outlined),
-                  title: Text(strings.appearance),
-                  subtitle: Text(
-                    _themeModeLabel(widget.controller.settings.themeMode),
-                  ),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _selectThemeMode();
-                  },
-                ),
-                ListTile(
-                  key: const Key('language-menu'),
-                  leading: const Icon(Icons.language),
-                  title: Text(strings.language),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _selectLanguage();
-                  },
-                ),
-                ListTile(
-                  key: const Key('useful-links-menu'),
-                  leading: const Icon(Icons.link),
-                  title: Text(strings.usefulLinks),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _openUsefulLinks();
-                  },
-                ),
-                if (widget.controller.appVersion case final version?) ...[
-                  const Divider(),
-                  Text(
-                    version.label(strings.version),
-                    key: const Key('app-version'),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          }),
+                          SettingsSection(
+                            title: strings.sectionLessons,
+                            icon: Icons.school_rounded,
+                            children: [
+                              SettingsRow(
+                                key: const Key('mark-watched-menu'),
+                                icon: Icons.task_alt_rounded,
+                                title: _marking
+                                    ? strings.marking
+                                    : strings.markWatchedShort,
+                                enabled: !_marking,
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _markWatched();
+                                },
+                              ),
+                              SettingsRow(
+                                key: const Key('scheduled-lessons-menu'),
+                                icon: Icons.calendar_month_rounded,
+                                title: strings.scheduledLessons,
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _openScheduledLessons();
+                                },
+                              ),
+                              SettingsRow(
+                                key: const Key('notification-settings-menu'),
+                                icon: Icons.notifications_active_rounded,
+                                title: strings.notificationSettings,
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _openNotificationSettings();
+                                },
+                              ),
+                            ],
+                          ),
+                          SettingsSection(
+                            title: strings.sectionAppearance,
+                            icon: Icons.palette_rounded,
+                            children: [
+                              _themeModeRow(setSheetState),
+                              SettingsRow(
+                                key: const Key('language-menu'),
+                                icon: Icons.translate_rounded,
+                                title: strings.language,
+                                value: _languageLabel(settings.localeTag),
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _selectLanguage();
+                                },
+                              ),
+                              SettingsRow(
+                                key: const Key('timezone-menu'),
+                                icon: Icons.public_rounded,
+                                title: strings.timezone,
+                                value: settings.timeZoneId,
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _selectTimeZone();
+                                },
+                              ),
+                            ],
+                          ),
+                          SettingsSection(
+                            title: strings.sectionResources,
+                            icon: Icons.auto_stories_rounded,
+                            children: [
+                              SettingsRow(
+                                key: const Key('useful-links-menu'),
+                                icon: Icons.bookmarks_rounded,
+                                title: strings.usefulLinks,
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
+                                onTap: () {
+                                  Navigator.pop(sheetContext);
+                                  _openUsefulLinks();
+                                },
+                              ),
+                            ],
+                          ),
+                          if (widget.controller.appVersion case final version?)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20),
+                              child: Text(
+                                version.label(strings.version),
+                                key: const Key('app-version'),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Future<void> _openScheduledLessons() async {
-    final scheduledLessons = widget.controller.scheduledLessons;
-    final lessons = buildLessonWidgetPayload(
-      scheduledLessons,
-      widget.controller.settings,
-      TimeZoneService(),
+  /// Playback speed. Presets as chips plus a fine slider, kept at the top of
+  /// the sheet because it is the one control reached while a lesson plays.
+  Widget _playbackSection(double selected, ValueChanged<double> onSelected) {
+    final theme = Theme.of(context);
+    return SettingsSection(
+      title: strings.sectionPlayback,
+      icon: Icons.play_circle_rounded,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const SettingsLeading(Icons.speed_rounded),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      strings.videoSpeed,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  // Live read-out, so the slider needs no separate value label.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${selected.toStringAsFixed(2)}×',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <double>[1, 1.5, 1.7, 2, 2.5]
+                    .map(
+                      (rate) => ChoiceChip(
+                        label: Text(
+                          '${rate.toStringAsFixed(rate % 1 == 0 ? 0 : 1)}×',
+                        ),
+                        selected: (selected - rate).abs() < 0.01,
+                        onSelected: (_) async {
+                          onSelected(rate);
+                          await _setPlaybackRate(rate);
+                        },
+                      ),
+                    )
+                    .toList(),
+              ),
+              Slider(
+                value: selected.clamp(0.5, 4.0).toDouble(),
+                min: 0.5,
+                max: 4,
+                divisions: 70,
+                label: '${selected.toStringAsFixed(2)}×',
+                onChanged: onSelected,
+                onChangeEnd: _setPlaybackRate,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
-    final lessonsByKey = {
-      for (final lesson in scheduledLessons) lesson.callKey: lesson,
-    };
+  }
+
+  /// Theme as three icon segments rather than a dialog: the choice is small,
+  /// mutually exclusive and reads faster as sun/moon/auto than as words.
+  ///
+  /// Label above, segments below. Side by side the three segments claim their
+  /// natural width first and leave the label so little room that a word like
+  /// "Кўриниш" wraps to one character per line.
+  Widget _themeModeRow(StateSetter setSheetState) {
+    final mode = widget.controller.settings.themeMode;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+      child: Column(
+        key: const Key('theme-mode-menu'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const SettingsLeading(Icons.brightness_6_rounded),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  strings.appearance,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              // Current mode in words: the icons alone do not say which of
+              // the three is active for someone who does not know them.
+              Text(
+                _themeModeLabel(mode),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              InfoHint(message: strings.themeSystemHelp),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            segments: [
+              // Icons only: three translated labels do not fit across the
+              // sheet width, and the active mode is already named in the row
+              // above. Tooltips carry the name for anyone unsure of an icon.
+              ButtonSegment(
+                value: ThemeMode.system,
+                icon: const Icon(Icons.brightness_auto_rounded, size: 20),
+                tooltip: strings.themeSystem,
+              ),
+              ButtonSegment(
+                value: ThemeMode.light,
+                icon: const Icon(Icons.light_mode_rounded, size: 20),
+                tooltip: strings.themeLight,
+              ),
+              ButtonSegment(
+                value: ThemeMode.dark,
+                icon: const Icon(Icons.dark_mode_rounded, size: 20),
+                tooltip: strings.themeDark,
+              ),
+            ],
+            selected: {mode},
+            onSelectionChanged: (values) async {
+              await widget.controller.setThemeMode(values.first);
+              await _applySiteTheme();
+              setSheetState(() {});
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _themeModeLabel(ThemeMode mode) => switch (mode) {
+    ThemeMode.system => strings.themeSystem,
+    ThemeMode.light => strings.themeLight,
+    ThemeMode.dark => strings.themeDark,
+  };
+
+  Future<void> _openScheduledLessons() async {
     final returnToActions = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -513,34 +702,53 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
           final settings = widget.controller.settings;
+          final colors = Theme.of(context).colorScheme;
+          // Re-read inside the builder so "Sync now" can refresh the list in
+          // place rather than showing the snapshot the sheet opened with.
+          final scheduledLessons = widget.controller.scheduledLessons;
+          final lessons = buildLessonWidgetPayload(
+            scheduledLessons,
+            settings,
+            TimeZoneService(),
+          );
+          final lessonsByKey = {
+            for (final lesson in scheduledLessons) lesson.callKey: lesson,
+          };
           return SafeArea(
             child: SizedBox(
-              height: MediaQuery.sizeOf(context).height * .75,
+              height: MediaQuery.sizeOf(context).height * .8,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 24, 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          key: const Key('scheduled-lessons-back'),
-                          icon: const Icon(Icons.arrow_back),
-                          tooltip: strings.back,
-                          onPressed: () => Navigator.pop(context, true),
-                        ),
-                        Expanded(
-                          child: Text(
-                            strings.scheduledLessons,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                      ],
-                    ),
+                  SheetHeader(
+                    title: strings.scheduledLessons,
+                    backTooltip: strings.back,
+                    backKey: const Key('scheduled-lessons-back'),
                   ),
+                  _lessonsSyncBar(setSheetState),
                   Expanded(
                     child: lessons.isEmpty
-                        ? Center(child: Text(strings.noScheduledLessons))
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.event_busy_rounded,
+                                  size: 44,
+                                  color: colors.onSurfaceVariant.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  strings.noScheduledLessons,
+                                  style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
                         : ListView.builder(
                             key: const Key('scheduled-lessons-list'),
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -552,55 +760,68 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                                   lesson['group'] !=
                                       lessons[index - 1]['group'];
                               final lessonEntity = lessonsByKey[lesson['key']];
+                              final callOn =
+                                  lessonEntity != null &&
+                                  settings.callEnabledFor(lessonEntity);
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   if (startsGroup)
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        8,
-                                        16,
-                                        8,
-                                        4,
-                                      ),
-                                      child: Text(
-                                        lesson['group']! as String,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall,
-                                      ),
+                                    _lessonGroupHeader(
+                                      lesson['group']! as String,
                                     ),
-                                  Card(
-                                    child: ListTile(
-                                      key: Key('scheduled-lesson-$index'),
-                                      title: Text(lesson['title']! as String),
-                                      subtitle: Text(
-                                        lesson['displayStart']! as String,
-                                      ),
-                                      // Phone icon rather than a switch, matching
-                                      // the home-screen widget's per-row toggle.
-                                      trailing: lessonEntity == null
-                                          ? null
-                                          : _LessonCallToggle(
-                                              key: Key(
-                                                'scheduled-lesson-call-$index',
-                                              ),
-                                              enabled: settings.callEnabledFor(
-                                                lessonEntity,
-                                              ),
-                                              tooltip:
-                                                  strings.callForThisLesson,
-                                              onPressed: () async {
-                                                await widget.controller
-                                                    .setLessonCallEnabled(
-                                                      lessonEntity,
-                                                      !settings.callEnabledFor(
-                                                        lessonEntity,
-                                                      ),
-                                                    );
-                                                setSheetState(() {});
-                                              },
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Card(
+                                      child: ListTile(
+                                        key: Key('scheduled-lesson-$index'),
+                                        contentPadding:
+                                            const EdgeInsets.fromLTRB(
+                                              12,
+                                              6,
+                                              6,
+                                              6,
                                             ),
+                                        // A call that is armed gets a filled
+                                        // accent so the list scans for "which
+                                        // lessons will ring" at a glance.
+                                        leading: SettingsLeading(
+                                          Icons.play_lesson_rounded,
+                                          color: callOn
+                                              ? colors.primary
+                                              : colors.onSurfaceVariant,
+                                          active: callOn,
+                                        ),
+                                        title: Text(
+                                          lesson['title']! as String,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          lesson['displayStart']! as String,
+                                        ),
+                                        // Phone icon rather than a switch, matching
+                                        // the home-screen widget's per-row toggle.
+                                        trailing: lessonEntity == null
+                                            ? null
+                                            : _LessonCallToggle(
+                                                key: Key(
+                                                  'scheduled-lesson-call-$index',
+                                                ),
+                                                enabled: callOn,
+                                                tooltip:
+                                                    strings.callForThisLesson,
+                                                onPressed: () async {
+                                                  await widget.controller
+                                                      .setLessonCallEnabled(
+                                                        lessonEntity,
+                                                        !callOn,
+                                                      );
+                                                  setSheetState(() {});
+                                                },
+                                              ),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -616,6 +837,125 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       ),
     );
     if (returnToActions == true && mounted) _openActions();
+  }
+
+  /// Last-sync line plus a manual trigger, above the lesson list.
+  ///
+  /// Listens to the sync notifier directly rather than going through
+  /// `notifyListeners()`, which would rebuild the whole app including the
+  /// WebView. Rebuilding the sheet on completion refreshes the list itself,
+  /// since the payload is read inside the sheet's builder.
+  Widget _lessonsSyncBar(StateSetter setSheetState) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return ValueListenableBuilder<
+      ({ScheduleSyncStatus status, DateTime? lastSuccessfulSync})
+    >(
+      valueListenable: widget.controller.syncState,
+      builder: (context, syncState, _) {
+        final syncing = syncState.status == ScheduleSyncStatus.syncing;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Material(
+            color: colors.surfaceContainerLow,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(
+                color: colors.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            child: InkWell(
+              key: const Key('scheduled-lessons-sync'),
+              onTap: syncing
+                  ? null
+                  : () async {
+                      await _synchronize();
+                      if (mounted) setSheetState(() {});
+                    },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      size: 18,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _syncStatusText(
+                          syncState.status,
+                          syncState.lastSuccessfulSync,
+                          timeOnly: true,
+                        ),
+                        // Two lines: the timestamp is the point of this row,
+                        // and "Last sync: <date>" does not fit on one line
+                        // beside the button in any of the four languages.
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Icon-only trigger: the label doubled the row's width and
+                    // squeezed the timestamp it sits next to into an ellipsis.
+                    if (syncing)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                      )
+                    else
+                      Tooltip(
+                        message: strings.syncNow,
+                        child: Icon(
+                          Icons.sync_rounded,
+                          size: 20,
+                          color: colors.primary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Day separator in the lesson list. Label plus a rule, mirroring the
+  /// home-screen widget's group header so both lists read the same way.
+  Widget _lessonGroupHeader(String label) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Divider(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openNotificationSettings() async {
@@ -640,6 +980,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             widget.controller.refreshOverlayAccess().then((_) {
               if (mounted) setSheetState(() {});
             });
+            widget.controller.refreshBatteryOptimizationAccess().then((_) {
+              if (mounted) setSheetState(() {});
+            });
           }
           final settings = widget.controller.settings;
           final offsets = settings.reminderOffsetsMinutes.toSet();
@@ -649,282 +992,91 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             setSheetState(() {});
           }
 
+          final customOffsets =
+              offsets
+                  .where((value) => !{180, 60, 15, 0}.contains(value))
+                  .toList()
+                ..sort((a, b) => b.compareTo(a));
           return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .88,
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          key: const Key('notification-settings-back'),
-                          tooltip: strings.back,
-                          onPressed: () => Navigator.pop(context, true),
-                          icon: const Icon(Icons.arrow_back),
-                        ),
-                        Expanded(
-                          child: Text(
-                            strings.notificationSettings,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SwitchListTile(
-                      title: Text(strings.reminders),
-                      subtitle: Text(strings.remindersHelp),
-                      value: settings.remindersEnabled,
-                      onChanged: (value) async {
-                        await widget.controller.setRemindersEnabled(value);
-                        setSheetState(() {});
-                      },
-                    ),
-                    SwitchListTile(
-                      title: Text(strings.backgroundSync),
-                      subtitle: Text(strings.backgroundSyncHelp),
-                      value: settings.backgroundSyncEnabled,
-                      onChanged: (value) async {
-                        await widget.controller.setBackgroundSyncEnabled(value);
-                        setSheetState(() {});
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.battery_saver),
-                      title: Text(strings.backgroundAccess),
-                      subtitle: Text(strings.backgroundAccessHelp),
-                      trailing: const Icon(Icons.open_in_new),
-                      onTap: widget.controller.openBatteryOptimizationSettings,
-                    ),
-                    ListTile(
-                      key: const Key('notification-sound-settings'),
-                      leading: const Icon(Icons.music_note_outlined),
-                      title: Text(strings.notificationSound),
-                      subtitle: Text(
-                        settings.reminderSoundUri == null
-                            ? strings.defaultSound
-                            : settings.reminderSoundName ??
-                                  strings.soundSelected,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SheetHeader(
+                    title: strings.notificationSettings,
+                    backTooltip: strings.back,
+                    backKey: const Key('notification-settings-back'),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _openSoundSettings,
-                    ),
-                    const Divider(),
-                    SwitchListTile(
-                      key: const Key('lesson-calls-switch'),
-                      title: Text(strings.lessonCalls),
-                      subtitle: Text(strings.lessonCallsHelp),
-                      value: settings.callsEnabled,
-                      onChanged: (value) async {
-                        await widget.controller.setCallsEnabled(value);
-                        setSheetState(() {});
-                      },
-                    ),
-                    ListTile(
-                      key: const Key('call-ring-duration'),
-                      leading: const Icon(Icons.timer_outlined),
-                      title: Text(strings.ringDuration),
-                      subtitle: Text(
-                        strings.ringDurationValue(settings.callRingSeconds),
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: settings.callsEnabled
-                          ? () async {
-                              await _openCallRingDurationDialog(settings);
-                              setSheetState(() {});
-                            }
-                          : null,
-                    ),
-                    ListTile(
-                      key: const Key('call-ringtone'),
-                      leading: const Icon(Icons.ring_volume_outlined),
-                      title: Text(strings.callRingtone),
-                      subtitle: Text(
-                        settings.callRingtoneName ?? strings.defaultSound,
-                      ),
-                      trailing:
-                          settings.callsEnabled &&
-                              settings.callRingtoneUri != null
-                          ? IconButton(
-                              key: const Key('call-ringtone-reset'),
-                              tooltip: strings.defaultSound,
-                              icon: const Icon(Icons.settings_backup_restore),
-                              onPressed: () async {
-                                await widget.controller.clearCallRingtone();
-                                setSheetState(() {});
-                              },
-                            )
-                          : const Icon(Icons.chevron_right),
-                      onTap: settings.callsEnabled
-                          ? () async {
-                              await widget.controller.selectCallRingtone();
-                              setSheetState(() {});
-                            }
-                          : null,
-                    ),
-                    if (settings.callsEnabled &&
-                        !widget.controller.canUseFullScreenIntent)
-                      ListTile(
-                        key: const Key('full-screen-access'),
-                        leading: const Icon(Icons.fullscreen),
-                        title: Text(strings.fullScreenAccess),
-                        subtitle: Text(strings.fullScreenAccessHelp),
-                        trailing: const Icon(Icons.open_in_new),
-                        onTap: () async {
-                          await widget.controller
-                              .openFullScreenIntentSettings();
-                          setSheetState(() {});
-                        },
-                      ),
-                    // Android grants this one only from its own settings screen, so the
-                    // switch reflects the current state and both directions deep-link
-                    // there rather than toggling anything locally.
-                    if (settings.callsEnabled)
-                      SwitchListTile(
-                        key: const Key('overlay-access-tile'),
-                        secondary: const Icon(Icons.picture_in_picture_alt),
-                        title: Text(strings.overlayAccess),
-                        subtitle: Text(strings.overlayAccessHelp),
-                        value: widget.controller.canDrawOverlays,
-                        onChanged: (_) async {
-                          await widget.controller.openOverlaySettings();
-                          setSheetState(() {});
-                        },
-                      ),
-                    for (final option in <(int, String)>[
-                      (180, strings.threeHours),
-                      (60, strings.oneHour),
-                      (15, strings.fifteenMinutes),
-                      (0, strings.atStart),
-                    ]) ...[
-                      CheckboxListTile(
-                        title: Text(option.$2),
-                        value: offsets.contains(option.$1),
-                        onChanged: settings.remindersEnabled
-                            ? (value) => toggleOffset(option.$1, value ?? false)
-                            : null,
-                      ),
-                    ],
-                    for (final value
-                        in offsets
-                            .where((value) => !{180, 60, 15, 0}.contains(value))
-                            .toList()
-                          ..sort((a, b) => b.compareTo(a))) ...[
-                      ListTile(
-                        contentPadding: const EdgeInsets.only(left: 16),
-                        title: Text(_reminderOffsetLabel(value)),
-                        trailing: IconButton(
-                          tooltip: strings.remove,
-                          onPressed: () => toggleOffset(value, false),
-                          icon: const Icon(Icons.delete_outline),
-                        ),
-                      ),
-                    ],
-                    Text(
-                      strings.customReminder,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: customController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: const InputDecoration(
-                              hintText: '1–168',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        DropdownButton<bool>(
-                          value: customUnitHours,
-                          items: [
-                            DropdownMenuItem(
-                              value: false,
-                              child: Text(strings.minutes),
-                            ),
-                            DropdownMenuItem(
-                              value: true,
-                              child: Text(strings.hours),
-                            ),
-                          ],
-                          onChanged: (value) => setSheetState(
-                            () => customUnitHours = value ?? false,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: strings.add,
-                          onPressed: settings.remindersEnabled
-                              ? () async {
-                                  final amount = int.tryParse(
-                                    customController.text,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SettingsSection(
+                            title: strings.sectionNotifications,
+                            icon: Icons.notifications_rounded,
+                            children: [
+                              SettingsSwitchRow(
+                                icon: Icons.notifications_active_rounded,
+                                title: strings.reminders,
+                                hint: strings.remindersHelp,
+                                value: settings.remindersEnabled,
+                                onChanged: (value) async {
+                                  await widget.controller.setRemindersEnabled(
+                                    value,
                                   );
-                                  if (amount == null || amount < 1) return;
-                                  final minutes = customUnitHours
-                                      ? amount * 60
-                                      : amount;
-                                  if (minutes > 10080) return;
-                                  offsets.add(minutes);
-                                  await widget.controller.setReminderOffsets(
-                                    offsets.toList(),
-                                  );
-                                  customController.clear();
                                   setSheetState(() {});
-                                }
-                              : null,
-                          icon: const Icon(Icons.add_circle),
-                        ),
-                      ],
-                    ),
-                    if (!widget.controller.exactTiming)
-                      ListTile(
-                        leading: const Icon(Icons.schedule),
-                        title: Text(strings.reducedPrecision),
-                        trailing: TextButton(
-                          onPressed: () async {
-                            await widget.controller.requestExactTiming();
-                            setSheetState(() {});
-                          },
-                          child: Text(strings.grantPermission),
-                        ),
-                      )
-                    else
-                      ListTile(
-                        leading: const Icon(Icons.alarm_on),
-                        title: Text(strings.exactTiming),
-                      ),
-                    // Listens to the sync notifier directly: this row is the
-                    // only thing sync progress renders, so a background sync
-                    // repaints it alone instead of the whole app.
-                    ValueListenableBuilder<
-                      ({
-                        ScheduleSyncStatus status,
-                        DateTime? lastSuccessfulSync,
-                      })
-                    >(
-                      valueListenable: widget.controller.syncState,
-                      builder: (context, syncState, _) => ListTile(
-                        leading: const Icon(Icons.sync),
-                        title: Text(strings.syncNow),
-                        subtitle: Text(
-                          _syncStatusText(
-                            syncState.status,
-                            syncState.lastSuccessfulSync,
+                                },
+                              ),
+                              SettingsRow(
+                                key: const Key('notification-sound-settings'),
+                                icon: Icons.music_note_rounded,
+                                title: strings.sound,
+                                value: settings.reminderSoundUri == null
+                                    ? strings.defaultSound
+                                    : settings.reminderSoundName ??
+                                          strings.soundSelected,
+                                trailing: const Icon(
+                                  Icons.chevron_right_rounded,
+                                ),
+                                // Close this sheet first: the sound page
+                                // reopens it on the way back, and leaving it
+                                // mounted would stack a second copy.
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  _openSoundSettings();
+                                },
+                              ),
+                            ],
                           ),
-                        ),
-                        onTap: _synchronize,
+                          _reminderTimesSection(
+                            settings: settings,
+                            offsets: offsets,
+                            customOffsets: customOffsets,
+                            toggleOffset: toggleOffset,
+                            customController: customController,
+                            customUnitHours: customUnitHours,
+                            onUnitChanged: (value) =>
+                                setSheetState(() => customUnitHours = value),
+                            setSheetState: setSheetState,
+                          ),
+                          _callsSection(settings, setSheetState),
+                          _permissionsSection(settings, setSheetState),
+                          _syncSection(settings, setSheetState),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );
@@ -937,17 +1089,447 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
-  String _syncStatusText(ScheduleSyncStatus status, DateTime? lastSync) {
+  /// Reminder offsets.
+  ///
+  /// Explicit toggle rows rather than chips: a chip's selected state is a
+  /// subtle fill change that reads as styling, not as on/off, so there was no
+  /// way to tell at a glance which reminders would actually fire. Each row now
+  /// carries a check/circle icon, a bold label when active, and the section
+  /// caption states how many are on.
+  Widget _reminderTimesSection({
+    required AppSettings settings,
+    required Set<int> offsets,
+    required List<int> customOffsets,
+    required Future<void> Function(int, bool) toggleOffset,
+    required TextEditingController customController,
+    required bool customUnitHours,
+    required ValueChanged<bool> onUnitChanged,
+    required StateSetter setSheetState,
+  }) {
+    final enabled = settings.remindersEnabled;
+    final theme = Theme.of(context);
+    return SettingsSection(
+      title: strings.sectionReminderTimes,
+      icon: Icons.alarm_rounded,
+      hint: strings.reminderTimesHelp,
+      // No count: each row already shows its own switch, so a tally beside the
+      // caption just repeats what is directly below it. The disabled marker
+      // stays — that state is not visible from the rows alone.
+      trailing: enabled
+          ? null
+          : Text(
+              strings.off.toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+      children: [
+        for (final option in <(int, String)>[
+          (180, strings.threeHours),
+          (60, strings.oneHour),
+          (15, strings.fifteenMinutes),
+          (0, strings.atStart),
+        ])
+          _reminderOffsetRow(
+            key: Key('reminder-offset-${option.$1}'),
+            label: option.$2,
+            on: offsets.contains(option.$1),
+            enabled: enabled,
+            onTap: () => toggleOffset(option.$1, !offsets.contains(option.$1)),
+          ),
+        // Custom offsets are the same row, plus a delete: they are removable
+        // where the presets are only switchable.
+        for (final value in customOffsets)
+          _reminderOffsetRow(
+            key: Key('reminder-custom-$value'),
+            label: _reminderOffsetLabel(value),
+            on: true,
+            enabled: enabled,
+            onTap: () => toggleOffset(value, false),
+            onDelete: () => toggleOffset(value, false),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Unit picker on its own line: "Minutes"/"Hours" translate to
+              // much wider words (Дақиқа, Минуты), which overflowed the row
+              // when it also held the field and the add button.
+              Row(
+                children: [
+                  Expanded(
+                    child: SegmentedButton<bool>(
+                      showSelectedIcon: false,
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      segments: [
+                        ButtonSegment(
+                          value: false,
+                          label: Text(
+                            strings.minutes,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        ButtonSegment(
+                          value: true,
+                          label: Text(
+                            strings.hours,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                      selected: {customUnitHours},
+                      onSelectionChanged: enabled
+                          ? (values) => onUnitChanged(values.first)
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: customController,
+                      enabled: enabled,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: strings.customReminder,
+                        hintText: '1–168',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    key: const Key('reminder-add'),
+                    tooltip: strings.add,
+                    onPressed: enabled
+                        ? () async {
+                            final amount = int.tryParse(customController.text);
+                            if (amount == null || amount < 1) return;
+                            final minutes = customUnitHours
+                                ? amount * 60
+                                : amount;
+                            if (minutes > 10080) return;
+                            offsets.add(minutes);
+                            await widget.controller.setReminderOffsets(
+                              offsets.toList(),
+                            );
+                            customController.clear();
+                            setSheetState(() {});
+                          }
+                        : null,
+                    icon: const Icon(Icons.add_rounded),
+                  ),
+                ],
+              ),
+              if (!enabled)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    strings.remindersTooltip,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// One reminder offset: on/off state plus, for custom offsets, a delete.
+  Widget _reminderOffsetRow({
+    required Key key,
+    required String label,
+    required bool on,
+    required bool enabled,
+    required VoidCallback onTap,
+    VoidCallback? onDelete,
+  }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final active = on && enabled;
+    return ListTile(
+      key: key,
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      minVerticalPadding: 10,
+      shape: const RoundedRectangleBorder(),
+      leading: SettingsLeading(
+        active ? Icons.notifications_active_rounded : Icons.circle_outlined,
+        active: active,
+      ),
+      title: Text(
+        label,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          // Weight carries the state as well as color, so it survives a
+          // grayscale screenshot and low-vision use.
+          fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+          color: enabled
+              ? (active ? colors.onSurface : colors.onSurfaceVariant)
+              : colors.onSurface.withValues(alpha: 0.38),
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onDelete != null)
+            IconButton(
+              tooltip: strings.remove,
+              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              onPressed: enabled ? onDelete : null,
+            ),
+          Switch(value: active, onChanged: enabled ? (_) => onTap() : null),
+        ],
+      ),
+    );
+  }
+
+  /// Lesson calls: the master switch plus the two knobs it gates.
+  Widget _callsSection(AppSettings settings, StateSetter setSheetState) {
+    final on = settings.callsEnabled;
+    return SettingsSection(
+      title: strings.sectionCalls,
+      icon: Icons.phone_in_talk_rounded,
+      children: [
+        SettingsSwitchRow(
+          key: const Key('lesson-calls-switch'),
+          icon: Icons.ring_volume_rounded,
+          title: strings.lessonCalls,
+          hint: strings.lessonCallsHelp,
+          value: on,
+          onChanged: (value) async {
+            await widget.controller.setCallsEnabled(value);
+            setSheetState(() {});
+          },
+        ),
+        SettingsRow(
+          key: const Key('call-ring-duration'),
+          icon: Icons.timer_rounded,
+          title: strings.ringDuration,
+          hint: strings.ringDurationHelp,
+          value: strings.ringDurationValue(settings.callRingSeconds),
+          enabled: on,
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () async {
+            await _openCallRingDurationDialog(settings);
+            setSheetState(() {});
+          },
+        ),
+        SettingsRow(
+          key: const Key('call-ringtone'),
+          icon: Icons.music_note_rounded,
+          title: strings.callRingtone,
+          value: settings.callRingtoneName ?? strings.defaultSound,
+          enabled: on,
+          trailing: on && settings.callRingtoneUri != null
+              ? IconButton(
+                  key: const Key('call-ringtone-reset'),
+                  tooltip: strings.defaultSound,
+                  icon: const Icon(Icons.settings_backup_restore_rounded),
+                  onPressed: () async {
+                    await widget.controller.clearCallRingtone();
+                    setSheetState(() {});
+                  },
+                )
+              : const Icon(Icons.chevron_right_rounded),
+          onTap: () async {
+            await widget.controller.selectCallRingtone();
+            setSheetState(() {});
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Android permissions. Grouped together because they share one shape — the
+  /// app cannot grant them, it can only deep-link to the system screen.
+  ///
+  /// Every row is listed whether or not it is granted, each with a
+  /// granted/not-granted badge. Hiding the granted ones (as this used to do
+  /// for full-screen access) left no way to confirm a permission was actually
+  /// in place, so a working setup looked identical to a missing row.
+  Widget _permissionsSection(AppSettings settings, StateSetter setSheetState) {
+    final controller = widget.controller;
+    return SettingsSection(
+      title: strings.sectionPermissions,
+      icon: Icons.shield_rounded,
+      children: [
+        _permissionRow(
+          key: const Key('battery-access'),
+          icon: Icons.battery_saver_rounded,
+          title: strings.backgroundAccess,
+          hint: strings.backgroundAccessHelp,
+          granted: controller.batteryOptimizationDisabled,
+          onTap: () async {
+            await controller.openBatteryOptimizationSettings();
+            setSheetState(() {});
+          },
+        ),
+        _permissionRow(
+          key: const Key('exact-timing'),
+          icon: Icons.alarm_on_rounded,
+          title: strings.exactTiming,
+          hint: strings.exactTimingHelp,
+          granted: controller.exactTiming,
+          onTap: () async {
+            await controller.requestExactTiming();
+            setSheetState(() {});
+          },
+        ),
+        if (settings.callsEnabled) ...[
+          _permissionRow(
+            key: const Key('full-screen-access'),
+            icon: Icons.fullscreen_rounded,
+            title: strings.fullScreenAccess,
+            hint: strings.fullScreenAccessHelp,
+            granted: controller.canUseFullScreenIntent,
+            onTap: () async {
+              await controller.openFullScreenIntentSettings();
+              setSheetState(() {});
+            },
+          ),
+          // Android grants this one only from its own settings screen, so
+          // tapping deep-links there rather than toggling anything locally.
+          _permissionRow(
+            key: const Key('overlay-access-tile'),
+            icon: Icons.picture_in_picture_alt_rounded,
+            title: strings.overlayAccess,
+            hint: strings.overlayAccessHelp,
+            granted: controller.canDrawOverlays,
+            onTap: () async {
+              await controller.openOverlaySettings();
+              setSheetState(() {});
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// One permission row: status badge plus a link out to the system screen
+  /// that owns the setting.
+  Widget _permissionRow({
+    required Key key,
+    required IconData icon,
+    required String title,
+    required String hint,
+    required bool granted,
+    required VoidCallback onTap,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return SettingsRow(
+      key: key,
+      icon: icon,
+      title: title,
+      hint: hint,
+      // A missing permission is the row worth noticing, so only that state
+      // takes the warning tint.
+      iconColor: granted ? colors.primary : colors.error,
+      // The badge is the row's status, so it sits under the title rather than
+      // beside it: as a trailing widget it squeezed long permission names into
+      // a dozen wrapped lines.
+      valueWidget: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: PermissionBadge(
+            granted: granted,
+            grantedLabel: strings.granted,
+            deniedLabel: strings.notGranted,
+          ),
+        ),
+      ),
+      trailing: Icon(
+        Icons.open_in_new_rounded,
+        size: 18,
+        color: colors.onSurfaceVariant,
+      ),
+      onTap: onTap,
+    );
+  }
+
+  /// Background sync plus the manual trigger and its status.
+  Widget _syncSection(AppSettings settings, StateSetter setSheetState) =>
+      SettingsSection(
+        title: strings.sectionSync,
+        icon: Icons.sync_rounded,
+        children: [
+          SettingsSwitchRow(
+            key: const Key('background-sync-switch'),
+            icon: Icons.cloud_sync_rounded,
+            title: strings.backgroundSync,
+            hint: strings.backgroundSyncHelp,
+            value: settings.backgroundSyncEnabled,
+            onChanged: (value) async {
+              await widget.controller.setBackgroundSyncEnabled(value);
+              setSheetState(() {});
+            },
+          ),
+          // Listens to the sync notifier directly: this row is the only thing
+          // sync progress renders, so a background sync repaints it alone
+          // instead of the whole app.
+          ValueListenableBuilder<
+            ({ScheduleSyncStatus status, DateTime? lastSuccessfulSync})
+          >(
+            valueListenable: widget.controller.syncState,
+            builder: (context, syncState, _) => SettingsRow(
+              key: const Key('sync-now'),
+              icon: Icons.sync_rounded,
+              title: strings.syncNow,
+              value: _syncStatusText(
+                syncState.status,
+                syncState.lastSuccessfulSync,
+              ),
+              trailing: syncState.status == ScheduleSyncStatus.syncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
+              onTap: _synchronize,
+            ),
+          ),
+        ],
+      );
+
+  /// Sync status line.
+  ///
+  /// With [timeOnly] the date is dropped for a sync that happened today —
+  /// the lessons sheet is a glance-and-go surface where "14:32" is the whole
+  /// answer. An older sync keeps its date, otherwise yesterday's stale sync
+  /// would read as if it had just run.
+  String _syncStatusText(
+    ScheduleSyncStatus status,
+    DateTime? lastSync, {
+    bool timeOnly = false,
+  }) {
     if (status == ScheduleSyncStatus.syncing) return strings.syncing;
     if (status == ScheduleSyncStatus.signInRequired) {
       return strings.signInToSync;
     }
     if (status == ScheduleSyncStatus.failed) return strings.syncFailed;
-    return strings.lastSync(
-      lastSync == null
-          ? strings.never
-          : DateFormat('yyyy-MM-dd HH:mm').format(lastSync),
-    );
+    if (lastSync == null) return strings.lastSync(strings.never);
+    final now = DateTime.now();
+    final isToday =
+        lastSync.year == now.year &&
+        lastSync.month == now.month &&
+        lastSync.day == now.day;
+    final pattern = timeOnly && isToday ? 'HH:mm' : 'yyyy-MM-dd HH:mm';
+    return strings.lastSync(DateFormat(pattern).format(lastSync));
   }
 
   String _reminderOffsetLabel(int minutes) {
@@ -964,6 +1546,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     final selected = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
+        icon: const Icon(Icons.timer_rounded),
         title: Text(strings.ringDuration),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -971,6 +1554,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           children: [
             Wrap(
               spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
               children: <int>[15, 30, 60, 120]
                   .map(
                     (seconds) => ChoiceChip(
@@ -981,7 +1566,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   )
                   .toList(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -989,18 +1574,21 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     controller: customController,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(hintText: '10–300'),
+                    decoration: InputDecoration(
+                      labelText: strings.custom,
+                      hintText: '10–300',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
+                IconButton.filledTonal(
                   tooltip: strings.add,
                   onPressed: () {
                     final amount = int.tryParse(customController.text);
                     if (amount == null) return;
                     Navigator.pop(context, amount);
                   },
-                  icon: const Icon(Icons.check_circle),
+                  icon: const Icon(Icons.check_rounded),
                 ),
               ],
             ),
@@ -1020,7 +1608,14 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _openSoundSettings() => Navigator.of(context).push(
+  /// Opens the sound page, then returns to the notification sheet it was
+  /// reached from — same reasoning as [_openUsefulLinks].
+  Future<void> _openSoundSettings() async {
+    await _pushSoundSettings();
+    if (mounted) await _openNotificationSettings();
+  }
+
+  Future<void> _pushSoundSettings() => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => StatefulBuilder(
         builder: (context, setPageState) {
@@ -1030,64 +1625,61 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           return Scaffold(
             appBar: AppBar(title: Text(strings.soundSettings)),
             body: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
-                ListTile(
-                  key: const Key('main-notification-sound'),
-                  leading: const Icon(Icons.volume_up_outlined),
-                  title: Text(strings.mainSound),
-                  subtitle: Text(
-                    settings.reminderSoundUri == null
-                        ? strings.defaultSound
-                        : settings.reminderSoundName ?? strings.soundSelected,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Only offered once a custom sound is set; with none
-                      // there is nothing to reset back to.
-                      if (settings.reminderSoundUri != null)
-                        TextButton(
-                          key: const Key('main-notification-sound-reset'),
-                          onPressed: () async {
-                            await widget.controller.clearReminderSound();
-                            setPageState(() {});
-                          },
-                          child: Text(strings.defaultSound),
-                        ),
-                      TextButton(
-                        onPressed: () async {
-                          await widget.controller.selectMainReminderSound();
-                          setPageState(() {});
-                        },
-                        child: Text(strings.chooseSound),
+                SettingsSection(
+                  title: strings.mainSound,
+                  icon: Icons.volume_up_rounded,
+                  children: [
+                    SettingsRow(
+                      key: const Key('main-notification-sound'),
+                      icon: Icons.library_music_rounded,
+                      title: strings.mainSound,
+                      value: settings.reminderSoundUri == null
+                          ? strings.defaultSound
+                          : settings.reminderSoundName ?? strings.soundSelected,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Only offered once a custom sound is set; with none
+                          // there is nothing to reset back to.
+                          if (settings.reminderSoundUri != null)
+                            IconButton(
+                              key: const Key('main-notification-sound-reset'),
+                              tooltip: strings.defaultSound,
+                              icon: const Icon(
+                                Icons.settings_backup_restore_rounded,
+                              ),
+                              onPressed: () async {
+                                await widget.controller.clearReminderSound();
+                                setPageState(() {});
+                              },
+                            ),
+                          TextButton(
+                            onPressed: () async {
+                              await widget.controller.selectMainReminderSound();
+                              setPageState(() {});
+                            },
+                            child: Text(strings.chooseSound),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Text(
-                    strings.individualSounds,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    strings.soundOverridesHelp,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  ),
+                  ],
                 ),
-                for (final offset in offsets)
-                  _reminderSoundOverrideTile(
-                    offset,
-                    settings,
-                    () => setPageState(() {}),
-                  ),
+                SettingsSection(
+                  title: strings.individualSounds,
+                  icon: Icons.queue_music_rounded,
+                  hint: strings.soundOverridesHelp,
+                  children: [
+                    for (final offset in offsets)
+                      _reminderSoundOverrideTile(
+                        offset,
+                        settings,
+                        () => setPageState(() {}),
+                      ),
+                  ],
+                ),
               ],
             ),
           );
@@ -1096,100 +1688,106 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     ),
   );
 
-  Future<void> _openUsefulLinks() => Navigator.of(context).push(
+  /// Opens Useful links, then returns to the main settings sheet.
+  ///
+  /// The sheet is already dismissed by the time this page is pushed, so
+  /// popping it would otherwise drop the user straight onto the WebView —
+  /// looking like Back had closed settings entirely.
+  Future<void> _openUsefulLinks() async {
+    await _pushUsefulLinks();
+    if (mounted) await _openActions();
+  }
+
+  Future<void> _pushUsefulLinks() => Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => Scaffold(
         appBar: AppBar(title: Text(strings.usefulLinks)),
         body: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                strings.pdfBooks,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+            SettingsSection(
+              title: strings.pdfBooks,
+              icon: Icons.menu_book_rounded,
+              children: [
+                for (final link in const [
+                  (
+                    'E\'tiqod durdonalari',
+                    'https://uz.do-kazankiu.ru/files/upload/books/2024-10-19-17-14-55_51415d09fa306b663e1d1f9ba25f8bf6.pdf',
+                  ),
+                  (
+                    'Nurul Izoh',
+                    'https://uz.do-kazankiu.ru/files/upload/books/2026-09-03-13-50-07_dcf4732467d276aa.pdf',
+                  ),
+                  (
+                    'Mabdaul qiroat 1',
+                    'https://arabic.uz/kitoblar/mabdaul-qiroat-1.pdf',
+                  ),
+                  (
+                    'Mabdaul qiroat 2',
+                    'https://arabic.uz/kitoblar/mabdaul-qiroat-2.pdf',
+                  ),
+                  (
+                    'Mabdaul qiroat 3',
+                    'https://arabic.uz/kitoblar/mabdaul-qiroat-3.pdf',
+                  ),
+                  (
+                    'Mabdaun nahv',
+                    'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
+                  ),
+                ])
+                  SettingsRow(
+                    icon: Icons.picture_as_pdf_rounded,
+                    title: link.$1,
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _openPdfViewer(link.$1, link.$2),
+                  ),
+              ],
             ),
-            for (final link in const [
-              (
-                'E\'tiqod durdonalari',
-                'https://uz.do-kazankiu.ru/files/upload/books/2024-10-19-17-14-55_51415d09fa306b663e1d1f9ba25f8bf6.pdf',
-              ),
-              (
-                'Nurul Izoh',
-                'https://uz.do-kazankiu.ru/files/upload/books/2026-09-03-13-50-07_dcf4732467d276aa.pdf',
-              ),
-              (
-                'Mabdaul qiroat 1',
-                'https://arabic.uz/kitoblar/mabdaul-qiroat-1.pdf',
-              ),
-              (
-                'Mabdaul qiroat 2',
-                'https://arabic.uz/kitoblar/mabdaul-qiroat-2.pdf',
-              ),
-              (
-                'Mabdaul qiroat 3',
-                'https://arabic.uz/kitoblar/mabdaul-qiroat-3.pdf',
-              ),
-              (
-                'Mabdaun nahv',
-                'https://arabic.uz/kitoblar/mabdaun-nahv-tugrilangan-va-tuldirilgan.pdf',
-              ),
-            ])
-              Card(
-                child: ListTile(
-                  title: Text(link.$1),
-                  trailing: const Icon(Icons.picture_as_pdf_outlined),
-                  onTap: () => _openPdfViewer(link.$1, link.$2),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                strings.testPlatforms,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+            SettingsSection(
+              title: strings.testPlatforms,
+              icon: Icons.quiz_rounded,
+              children: [
+                for (final link in const [
+                  ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
+                  ('nurul-izoh.com', 'https://nurul-izoh.com'),
+                  ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
+                ])
+                  SettingsRow(
+                    icon: Icons.language_rounded,
+                    title: link.$1,
+                    // Leaves the app: the arrow marks it as an external hop
+                    // rather than another in-app page.
+                    trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                    onTap: () => _launchExternal(link.$2),
+                  ),
+              ],
             ),
-            for (final link in const [
-              ('ibodati-islomiya.com', 'https://ibodati-islomiya.com'),
-              ('nurul-izoh.com', 'https://nurul-izoh.com'),
-              ('etiqod-durdonalari.xyz', 'https://etiqod-durdonalari.xyz'),
-            ])
-              Card(
-                child: ListTile(
-                  title: Text(link.$1),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () => _launchExternal(link.$2),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                strings.apps,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+            SettingsSection(
+              title: strings.apps,
+              icon: Icons.apps_rounded,
+              children: [
+                for (final link in const [
+                  (
+                    'Riyozus solihiyn',
+                    'https://play.google.com/store/apps/details?id=uz.hilolnashr.riyozus_solihiyn',
+                  ),
+                  (
+                    'Odoblar xazinasi',
+                    'https://play.google.com/store/apps/details?id=uz.hilol.odoblar',
+                  ),
+                  (
+                    'Arabcha-O‘zbekcha lug‘at',
+                    'https://play.google.com/store/apps/details?id=uz.hilal.javohir',
+                  ),
+                ])
+                  SettingsRow(
+                    icon: Icons.shop_rounded,
+                    title: link.$1,
+                    trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                    onTap: () => _launchExternal(link.$2),
+                  ),
+              ],
             ),
-            for (final link in const [
-              (
-                'Riyozus solihiyn',
-                'https://play.google.com/store/apps/details?id=uz.hilolnashr.riyozus_solihiyn',
-              ),
-              (
-                'Odoblar xazinasi',
-                'https://play.google.com/store/apps/details?id=uz.hilol.odoblar',
-              ),
-              (
-                'Arabcha-O‘zbekcha lug‘at',
-                'https://play.google.com/store/apps/details?id=uz.hilal.javohir',
-              ),
-            ])
-              Card(
-                child: ListTile(
-                  title: Text(link.$1),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () => _launchExternal(link.$2),
-                ),
-              ),
           ],
         ),
       ),
@@ -1249,29 +1847,33 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     final hasOverride = settings.reminderSoundOverrides.containsKey(
       offsetMinutes,
     );
-    return ListTile(
+    return SettingsRow(
       key: Key('notification-sound-$offsetMinutes'),
-      leading: Icon(hasOverride ? Icons.music_note : Icons.music_note_outlined),
-      title: Text(_reminderOffsetLabel(offsetMinutes)),
-      subtitle: Text(
-        hasOverride
-            ? settings.reminderSoundOverrideNames[offsetMinutes] ??
-                  strings.customSound
-            : strings.inheritsMainSound,
-      ),
+      icon: hasOverride ? Icons.music_note_rounded : Icons.music_note_outlined,
+      // A row with its own sound reads as active; an inheriting one stays
+      // muted so the exceptions stand out in the list.
+      iconColor: hasOverride
+          ? Theme.of(context).colorScheme.primary
+          : Theme.of(context).colorScheme.onSurfaceVariant,
+      title: _reminderOffsetLabel(offsetMinutes),
+      value: hasOverride
+          ? settings.reminderSoundOverrideNames[offsetMinutes] ??
+                strings.customSound
+          : strings.inheritsMainSound,
       trailing: hasOverride
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
+                IconButton(
                   key: Key('notification-sound-inherit-$offsetMinutes'),
+                  tooltip: strings.useMainSound,
                   onPressed: () async {
                     await widget.controller.clearReminderSoundOverride(
                       offsetMinutes,
                     );
                     refresh();
                   },
-                  child: Text(strings.useMainSound),
+                  icon: const Icon(Icons.settings_backup_restore_rounded),
                 ),
                 IconButton(
                   key: Key('notification-sound-edit-$offsetMinutes'),
@@ -1282,7 +1884,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     );
                     refresh();
                   },
-                  icon: const Icon(Icons.edit_outlined),
+                  icon: const Icon(Icons.edit_rounded),
                 ),
               ],
             )
@@ -1321,6 +1923,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
               .toList();
           return AlertDialog(
             title: Text(strings.timezone),
+            icon: const Icon(Icons.public_rounded),
+            contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             content: SizedBox(
               width: double.maxFinite,
               height: 430,
@@ -1330,26 +1934,39 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: strings.searchTimezone,
-                      prefixIcon: const Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search_rounded),
                     ),
                     onChanged: (value) => setDialogState(() => query = value),
                   ),
+                  const SizedBox(height: 8),
                   Expanded(
-                    child: RadioGroup<String>(
-                      groupValue: widget.controller.settings.timeZoneId,
-                      onChanged: (value) => Navigator.pop(context, value),
-                      child: ListView.builder(
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final zone = filtered[index];
-                          return RadioListTile<String>(
-                            value: zone,
-                            title: Text(zone),
-                            subtitle: Text(offsetLabels[zone]!),
-                          );
-                        },
-                      ),
-                    ),
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Text(
+                              strings.noResults,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          )
+                        : RadioGroup<String>(
+                            groupValue: widget.controller.settings.timeZoneId,
+                            onChanged: (value) => Navigator.pop(context, value),
+                            child: ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final zone = filtered[index];
+                                return RadioListTile<String>(
+                                  value: zone,
+                                  dense: true,
+                                  title: Text(zone),
+                                  subtitle: Text(offsetLabels[zone]!),
+                                );
+                              },
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -1363,35 +1980,12 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     }
   }
 
-  String _themeModeLabel(ThemeMode mode) => switch (mode) {
-    ThemeMode.system => strings.themeSystem,
-    ThemeMode.light => strings.themeLight,
-    ThemeMode.dark => strings.themeDark,
+  String _languageLabel(String tag) => switch (tag) {
+    'uz_Cyrl' => strings.uzbekCyrillic,
+    'uz' => strings.uzbekLatin,
+    'ru' => strings.russian,
+    _ => strings.english,
   };
-
-  Future<void> _selectThemeMode() async {
-    final selected = await showDialog<ThemeMode>(
-      context: context,
-      builder: (context) => RadioGroup<ThemeMode>(
-        groupValue: widget.controller.settings.themeMode,
-        onChanged: (value) => Navigator.pop(context, value),
-        child: SimpleDialog(
-          title: Text(strings.appearance),
-          children: [
-            for (final mode in ThemeMode.values)
-              RadioListTile<ThemeMode>(
-                key: Key('theme-mode-${mode.name}'),
-                value: mode,
-                title: Text(_themeModeLabel(mode)),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected == null) return;
-    await widget.controller.setThemeMode(selected);
-    await _applySiteTheme();
-  }
 
   Future<void> _selectLanguage() async {
     final selected = await showDialog<String>(
@@ -1401,6 +1995,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         onChanged: (value) => Navigator.pop(context, value),
         child: SimpleDialog(
           title: Text(strings.language),
+          contentPadding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
           children: [
             _languageOption('uz_Cyrl', strings.uzbekCyrillic),
             _languageOption('uz', strings.uzbekLatin),
@@ -1455,12 +2050,21 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.cloud_off, size: 48),
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 52,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        strings.pageError,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 12),
-                      Text(strings.pageError),
-                      TextButton.icon(
+                      FilledButton.tonalIcon(
                         onPressed: _webView.reload,
-                        icon: const Icon(Icons.refresh),
+                        icon: const Icon(Icons.refresh_rounded),
                         label: Text(strings.retry),
                       ),
                     ],
@@ -1484,44 +2088,56 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       bottomNavigationBar: BottomAppBar(
         height: 60,
         padding: EdgeInsets.zero,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            children: [
-              _navAction(
-                key: const Key('nav-back'),
-                icon: Icons.arrow_back,
-                label: strings.back,
-                enabled: _canBack,
-                onTap: _webView.goBack,
+        child: DecoratedBox(
+          // Hairline instead of elevation: the WebView scrolls right up to the
+          // bar, and a shadow over arbitrary page content reads as grime.
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant
+                    .withValues(alpha: 0.5),
               ),
-              _navAction(
-                key: const Key('nav-forward'),
-                icon: Icons.arrow_forward,
-                label: strings.forward,
-                enabled: _canForward,
-                onTap: _webView.goForward,
-              ),
-              _navAction(
-                key: const Key('nav-home'),
-                icon: Icons.home,
-                label: strings.home,
-                selected: isHomeUri(_currentUri),
-                onTap: _goHome,
-              ),
-              _navAction(
-                key: const Key('nav-refresh'),
-                icon: Icons.refresh,
-                label: strings.refresh,
-                onTap: _webView.reload,
-              ),
-              _navAction(
-                key: const Key('actions-menu'),
-                icon: Icons.more_vert,
-                label: strings.actions,
-                onTap: _openActions,
-              ),
-            ],
+            ),
+          ),
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              children: [
+                _navAction(
+                  key: const Key('nav-back'),
+                  icon: Icons.arrow_back_rounded,
+                  label: strings.back,
+                  enabled: _canBack,
+                  onTap: _webView.goBack,
+                ),
+                _navAction(
+                  key: const Key('nav-forward'),
+                  icon: Icons.arrow_forward_rounded,
+                  label: strings.forward,
+                  enabled: _canForward,
+                  onTap: _webView.goForward,
+                ),
+                _navAction(
+                  key: const Key('nav-home'),
+                  icon: Icons.home_rounded,
+                  label: strings.home,
+                  selected: isHomeUri(_currentUri),
+                  onTap: _goHome,
+                ),
+                _navAction(
+                  key: const Key('nav-refresh'),
+                  icon: Icons.refresh_rounded,
+                  label: strings.refresh,
+                  onTap: _webView.reload,
+                ),
+                _navAction(
+                  key: const Key('actions-menu'),
+                  icon: Icons.tune_rounded,
+                  label: strings.settings,
+                  onTap: _openActions,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1548,35 +2164,39 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              DecoratedBox(
+              AnimatedContainer(
                 key: selected ? const Key('home-selected') : null,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
                   color: selected ? colors.secondaryContainer : null,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 21,
-                    color: enabled
-                        ? selected
-                              ? colors.onSecondaryContainer
-                              : colors.onSurfaceVariant
-                        : colors.onSurface.withValues(alpha: 0.38),
-                  ),
+                child: Icon(
+                  icon,
+                  size: 21,
+                  color: enabled
+                      ? selected
+                            ? colors.onSecondaryContainer
+                            : colors.onSurfaceVariant
+                      : colors.onSurface.withValues(alpha: 0.38),
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: enabled
-                      ? colors.onSurfaceVariant
+                      ? selected
+                            ? colors.onSurface
+                            : colors.onSurfaceVariant
                       : colors.onSurface.withValues(alpha: 0.38),
                 ),
               ),

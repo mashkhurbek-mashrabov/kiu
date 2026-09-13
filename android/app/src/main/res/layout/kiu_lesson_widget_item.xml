@@ -1,24 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lesson row for today. Amber-tinted; kiu_lesson_widget_item_other.xml is the
+  same anatomy in neutral for later days.
+
+  Ids are bound by KiuLessonWidgetService - do not rename without updating it.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/lesson_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/kiu_widget_lesson_item"
-    android:minHeight="60dp"
-    android:orientation="horizontal">
+    android:gravity="center_vertical"
+    android:minHeight="58dp"
+    android:orientation="horizontal"
+    android:paddingStart="7dp"
+    android:paddingEnd="6dp"
+    android:paddingVertical="9dp">
 
+    <!-- Inset pill rather than a full-bleed bar: it reads as a status marker
+         instead of a card edge, and clears the row's rounded corners. -->
     <TextView
         android:id="@+id/lesson_scheduled_accent"
-        android:layout_width="5dp"
-        android:layout_height="match_parent"
-        android:background="#F2B705"
+        android:layout_width="4dp"
+        android:layout_height="34dp"
+        android:background="@drawable/kiu_widget_accent"
         android:text="" />
 
     <TextView
         android:id="@+id/lesson_started_accent"
-        android:layout_width="5dp"
-        android:layout_height="match_parent"
-        android:background="#176B45"
+        android:layout_width="4dp"
+        android:layout_height="34dp"
+        android:background="@drawable/kiu_widget_accent_started"
         android:text=""
         android:visibility="gone" />
 
@@ -27,15 +39,17 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:padding="10dp">
+        android:paddingStart="10dp"
+        android:paddingEnd="6dp">
 
         <TextView
             android:id="@+id/lesson_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
+            android:lineSpacingExtra="1dp"
             android:maxLines="2"
-            android:textColor="#A77800"
+            android:textColor="@color/widget_amber_text"
             android:textSize="14sp"
             android:textStyle="bold" />
 
@@ -43,24 +57,23 @@
             android:id="@+id/lesson_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
+            android:layout_marginTop="4dp"
             android:background="@drawable/kiu_widget_lesson_time"
             android:ellipsize="end"
             android:maxLines="1"
-            android:paddingHorizontal="7dp"
+            android:paddingHorizontal="8dp"
             android:paddingVertical="3dp"
-            android:textColor="#8A6500"
-            android:textSize="13sp"
+            android:textColor="@color/widget_amber_time"
+            android:textSize="12sp"
             android:textStyle="bold" />
     </LinearLayout>
 
     <ImageView
         android:id="@+id/lesson_call_toggle"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
         android:layout_gravity="center_vertical"
-        android:layout_marginEnd="8dp"
-        android:padding="8dp"
+        android:padding="9dp"
         android:scaleType="centerInside"
         android:src="@drawable/ic_call_off" />
 </LinearLayout>

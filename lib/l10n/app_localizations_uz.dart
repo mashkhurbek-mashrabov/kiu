@@ -58,14 +58,13 @@ class AppLocalizationsUz extends AppLocalizations {
   String get onlyLesson => 'Bu amal faqat video darsida ishlaydi';
 
   @override
-  String get notificationSettings => 'Eslatma sozlamalari';
+  String get notificationSettings => 'Bildirishnoma va qo‘ng‘iroqlar';
 
   @override
   String get reminders => 'Dars eslatmalari';
 
   @override
-  String get remindersHelp =>
-      'Jadvalni fonda taxminan har 5 daqiqada tekshiradi';
+  String get remindersHelp => 'Har bir dars boshlanishidan oldin xabar beradi.';
 
   @override
   String get threeHours => '3 soat oldin';
@@ -124,8 +123,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get exactTiming => 'Aniq eslatmalar';
 
   @override
-  String get reducedPrecision =>
-      'Aniq vaqt ruxsati yo‘q; eslatma kechikishi mumkin';
+  String get reducedPrecision => 'Eslatmalar kechikishi mumkin';
 
   @override
   String get grantPermission => 'Ruxsat berish';
@@ -164,10 +162,10 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get backgroundSyncHelp =>
-      'KIU yopiq bo‘lganda darslarni har 5 daqiqada tekshiradi';
+      'KIU yopiq bo‘lganda jadvalni har 5 daqiqada tekshiradi.';
 
   @override
-  String get backgroundAccess => 'Fonda ishlash';
+  String get backgroundAccess => 'Batareya ruxsati';
 
   @override
   String get backgroundAccessHelp =>
@@ -205,7 +203,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get soundOverridesHelp =>
-      'Boshqa ovoz tanlanmaguncha har bir eslatma asosiy ovozdan foydalanadi.';
+      'Alohida ovoz tanlanmaguncha har bir eslatma asosiy ovozdan foydalanadi.';
 
   @override
   String get customSound => 'Maxsus ovoz';
@@ -223,11 +221,11 @@ class AppLocalizationsUz extends AppLocalizations {
   String get noScheduledLessons => 'Rejalashtirilgan darslar yo‘q';
 
   @override
-  String get lessonCalls => 'Dars qo‘ng‘iroqlari';
+  String get lessonCalls => 'Qo‘ng‘iroqlar';
 
   @override
   String get lessonCallsHelp =>
-      'Dars boshlanganda to‘liq ekranli qo‘ng‘iroq ko‘rsatadi';
+      'Dars boshlanganda to‘liq ekranli qo‘ng‘iroq qiladi.';
 
   @override
   String get ringDuration => 'Qo‘ng‘iroq davomiyligi';
@@ -241,14 +239,14 @@ class AppLocalizationsUz extends AppLocalizations {
   String get callRingtone => 'Qo‘ng‘iroq ohangi';
 
   @override
-  String get fullScreenAccess => 'To‘liq ekran ruxsati';
+  String get fullScreenAccess => 'To‘liq ekranli qo‘ng‘iroq';
 
   @override
   String get fullScreenAccessHelp =>
       'Qulflangan ekranda qo‘ng‘iroq ko‘rsatish uchun tizim sozlamalarida ruxsat bering';
 
   @override
-  String get overlayAccess => 'Boshqa ilovalar ustida ko‘rsatish';
+  String get overlayAccess => 'Ilovalar ustida ko‘rsatish';
 
   @override
   String get overlayAccessHelp =>
@@ -290,6 +288,113 @@ class AppLocalizationsUz extends AppLocalizations {
   String offsetMinutes(int count) {
     return '$count daqiqa';
   }
+
+  @override
+  String get settings => 'Sozlamalar';
+
+  @override
+  String get sectionPlayback => 'Ijro';
+
+  @override
+  String get sectionLessons => 'Darslar';
+
+  @override
+  String get sectionNotifications => 'Bildirishnomalar';
+
+  @override
+  String get sectionCalls => 'Dars qo‘ng‘iroqlari';
+
+  @override
+  String get sectionAppearance => 'Ko‘rinish';
+
+  @override
+  String get sectionResources => 'Manbalar';
+
+  @override
+  String get sectionPermissions => 'Ruxsatlar';
+
+  @override
+  String get sectionReminderTimes => 'Eslatish vaqti';
+
+  @override
+  String get sectionSync => 'Sinxronlash';
+
+  @override
+  String get speed => 'Tezlik';
+
+  @override
+  String get reminderTimes => 'Eslatma vaqtlari';
+
+  @override
+  String get sound => 'Ovoz';
+
+  @override
+  String get sounds => 'Ovozlar';
+
+  @override
+  String get addTime => 'Vaqt qo‘shish';
+
+  @override
+  String get amount => 'Miqdor';
+
+  @override
+  String get exactTimingHelp =>
+      'Android eslatmalarni aniq daqiqada faqat shu ruxsat bilan yetkazadi. Bo‘lmasa, ular kechikishi mumkin.';
+
+  @override
+  String get remindersTooltip =>
+      'Har bir dars boshlanishidan oldin bildirishnoma yuboradi.';
+
+  @override
+  String get themeSystemHelp =>
+      'Android’dagi yorug‘ yoki tungi sozlamaga ergashadi.';
+
+  @override
+  String get close => 'Yopish';
+
+  @override
+  String get on => 'Yoniq';
+
+  @override
+  String get off => 'O‘chiq';
+
+  @override
+  String get granted => 'Berilgan';
+
+  @override
+  String get notGranted => 'Berilmagan';
+
+  @override
+  String get about => 'Ilova haqida';
+
+  @override
+  String get markWatchedShort => 'Ko‘rilgan';
+
+  @override
+  String get openLink => 'Ochish';
+
+  @override
+  String get searchHint => 'Qidirish';
+
+  @override
+  String get reset => 'Tiklash';
+
+  @override
+  String get custom => 'Maxsus';
+
+  @override
+  String get preset => 'Tayyor';
+
+  @override
+  String get noResults => 'Hech narsa topilmadi';
+
+  @override
+  String get reminderTimesHelp =>
+      'Dars boshlanishidan qancha vaqt oldin xabar berishni tanlang. Yoqilgan har bir vaqt alohida bildirishnoma yuboradi, shuning uchun bitta darsga bir nechtasi kelishi mumkin.';
+
+  @override
+  String get ringDurationHelp =>
+      'Qo‘ng‘iroq ekrani o‘zi to‘xtagunga qadar qancha vaqt jiringlashi.';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -345,14 +450,13 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get onlyLesson => 'Бу амал фақат видео дарсида ишлайди';
 
   @override
-  String get notificationSettings => 'Эслатма созламалари';
+  String get notificationSettings => 'Билдиришнома ва қўнғироқлар';
 
   @override
   String get reminders => 'Дарс эслатмалари';
 
   @override
-  String get remindersHelp =>
-      'Жадвални фонда тахминан ҳар 5 дақиқада текширади';
+  String get remindersHelp => 'Ҳар бир дарс бошланишидан олдин хабар беради.';
 
   @override
   String get threeHours => '3 соат олдин';
@@ -411,8 +515,7 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get exactTiming => 'Аниқ эслатмалар';
 
   @override
-  String get reducedPrecision =>
-      'Аниқ вақт рухсати йўқ; эслатма кечикиши мумкин';
+  String get reducedPrecision => 'Эслатмалар кечикиши мумкин';
 
   @override
   String get grantPermission => 'Рухсат бериш';
@@ -451,10 +554,10 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get backgroundSyncHelp =>
-      'KIU ёпиқ бўлганда дарсларни ҳар 5 дақиқада текширади';
+      'KIU ёпиқ бўлганда жадвални ҳар 5 дақиқада текширади.';
 
   @override
-  String get backgroundAccess => 'Фонда ишлаш';
+  String get backgroundAccess => 'Батарея рухсати';
 
   @override
   String get backgroundAccessHelp =>
@@ -492,7 +595,7 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get soundOverridesHelp =>
-      'Бошқа овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.';
+      'Алоҳида овоз танланмагунча ҳар бир эслатма асосий овоздан фойдаланади.';
 
   @override
   String get customSound => 'Махсус овоз';
@@ -510,11 +613,11 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get noScheduledLessons => 'Режалаштирилган дарслар йўқ';
 
   @override
-  String get lessonCalls => 'Дарс қўнғироқлари';
+  String get lessonCalls => 'Қўнғироқлар';
 
   @override
   String get lessonCallsHelp =>
-      'Дарс бошланганда тўлиқ экранли қўнғироқ кўрсатади';
+      'Дарс бошланганда тўлиқ экранли қўнғироқ қилади.';
 
   @override
   String get ringDuration => 'Қўнғироқ давомийлиги';
@@ -528,14 +631,14 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get callRingtone => 'Қўнғироқ оҳанги';
 
   @override
-  String get fullScreenAccess => 'Тўлиқ экран рухсати';
+  String get fullScreenAccess => 'Тўлиқ экранли қўнғироқ';
 
   @override
   String get fullScreenAccessHelp =>
       'Қулфланган экранда қўнғироқ кўрсатиш учун тизим созламаларида рухсат беринг';
 
   @override
-  String get overlayAccess => 'Бошқа иловалар устида кўрсатиш';
+  String get overlayAccess => 'Иловалар устида кўрсатиш';
 
   @override
   String get overlayAccessHelp =>
@@ -577,4 +680,111 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String offsetMinutes(int count) {
     return '$count дақиқа';
   }
+
+  @override
+  String get settings => 'Созламалар';
+
+  @override
+  String get sectionPlayback => 'Ижро';
+
+  @override
+  String get sectionLessons => 'Дарслар';
+
+  @override
+  String get sectionNotifications => 'Билдиришномалар';
+
+  @override
+  String get sectionCalls => 'Дарс қўнғироқлари';
+
+  @override
+  String get sectionAppearance => 'Кўриниш';
+
+  @override
+  String get sectionResources => 'Манбалар';
+
+  @override
+  String get sectionPermissions => 'Рухсатлар';
+
+  @override
+  String get sectionReminderTimes => 'Эслатиш вақти';
+
+  @override
+  String get sectionSync => 'Синхронлаш';
+
+  @override
+  String get speed => 'Тезлик';
+
+  @override
+  String get reminderTimes => 'Эслатма вақтлари';
+
+  @override
+  String get sound => 'Овоз';
+
+  @override
+  String get sounds => 'Овозлар';
+
+  @override
+  String get addTime => 'Вақт қўшиш';
+
+  @override
+  String get amount => 'Миқдор';
+
+  @override
+  String get exactTimingHelp =>
+      'Android эслатмаларни аниқ дақиқада фақат шу рухсат билан етказади. Бўлмаса, улар кечикиши мумкин.';
+
+  @override
+  String get remindersTooltip =>
+      'Ҳар бир дарс бошланишидан олдин билдиришнома юборади.';
+
+  @override
+  String get themeSystemHelp =>
+      'Android’даги ёруғ ёки тунги созламага эргашади.';
+
+  @override
+  String get close => 'Ёпиш';
+
+  @override
+  String get on => 'Ёниқ';
+
+  @override
+  String get off => 'Ўчиқ';
+
+  @override
+  String get granted => 'Берилган';
+
+  @override
+  String get notGranted => 'Берилмаган';
+
+  @override
+  String get about => 'Илова ҳақида';
+
+  @override
+  String get markWatchedShort => 'Кўрилган';
+
+  @override
+  String get openLink => 'Очиш';
+
+  @override
+  String get searchHint => 'Қидириш';
+
+  @override
+  String get reset => 'Тиклаш';
+
+  @override
+  String get custom => 'Махсус';
+
+  @override
+  String get preset => 'Тайёр';
+
+  @override
+  String get noResults => 'Ҳеч нарса топилмади';
+
+  @override
+  String get reminderTimesHelp =>
+      'Дарс бошланишидан қанча вақт олдин хабар беришни танланг. Ёқилган ҳар бир вақт алоҳида билдиришнома юборади, шунинг учун битта дарсга бир нечтаси келиши мумкин.';
+
+  @override
+  String get ringDurationHelp =>
+      'Қўнғироқ экрани ўзи тўхтагунга қадар қанча вақт жиринглаши.';
 }

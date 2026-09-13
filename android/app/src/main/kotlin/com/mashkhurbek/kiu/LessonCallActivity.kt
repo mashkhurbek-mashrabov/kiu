@@ -18,8 +18,11 @@ import android.os.CountDownTimer
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import android.widget.TextView
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -31,6 +34,9 @@ class LessonCallActivity : Activity() {
     private var countDownTimer: CountDownTimer? = null
     private var requestCode: Int = -1
     private var receiverRegistered = false
+
+    /** Held so [onDestroy] can unschedule it; it re-posts itself while ringing. */
+    private var answerNudge: Runnable? = null
 
     private val finishReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -44,6 +50,7 @@ class LessonCallActivity : Activity() {
         super.onCreate(savedInstanceState)
         setUpWindow()
         setContentView(R.layout.kiu_lesson_call)
+        applyWindowInsets()
 
         requestCode = intent.getIntExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, -1)
         val key = intent.getStringExtra(LessonCallReceiver.EXTRA_KEY) ?: ""
@@ -73,6 +80,7 @@ class LessonCallActivity : Activity() {
 
         findViewById<ImageButton>(R.id.call_answer).apply {
             contentDescription = answerLabel
+            addPressFeedback()
             setOnClickListener {
                 dismissKeyguard()
                 answer(key, title, displayStart, meetingUrl)
@@ -80,6 +88,7 @@ class LessonCallActivity : Activity() {
         }
         findViewById<ImageButton>(R.id.call_decline).apply {
             contentDescription = declineLabel
+            addPressFeedback()
             setOnClickListener {
                 sendCallAction(LessonCallReceiver.ACTION_DECLINE, key, title, displayStart, meetingUrl)
                 finish()
@@ -87,9 +96,10 @@ class LessonCallActivity : Activity() {
         }
 
         startHaloPulse()
+        startAnswerNudge()
         registerFinishReceiver()
         startRinging(data)
-        startCountdown(ringSeconds)
+        startCountdown(ringSeconds, data.getString("callSecondsLabel", null) ?: "s")
     }
 
     private fun setUpWindow() {
@@ -105,6 +115,63 @@ class LessonCallActivity : Activity() {
             )
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        goEdgeToEdge()
+    }
+
+    /**
+     * Draws the call behind the system bars so the gradient fills the screen.
+     * Framework APIs rather than androidx: this activity extends plain
+     * [Activity] and the module declares no androidx.core dependency of its
+     * own, so WindowCompat would only work by accident of Flutter's transitive
+     * graph.
+     */
+    private fun goEdgeToEdge() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        }
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+    }
+
+    /**
+     * Pads the content back in by the bar heights. Without this the brand chip
+     * sits under the status bar and the buttons under the navigation bar.
+     */
+    private fun applyWindowInsets() {
+        val root = findViewById<View>(R.id.call_root)
+        val basePaddingTop = root.paddingTop
+        val basePaddingBottom = root.paddingBottom
+        root.setOnApplyWindowInsetsListener { view, insets ->
+            val top: Int
+            val bottom: Int
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val bars = insets.getInsets(
+                    android.view.WindowInsets.Type.systemBars() or
+                        android.view.WindowInsets.Type.displayCutout(),
+                )
+                top = bars.top
+                bottom = bars.bottom
+            } else {
+                @Suppress("DEPRECATION")
+                top = insets.systemWindowInsetTop
+                @Suppress("DEPRECATION")
+                bottom = insets.systemWindowInsetBottom
+            }
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + top,
+                view.paddingRight,
+                basePaddingBottom + bottom,
+            )
+            insets
+        }
+        root.requestApplyInsets()
     }
 
     private fun dismissKeyguard() {
@@ -196,24 +263,89 @@ class LessonCallActivity : Activity() {
     private fun initialOf(title: String): String =
         title.trim().firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "?"
 
-    /** Slow breathing halo behind the avatar - the only motion on the screen. */
+    /**
+     * Slow breathing halo behind the avatar - the only motion on the screen.
+     *
+     * Two rings, started a beat apart so they expand out of phase; in step they
+     * read as one thick ring rather than a ripple.
+     */
     private fun startHaloPulse() {
-        val halo = findViewById<View>(R.id.call_halo)
-        halo.animate()
-            .scaleX(1.12f)
-            .scaleY(1.12f)
-            .alpha(0.45f)
-            .setDuration(1100L)
+        pulse(findViewById(R.id.call_halo), 1.12f, 0.45f, 1100L)
+        findViewById<View>(R.id.call_halo_outer)?.let { outer ->
+            outer.postDelayed({
+                if (!isFinishing && !isDestroyed) pulse(outer, 1.06f, 0.25f, 1400L)
+            }, 550L)
+        }
+    }
+
+    /**
+     * Idle bob on the answer button, the way a phone dialer nudges the action
+     * it wants. Only answer moves: animating both would make the screen busy
+     * and stop the motion from pointing anywhere.
+     */
+    private fun startAnswerNudge() {
+        val answer = findViewById<View>(R.id.call_answer) ?: return
+        // translationY is in pixels, not dp - convert, or the bob is invisible
+        // on a low-density screen and oversized on a high-density one.
+        val lift = 14f * resources.displayMetrics.density
+        val nudge = object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                answer.animate()
+                    .translationY(-lift)
+                    .setDuration(320L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        answer.animate()
+                            .translationY(0f)
+                            .setDuration(420L)
+                            .setInterpolator(OvershootInterpolator(2.5f))
+                            .start()
+                    }
+                    .start()
+                // Long gap between bobs: a continuous bounce reads as a
+                // loading spinner rather than an invitation to tap.
+                answer.postDelayed(this, 2200L)
+            }
+        }
+        answerNudge = nudge
+        answer.postDelayed(nudge, 900L)
+    }
+
+    /** Shrinks a button while held, so a press registers before it resolves. */
+    private fun View.addPressFeedback() {
+        setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> view.animate()
+                    .scaleX(0.9f).scaleY(0.9f).setDuration(90L).start()
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL,
+                -> view.animate()
+                    .scaleX(1f).scaleY(1f).setDuration(140L)
+                    .setInterpolator(OvershootInterpolator()).start()
+            }
+            // Never consume: the click listener still has to fire, and
+            // returning true here would swallow it.
+            false
+        }
+    }
+
+    private fun pulse(view: View, scale: Float, dimTo: Float, duration: Long) {
+        view.animate()
+            .scaleX(scale)
+            .scaleY(scale)
+            .alpha(dimTo)
+            .setDuration(duration)
             .withEndAction(object : Runnable {
                 private var expanded = true
 
                 override fun run() {
                     expanded = !expanded
-                    halo.animate()
-                        .scaleX(if (expanded) 1.12f else 1f)
-                        .scaleY(if (expanded) 1.12f else 1f)
-                        .alpha(if (expanded) 0.45f else 1f)
-                        .setDuration(1100L)
+                    view.animate()
+                        .scaleX(if (expanded) scale else 1f)
+                        .scaleY(if (expanded) scale else 1f)
+                        .alpha(if (expanded) dimTo else 1f)
+                        .setDuration(duration)
                         .withEndAction(this)
                         .start()
                 }
@@ -221,11 +353,13 @@ class LessonCallActivity : Activity() {
             .start()
     }
 
-    private fun startCountdown(ringSeconds: Int) {
+    private fun startCountdown(ringSeconds: Int, secondsLabel: String) {
         val countdownView = findViewById<TextView>(R.id.call_countdown)
         countDownTimer = object : CountDownTimer(ringSeconds * 1000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
-                countdownView.text = (millisUntilFinished / 1000L + 1).toString()
+                // Unit suffix: a bare digit next to the start time read as part
+                // of it rather than as a countdown.
+                countdownView.text = "${millisUntilFinished / 1000L + 1} $secondsLabel"
             }
 
             override fun onFinish() {
@@ -236,9 +370,17 @@ class LessonCallActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // The halo pulse re-arms itself from its own end action; drop it or it keeps the
-        // finished activity's view alive.
+        // Each halo pulse re-arms itself from its own end action, and the answer nudge
+        // re-posts itself; drop all of them or they keep the finished activity's views
+        // alive.
         findViewById<View>(R.id.call_halo)?.animate()?.withEndAction(null)?.cancel()
+        findViewById<View>(R.id.call_halo_outer)?.animate()?.withEndAction(null)?.cancel()
+        findViewById<View>(R.id.call_answer)?.apply {
+            answerNudge?.let { removeCallbacks(it) }
+            animate().withEndAction(null).cancel()
+        }
+        answerNudge = null
+        findViewById<View>(R.id.call_decline)?.animate()?.cancel()
         countDownTimer?.cancel()
         countDownTimer = null
         releasePlayer()

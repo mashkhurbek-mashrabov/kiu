@@ -103,13 +103,15 @@ class FakeBackgroundAccessGateway implements BackgroundAccessGateway {
   bool fullScreenIntentAllowed = true;
   bool overlaysAllowed = true;
   int overlaySettingsOpened = 0;
+  int batterySettingsOpened = 0;
 
   @override
   Future<bool> isBatteryOptimizationDisabled() async =>
       batteryOptimizationDisabled;
 
   @override
-  Future<void> openBatteryOptimizationSettings() async {}
+  Future<void> openBatteryOptimizationSettings() async =>
+      batterySettingsOpened++;
 
   @override
   Future<bool> canUseFullScreenIntent() async => fullScreenIntentAllowed;

@@ -94,6 +94,9 @@ class AppController extends ChangeNotifier {
   bool canUseFullScreenIntent = true;
   // Cached for the same reason as [canUseFullScreenIntent] above.
   bool canDrawOverlays = true;
+  // Same caching rationale. Defaults to true so the settings row does not
+  // flash a red "not granted" badge during the channel round trip.
+  bool batteryOptimizationDisabled = true;
   AppVersion? appVersion;
 
   List<Lesson> get scheduledLessons => _repository.loadLessons();
@@ -178,8 +181,16 @@ class AppController extends ChangeNotifier {
   Future<bool> isBatteryOptimizationDisabled() =>
       _backgroundAccess.isBatteryOptimizationDisabled();
 
-  Future<void> openBatteryOptimizationSettings() =>
-      _backgroundAccess.openBatteryOptimizationSettings();
+  Future<void> openBatteryOptimizationSettings() async {
+    await _backgroundAccess.openBatteryOptimizationSettings();
+    await refreshBatteryOptimizationAccess();
+  }
+
+  Future<void> refreshBatteryOptimizationAccess() async {
+    batteryOptimizationDisabled = await _backgroundAccess
+        .isBatteryOptimizationDisabled();
+    notifyListeners();
+  }
 
   Future<void> openFullScreenIntentSettings() async {
     await _backgroundAccess.openFullScreenIntentSettings();
