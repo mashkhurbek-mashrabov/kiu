@@ -110,18 +110,52 @@ void main() {
         )
         .scale;
 
-    // Refresh carries no capsule, so this shrink is its only feedback.
     expect(scaleOf('nav-refresh'), 1);
 
     final press = await tester.startGesture(
       tester.getCenter(find.byKey(const Key('nav-refresh'))),
     );
     await tester.pump();
-    expect(scaleOf('nav-refresh'), lessThan(1));
+    expect(scaleOf('nav-refresh'), greaterThan(1));
 
     await press.up();
     await tester.pumpAndSettle();
     expect(scaleOf('nav-refresh'), 1);
+  });
+
+  testWidgets('holding a non-destination action borrows the capsule', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Rect capsule() => tester.getRect(
+      find.descendant(
+        of: find.byKey(const Key('nav-bar')),
+        matching: find.byType(FractionallySizedBox),
+      ),
+    );
+    final lessons = tester.getRect(find.byKey(const Key('nav-lessons')));
+    final refresh = tester.getRect(find.byKey(const Key('nav-refresh')));
+    // Opens on the lessons page, so the capsule starts there.
+    expect(capsule().center.dx, closeTo(lessons.center.dx, 1));
+
+    // Refresh is an action, not a destination: it never stays selected, so
+    // borrowing the capsule while held is the only marker it can show. One
+    // pump, because a press that needs an animation to arrive is too late.
+    final press = await tester.startGesture(refresh.center);
+    await tester.pump();
+    expect(capsule().center.dx, closeTo(refresh.center.dx, 1));
+
+    // Back to the real destination on release.
+    await press.up();
+    await tester.pumpAndSettle();
+    expect(capsule().center.dx, closeTo(lessons.center.dx, 1));
   });
 
   testWidgets('a disabled action never renders active', (tester) async {

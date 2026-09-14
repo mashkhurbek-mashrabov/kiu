@@ -2501,7 +2501,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                         _navAction(
                           key: const Key('nav-lessons'),
                           selectedKey: const Key('lessons-selected'),
-                          icon: Icons.calendar_today_rounded,
+                          // Outline is calendar_month, not calendar_today:
+                          // the latter is a bare empty square, which next to
+                          // the detailed filled state looked like a missing
+                          // glyph rather than the same icon unselected.
+                          icon: Icons.calendar_month_outlined,
                           selectedIcon: Icons.calendar_month_rounded,
                           label: strings.scheduledLessons,
                           selected: isHomeUri(_currentUri),
@@ -2591,6 +2595,30 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     return null;
   }
 
+  /// Bar slots in the order they are laid out, so a pressed action can be
+  /// mapped onto the same capsule position the destinations use.
+  static const List<Key> _navSlotKeys = [
+    Key('nav-back'),
+    Key('nav-home'),
+    Key('nav-lessons'),
+    Key('nav-refresh'),
+    Key('actions-menu'),
+  ];
+
+  /// Where the capsule should sit right now.
+  ///
+  /// A held action borrows it, so back and refresh -- which are not
+  /// destinations and never stay selected -- still get the same unmistakable
+  /// marker under the finger. On release it slides back to whichever
+  /// destination the current page actually is.
+  int? get _capsuleIndex {
+    final pressedIndex = _pressedNavKey == null
+        ? -1
+        : _navSlotKeys.indexOf(_pressedNavKey!);
+    if (pressedIndex >= 0) return pressedIndex;
+    return _selectedNavIndex;
+  }
+
   /// The selection marker, as one capsule that slides between slots rather
   /// than a per-slot box that fades in place -- the fade gave no sense of
   /// moving from one destination to another.
@@ -2599,15 +2627,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   /// width, so slot i sits at [Alignment.x] `-1 + 2i/4`, which is what lets a
   /// plain [AnimatedAlign] do the travel without measuring anything.
   Widget _selectionCapsule() {
-    final index = _selectedNavIndex;
+    final index = _capsuleIndex;
+    // A press must read as instant; a slide across the bar would arrive after
+    // the finger is gone. Travel is reserved for actually changing page.
+    final pressing = _pressedNavKey != null;
     return Positioned.fill(
       child: AnimatedOpacity(
         // Fades out rather than snapping when the user lands on a page that is
         // neither destination, so the capsule never blinks away mid-slide.
         opacity: index == null ? 0 : 1,
-        duration: const Duration(milliseconds: 180),
+        duration: Duration(milliseconds: pressing ? 60 : 180),
         child: AnimatedAlign(
-          duration: const Duration(milliseconds: 260),
+          duration: Duration(milliseconds: pressing ? 0 : 260),
           curve: Curves.easeOutCubic,
           alignment: Alignment(-1 + (index ?? 1) * 2 / 4, 0),
           child: FractionallySizedBox(
@@ -2683,9 +2714,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   width: 52,
                   child: Center(
                     child: AnimatedScale(
-                      // Fast enough to land while the finger is still down; the
-                      // release animates back over the same span.
-                      scale: pressed ? 0.86 : 1,
+                      // A slight lift rather than the shrink this started as:
+                      // a held button now gets the capsule too, and an icon
+                      // shrinking away from its own marker read as receding
+                      // rather than activating.
+                      scale: pressed ? 1.08 : 1,
                       duration: const Duration(milliseconds: 90),
                       curve: Curves.easeOut,
                       child: AnimatedSwitcher(
