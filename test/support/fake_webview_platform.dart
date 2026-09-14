@@ -24,6 +24,14 @@ void Function(String message)? postToBridge;
 /// setUp.
 int reloadCount = 0;
 
+/// Whether the fake reports history behind the current page, which is what
+/// enables the bar's back action. Tests clear it in setUp.
+bool canGoBackResult = false;
+
+/// Number of times the shell asked the WebView to go back. Tests clear it in
+/// setUp.
+int goBackCount = 0;
+
 class FakeWebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewController createPlatformWebViewController(
@@ -73,7 +81,10 @@ class _FakeController extends PlatformWebViewController {
   Future<void> reload() async => reloadCount++;
 
   @override
-  Future<bool> canGoBack() async => false;
+  Future<bool> canGoBack() async => canGoBackResult;
+
+  @override
+  Future<void> goBack() async => goBackCount++;
 
   @override
   Future<bool> canGoForward() async => false;

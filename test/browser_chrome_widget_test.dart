@@ -49,6 +49,8 @@ void main() {
     injectedScripts.clear();
     loadedUrls.clear();
     navigateTo = null;
+    canGoBackResult = false;
+    goBackCount = 0;
   });
 
   testWidgets('uses a headerless floating five-action nav pill', (
@@ -90,9 +92,7 @@ void main() {
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
   });
 
-  testWidgets('a held action renders active and clears on release', (
-    tester,
-  ) async {
+  testWidgets('tapping refresh turns the icon a full rotation', (tester) async {
     await tester.pumpWidget(
       KiuApp(
         controller: await controller(),
@@ -101,87 +101,65 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    double scaleOf(String key) => tester
-        .widget<AnimatedScale>(
+    double turns() => tester
+        .widget<RotationTransition>(
           find.descendant(
-            of: find.byKey(Key(key)),
-            matching: find.byType(AnimatedScale),
+            of: find.byKey(const Key('nav-refresh')),
+            matching: find.byType(RotationTransition),
           ),
         )
-        .scale;
+        .turns
+        .value;
 
-    expect(scaleOf('nav-refresh'), 1);
+    expect(turns(), 0);
 
-    final press = await tester.startGesture(
-      tester.getCenter(find.byKey(const Key('nav-refresh'))),
-    );
+    await tester.tap(find.byKey(const Key('nav-refresh')));
     await tester.pump();
-    expect(scaleOf('nav-refresh'), greaterThan(1));
+    await tester.pump(const Duration(milliseconds: 200));
+    // Mid-spin: the icon is part way round, not waiting or already done.
+    expect(turns(), greaterThan(0));
+    expect(turns(), lessThan(1));
 
-    await press.up();
+    // Settles on a whole turn, so the glyph ends where it started.
     await tester.pumpAndSettle();
-    expect(scaleOf('nav-refresh'), 1);
+    expect(turns(), 1);
   });
 
-  testWidgets('holding a non-destination action borrows the capsule', (
-    tester,
-  ) async {
+  testWidgets('tapping back swings the chevron and settles', (tester) async {
+    // Back is disabled until the WebView reports history behind the page.
+    canGoBackResult = true;
     await tester.pumpWidget(
       KiuApp(
         controller: await controller(),
         homeRequests: ValueNotifier<int>(0),
       ),
     );
+    // _canBack is refreshed in onPageFinished, so land a page first. Not the
+    // lessons page: that one also kicks off permission onboarding, whose
+    // dialog then covers the bar.
+    finishPage?.call('https://uz.do-kazankiu.ru/uz/profile/lesson/42');
     await tester.pumpAndSettle();
 
-    Rect capsule() => tester.getRect(
-      find.descendant(
-        of: find.byKey(const Key('nav-bar')),
-        matching: find.byType(FractionallySizedBox),
-      ),
-    );
-    final lessons = tester.getRect(find.byKey(const Key('nav-lessons')));
-    final refresh = tester.getRect(find.byKey(const Key('nav-refresh')));
-    // Opens on the lessons page, so the capsule starts there.
-    expect(capsule().center.dx, closeTo(lessons.center.dx, 1));
-
-    // Refresh is an action, not a destination: it never stays selected, so
-    // borrowing the capsule while held is the only marker it can show. One
-    // pump, because a press that needs an animation to arrive is too late.
-    final press = await tester.startGesture(refresh.center);
-    await tester.pump();
-    expect(capsule().center.dx, closeTo(refresh.center.dx, 1));
-
-    // Back to the real destination on release.
-    await press.up();
-    await tester.pumpAndSettle();
-    expect(capsule().center.dx, closeTo(lessons.center.dx, 1));
-  });
-
-  testWidgets('a disabled action never renders active', (tester) async {
-    await tester.pumpWidget(
-      KiuApp(
-        controller: await controller(),
-        homeRequests: ValueNotifier<int>(0),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Back starts disabled with no history behind it.
-    final press = await tester.startGesture(
-      tester.getCenter(find.byKey(const Key('nav-back'))),
-    );
-    await tester.pump();
-    final scale = tester
-        .widget<AnimatedScale>(
+    Offset offset() => tester
+        .widget<SlideTransition>(
           find.descendant(
             of: find.byKey(const Key('nav-back')),
-            matching: find.byType(AnimatedScale),
+            matching: find.byType(SlideTransition),
           ),
         )
-        .scale;
-    expect(scale, 1);
-    await press.up();
+        .position
+        .value;
+
+    expect(offset(), Offset.zero);
+
+    await tester.tap(find.byKey(const Key('nav-back')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 160));
+    // Swings left -- the direction the page itself is about to move.
+    expect(offset().dx, lessThan(0));
+
+    await tester.pumpAndSettle();
+    expect(offset(), Offset.zero);
   });
 
   testWidgets('the selection capsule slides to the slot it marks', (
