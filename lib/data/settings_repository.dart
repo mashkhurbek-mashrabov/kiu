@@ -39,6 +39,7 @@ class SettingsRepository {
   static const _lastUpdateCheck = 'kiu.lastUpdateCheck';
   static const _skippedUpdateBuild = 'kiu.skippedUpdateBuild';
   static const _pendingUpdate = 'kiu.pendingUpdate';
+  static const _courseLevel = 'kiu.courseLevel';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -255,6 +256,24 @@ class SettingsRepository {
   Future<void> savePendingUpdate(AppUpdate? update) => update == null
       ? _preferences.remove(_pendingUpdate)
       : _preferences.setString(_pendingUpdate, jsonEncode(update.toJson()));
+
+  /// The level of the user's course page, scraped from the site's nav. Derived
+  /// cache rather than a setting, so it stays out of [AppSettings] -- nothing
+  /// here is user-chosen, and the page is always authoritative over it.
+  ///
+  /// Read tolerantly through untyped [SharedPreferences.get]: `getInt` *casts*,
+  /// so a key holding another type throws. This sits on the launch path, where
+  /// that would be an unrecoverable crash with no way for the user to clear the
+  /// bad value, so anything unreadable -- wrong type, or a non-positive level --
+  /// degrades to "not discovered yet".
+  int? get courseLevel {
+    final value = _preferences.get(_courseLevel);
+    return value is int && value > 0 ? value : null;
+  }
+
+  Future<void> saveCourseLevel(int? level) => level == null
+      ? _preferences.remove(_courseLevel)
+      : _preferences.setInt(_courseLevel, level);
 
   Future<void> recordSuccess(DateTime value) async {
     await _preferences.setString(_lastSuccess, value.toIso8601String());

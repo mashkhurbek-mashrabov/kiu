@@ -153,6 +153,32 @@ String pullToRefreshScript({int thresholdPx = 90}) {
 ''';
 }
 
+/// Reads the user's course level out of the site's own navigation.
+///
+/// The level is per-user and a level-less `/profile/my-courses` does not
+/// redirect, so the page is the only source for it. Every logged-in page ships
+/// the same nav, so this runs on each trusted load and needs no URL allowlist.
+///
+/// Reports over the bridge rather than returning a value, matching
+/// [pullToRefreshScript]. Staying silent when nothing matches is meaningful:
+/// Dart leaves the cached level alone, so a logged-out page — which has no such
+/// link — never clears a good value.
+String courseLevelScript() => '''
+(() => {
+  const pattern = /^\\/(?:uz|ru)\\/profile\\/my-courses\\/([1-9]\\d*)\\/?\$/;
+  for (const link of document.querySelectorAll('a.nav-link[href]')) {
+    const url = new URL(link.getAttribute('href'), location.href);
+    const match =
+      url.origin === location.origin && url.pathname.match(pattern);
+    if (match) {
+      return KiuBridge.postMessage(JSON.stringify({
+        type: 'courseLevel', level: Number(match[1]),
+      }));
+    }
+  }
+})();
+''';
+
 String markWatchedScript(String requestId) {
   final encodedRequestId = jsonEncode(requestId);
   return '''

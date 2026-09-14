@@ -142,6 +142,26 @@ class AppController extends ChangeNotifier {
 
   List<Lesson> get scheduledLessons => _repository.loadLessons();
 
+  /// Level of the user's course page, or null until a page has yielded one.
+  /// Null means the navbar's Home falls back to the scheduled-lessons page.
+  int? get courseLevel => _repository.courseLevel;
+
+  /// Records a level scraped from the site's nav.
+  ///
+  /// Write-once in practice: the first logged-in page fills this and later
+  /// scrapes match it, so the early return makes the common case free. The
+  /// value only becomes writable again after [_setSyncStatus] clears it on
+  /// sign-out, which is what lets a different account (or a promoted level)
+  /// take over.
+  ///
+  /// [notifyListeners] is right here, unlike sync progress: the main tree
+  /// renders this -- it picks Home's target and its highlight.
+  Future<void> recordCourseLevel(int level) async {
+    if (_repository.courseLevel == level) return;
+    await _repository.saveCourseLevel(level);
+    notifyListeners();
+  }
+
   Future<void> initialize() async {
     try {
       appVersion = await _appVersionProvider.read();
@@ -520,7 +540,29 @@ class AppController extends ChangeNotifier {
     availableUpdate.value = null;
   }
 
+  /// Whether the last sync that reached the LMS found us signed out. Tracked
+  /// separately from [syncStatus] because every sync passes through
+  /// [ScheduleSyncStatus.syncing] first, so comparing against the previous
+  /// status would read each retry as a fresh sign-out.
+  bool _signedOut = false;
+
   void _setSyncStatus(ScheduleSyncStatus status) {
+    // Signing out invalidates the cached course level: the next user may sit at
+    // a different one, and a stale level would send Home to a page they cannot
+    // open. Cleared on the edge into signed-out only -- a level scraped while
+    // already signed out is newer than this cache and must survive, which is
+    // also what makes the cache "overwrite on login".
+    if (status == ScheduleSyncStatus.signInRequired) {
+      if (!_signedOut) {
+        _signedOut = true;
+        if (_repository.courseLevel != null) {
+          unawaited(_repository.saveCourseLevel(null));
+          notifyListeners();
+        }
+      }
+    } else if (status == ScheduleSyncStatus.success) {
+      _signedOut = false;
+    }
     syncStatus = status;
     syncState.value = (status: status, lastSuccessfulSync: lastSuccessfulSync);
   }
