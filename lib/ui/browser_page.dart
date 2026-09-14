@@ -2492,7 +2492,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ),
                   _navAction(
                     key: const Key('actions-menu'),
-                    icon: Icons.person_outline_rounded,
+                    icon: Icons.menu_rounded,
                     label: strings.settings,
                     onTap: _openActions,
                   ),
