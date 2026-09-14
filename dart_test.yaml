@@ -1,0 +1,8 @@
+# Tests tagged `live` hit the real GitHub releases API, so they are excluded
+# from the default run to keep `flutter test` offline and deterministic.
+#
+# Run them deliberately against the real repository with:
+#   flutter test --run-skipped --tags live
+tags:
+  live:
+    skip: "hits the network; run with --run-skipped --tags live"
