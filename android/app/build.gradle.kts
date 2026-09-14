@@ -48,21 +48,33 @@ android {
     // ABI keeps the arm64 download at ~20.8 MB; a combined APK carrying both
     // is 41.6 MB, half of it x86_64 that no phone ever runs.
     //
-    // This must be a `splits` block rather than `defaultConfig.ndk.abiFilters`
-    // -- Gradle refuses to configure when both are set ("Conflicting
-    // configuration ... in ndk abiFilters cannot be present when splits abi
-    // filters are set"), and `--split-per-abi` populates the splits side
-    // itself. `reset()` clears Flutter's default list before naming our own.
+    // Narrowing the ABIs has to happen through `splits` rather than
+    // `defaultConfig.ndk.abiFilters`: Gradle refuses to configure when both are
+    // set ("Conflicting configuration ... in ndk abiFilters cannot be present
+    // when splits abi filters are set"). `reset()` clears Flutter's default
+    // list before naming our own.
     //
-    // Flutter's tooling still expects an armeabi-v7a file afterwards and
+    // Gated on the same `split-per-abi` property the Flutter plugin reads,
+    // because the plugin sets `abiFilters` itself on every build that does
+    // *not* pass `--split-per-abi` -- which is every `flutter run`. Declaring
+    // the split unconditionally put both halves of that conflict in place and
+    // broke `flutter run` outright. Matching the plugin's own condition keeps
+    // one of the two configured at a time:
+    //
+    //   flutter run / build apk          -> plugin's abiFilters, no splits
+    //   build apk --split-per-abi        -> our two-ABI split, no abiFilters
+    //
+    // On the split path Flutter's tooling still expects an armeabi-v7a file and
     // prints "Gradle build failed to produce an .apk file"; the APKs in
     // build/app/outputs/flutter-apk/ are built and valid regardless.
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "x86_64")
-            isUniversalApk = false
+    if (project.findProperty("split-per-abi")?.toString().toBoolean()) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include("arm64-v8a", "x86_64")
+                isUniversalApk = false
+            }
         }
     }
 
