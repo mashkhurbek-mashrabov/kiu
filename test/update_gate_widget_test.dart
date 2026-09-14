@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app.dart';
 import 'package:kiu/app/app_controller.dart';
+import 'package:kiu/core/constants.dart';
 import 'package:kiu/data/settings_repository.dart';
 import 'package:kiu/services/app_version_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
@@ -195,6 +196,10 @@ void main() {
     expect(find.byKey(const Key('app-version')), findsOneWidget);
     expect(find.text('1.4.0 (18)'), findsOneWidget);
     expect(find.byKey(const Key('check-updates')), findsOneWidget);
+    // Contact sits in the main sheet next to Useful links, not two taps down
+    // inside it: questions and problem reports are common enough to earn a row.
+    expect(find.byKey(const Key('contact-developer')), findsOneWidget);
+    expect(find.text(contactHandle), findsOneWidget);
   });
 
   testWidgets('the gate offers a retry after a failed download', (

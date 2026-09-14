@@ -568,6 +568,20 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                                   _openUsefulLinks();
                                 },
                               ),
+                              // Also listed inside Useful links, but questions
+                              // and problem reports are common enough to earn
+                              // a row in the main sheet rather than two taps.
+                              SettingsRow(
+                                key: const Key('contact-developer'),
+                                icon: Icons.telegram_rounded,
+                                title: strings.feedback,
+                                value: contactHandle,
+                                trailing: const Icon(
+                                  Icons.open_in_new_rounded,
+                                  size: 20,
+                                ),
+                                onTap: () => _launchExternal(contactUrl),
+                              ),
                             ],
                           ),
                           _aboutSection(setSheetState),
@@ -1926,9 +1940,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
               children: [
                 SettingsRow(
                   icon: Icons.telegram_rounded,
-                  title: '@developer_aka',
+                  title: contactHandle,
                   trailing: const Icon(Icons.open_in_new_rounded, size: 20),
-                  onTap: () => _launchExternal('https://t.me/developer_aka'),
+                  onTap: () => _launchExternal(contactUrl),
                 ),
               ],
             ),

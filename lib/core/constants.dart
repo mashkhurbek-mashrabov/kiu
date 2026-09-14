@@ -11,6 +11,12 @@ const String backgroundTaskUniqueName = 'kiu.periodicScheduleSync';
 const String latestReleaseApiUrl =
     'https://api.github.com/repos/mashkhurbek-mashrabov/kiu/releases/latest';
 
+/// Where users reach the developer with feedback or a problem. Reached from
+/// both the About section and Useful links, so it lives here rather than being
+/// spelled out at each call site.
+const String contactHandle = '@developer_aka';
+const String contactUrl = 'https://t.me/developer_aka';
+
 /// Hosts allowed to serve an update APK.
 ///
 /// The download ends up installed as code, so the URL is allowlisted rather
