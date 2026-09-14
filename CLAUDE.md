@@ -178,6 +178,10 @@ Branch per feature, tag per version — no version branches, no `develop`. Work 
 
 ## Updates
 
+Publishing a release is scripted end to end in
+`.claude/skills/publish-release/SKILL.md` — use that rather than reassembling
+the steps.
+
 KIU ships outside the Play Store. Releases are published to GitHub, and the app
 reads `releases/latest` unauthenticated — **no token ships in the APK**. Build
 number and blocking behavior ride a marker in the release body:
