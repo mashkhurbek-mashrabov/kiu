@@ -31,13 +31,20 @@ class UpdateDownloader {
     required ApkInstaller installer,
     HttpClient? client,
     Directory? cacheDirectory,
+    bool Function(Uri)? isAllowedHost,
   }) : _installer = installer,
        _client = client ?? HttpClient(),
-       _cacheDirectory = cacheDirectory;
+       _cacheDirectory = cacheDirectory,
+       _isAllowedHost = isAllowedHost ?? isGitHubReleaseAsset;
 
   final ApkInstaller _installer;
   final HttpClient _client;
   final Directory? _cacheDirectory;
+
+  /// Which hosts may serve an APK. Defaults to the GitHub allowlist and is
+  /// only overridden by tests, which serve the bytes from a loopback socket.
+  /// Production never passes this — the default is the security boundary.
+  final bool Function(Uri) _isAllowedHost;
 
   final ValueNotifier<UpdateDownloadProgress> progress = ValueNotifier((
     stage: UpdateDownloadStage.idle,
@@ -71,7 +78,7 @@ class UpdateDownloader {
     final uri = Uri.parse(update.apkUrl);
     // Re-checked here and not only at parse time: this is the call that turns
     // a remote string into executable code on the device.
-    if (!isGitHubReleaseAsset(uri)) {
+    if (!_isAllowedHost(uri)) {
       progress.value = (
         stage: UpdateDownloadStage.failed,
         received: 0,

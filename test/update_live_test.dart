@@ -18,7 +18,8 @@ void main() {
     expect(
       result.answered,
       isTrue,
-      reason: 'the public repo must answer unauthenticated at $latestReleaseApiUrl',
+      reason:
+          'the public repo must answer unauthenticated at $latestReleaseApiUrl',
     );
   });
 
