@@ -61,18 +61,104 @@ void main() {
 
     expect(find.byType(AppBar), findsNothing);
     expect(find.byType(BottomAppBar), findsOneWidget);
-    expect(tester.getSize(find.byType(BottomAppBar)).height, 60);
+    expect(tester.getSize(find.byType(BottomAppBar)).height, 56);
     for (final key in const [
       'nav-back',
-      'nav-forward',
       'nav-home',
+      'nav-lessons',
       'nav-refresh',
       'actions-menu',
     ]) {
       expect(find.byKey(Key(key)), findsOneWidget);
     }
-    expect(find.byKey(const Key('home-selected')), findsOneWidget);
+    expect(find.byKey(const Key('nav-forward')), findsNothing);
+    // Icon-only: the captions are what forced the taller bar, and the name is
+    // reachable by long press instead.
+    expect(
+      find.descendant(
+        of: find.byType(BottomAppBar),
+        matching: find.byType(Text),
+      ),
+      findsNothing,
+    );
+    // Opens on the lessons page, so Lessons -- not Home -- carries the pill.
+    expect(find.byKey(const Key('lessons-selected')), findsOneWidget);
+    expect(find.byKey(const Key('home-selected')), findsNothing);
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
+  });
+
+  testWidgets('Home falls back to the lessons page before a level is known', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    loadedUrls.clear();
+
+    await tester.tap(find.byKey(const Key('nav-home')));
+    await tester.pumpAndSettle();
+
+    expect(loadedUrls.last, contains('/uz/profile/my-online-lessons'));
+  });
+
+  testWidgets('Home opens the cached course level in the saved language', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'kiu.courseLevel': 2,
+      'kiu.locale': 'ru',
+    });
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    loadedUrls.clear();
+
+    await tester.tap(find.byKey(const Key('nav-home')));
+    await tester.pumpAndSettle();
+
+    expect(
+      loadedUrls.last,
+      'https://uz.do-kazankiu.ru/ru/profile/my-courses/2',
+    );
+  });
+
+  testWidgets('Lessons always opens the scheduled lessons page', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.courseLevel': 2});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    loadedUrls.clear();
+
+    await tester.tap(find.byKey(const Key('nav-lessons')));
+    await tester.pumpAndSettle();
+
+    expect(loadedUrls.last, contains('/uz/profile/my-online-lessons'));
+  });
+
+  testWidgets('highlights Home on a course page', (tester) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+        navigationRequests: ValueNotifier<Uri?>(
+          Uri.parse('https://uz.do-kazankiu.ru/uz/profile/my-courses/2'),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('home-selected')), findsOneWidget);
+    expect(find.byKey(const Key('lessons-selected')), findsNothing);
   });
 
   testWidgets('paints the dark surface when dark mode is saved', (
@@ -137,9 +223,7 @@ void main() {
     expect(injectedScripts.last, contains('const dark = true'));
   });
 
-  testWidgets('does not highlight Home on another trusted page', (
-    tester,
-  ) async {
+  testWidgets('highlights nothing on another trusted page', (tester) async {
     await tester.pumpWidget(
       KiuApp(
         controller: await controller(),
@@ -150,9 +234,10 @@ void main() {
       ),
     );
     expect(find.byKey(const Key('home-selected')), findsNothing);
+    expect(find.byKey(const Key('lessons-selected')), findsNothing);
   });
 
-  testWidgets('highlights Home on the Russian lessons page', (tester) async {
+  testWidgets('highlights Lessons on the Russian lessons page', (tester) async {
     SharedPreferences.setMockInitialValues({'kiu.locale': 'ru'});
     await tester.pumpWidget(
       KiuApp(
@@ -163,7 +248,7 @@ void main() {
         ),
       ),
     );
-    expect(find.byKey(const Key('home-selected')), findsOneWidget);
+    expect(find.byKey(const Key('lessons-selected')), findsOneWidget);
   });
 
   testWidgets('opens the lessons page in the saved language', (tester) async {

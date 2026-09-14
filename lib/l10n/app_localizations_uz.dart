@@ -19,6 +19,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get home => 'Bosh sahifa';
 
   @override
+  String get scheduledLessons => 'Rejalashtirilgan darslar';
+
+  @override
   String get refresh => 'Yangilash';
 
   @override
@@ -213,9 +216,6 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get customizeSound => 'Moslash';
-
-  @override
-  String get scheduledLessons => 'Rejalashtirilgan darslar';
 
   @override
   String get noScheduledLessons => 'Rejalashtirilgan darslar yo‘q';
@@ -514,6 +514,9 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get home => 'Бош саҳифа';
 
   @override
+  String get scheduledLessons => 'Режалаштирилган дарслар';
+
+  @override
   String get refresh => 'Янгилаш';
 
   @override
@@ -708,9 +711,6 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get customizeSound => 'Мослаш';
-
-  @override
-  String get scheduledLessons => 'Режалаштирилган дарслар';
 
   @override
   String get noScheduledLessons => 'Режалаштирилган дарслар йўқ';

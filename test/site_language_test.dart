@@ -150,4 +150,53 @@ void main() {
       );
     });
   });
+
+  group('courseUrlFor', () {
+    test('uses the site language for the app locale', () {
+      expect(
+        courseUrlFor('ru', 2),
+        'https://uz.do-kazankiu.ru/ru/profile/my-courses/2',
+      );
+      expect(
+        courseUrlFor('uz_Cyrl', 13),
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses/13',
+      );
+      // English is not served, so it falls back to Uzbek like homeUrlFor.
+      expect(courseUrlFor('en', 1), isNot(contains('/en/')));
+    });
+  });
+
+  group('isCourseUri', () {
+    test('matches a course page in either language', () {
+      for (final url in const [
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses/2',
+        'https://uz.do-kazankiu.ru/ru/profile/my-courses/13',
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses/2/',
+      ]) {
+        expect(isCourseUri(Uri.parse(url)), isTrue, reason: url);
+      }
+    });
+
+    test('rejects a missing or non-positive level', () {
+      for (final url in const [
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses',
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses/0',
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses/x',
+        'https://uz.do-kazankiu.ru/uz/profile/my-courses/2/lesson',
+      ]) {
+        expect(isCourseUri(Uri.parse(url)), isFalse, reason: url);
+      }
+    });
+
+    test('rejects another host, the exam site, and plain http', () {
+      for (final url in const [
+        'https://attacker.com/uz/profile/my-courses/2',
+        'https://test.do-kazankiu.ru/uz/profile/my-courses/2',
+        'http://uz.do-kazankiu.ru/uz/profile/my-courses/2',
+        'https://uz.do-kazankiu.ru/en/profile/my-courses/2',
+      ]) {
+        expect(isCourseUri(Uri.parse(url)), isFalse, reason: url);
+      }
+    });
+  });
 }

@@ -42,7 +42,6 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   late Uri _currentUri;
   int _progress = 0;
   bool _canBack = false;
-  bool _canForward = false;
   bool _pageFailed = false;
   bool _marking = false;
   bool _fullscreenOpen = false;
@@ -198,13 +197,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   Future<void> _pageFinished(String url) async {
     final uri = Uri.tryParse(url);
     _canBack = await _webView.canGoBack();
-    _canForward = await _webView.canGoForward();
     if (uri != null && isTrustedHttps(uri)) {
       await _applyPlaybackRate();
       await _applySiteTheme();
       await _webView.runJavaScript(
         pullToRefreshScript(thresholdPx: _pullThreshold.round()),
       );
+      // Every logged-in page carries the same nav, so the level is read here
+      // rather than on one specific route. Reports only when it finds a link.
+      await _webView.runJavaScript(courseLevelScript());
       if (isRussianCourseVideoUri(uri)) {
         await _webView.runJavaScript(videoIframeFixScript());
       }
@@ -267,6 +268,29 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   }
 
   Future<void> _goHome() => _webView.loadRequest(Uri.parse(_homeUrl));
+
+  /// The course page, which is where the site lands a logged-in user.
+  ///
+  /// Falls back to the scheduled-lessons page until a level has been scraped:
+  /// the level is per-user and a level-less `/profile/my-courses` does not
+  /// redirect, so there is nothing valid to guess before first discovery.
+  Future<void> _goCourseHome() {
+    final level = widget.controller.courseLevel;
+    return _webView.loadRequest(
+      Uri.parse(
+        level == null
+            ? _homeUrl
+            : courseUrlFor(widget.controller.settings.localeTag, level),
+      ),
+    );
+  }
+
+  Future<void> _recordCourseLevel(int level) async {
+    await widget.controller.recordCourseLevel(level);
+    // Home's target and highlight both read the level, so the bar has to
+    // re-render once the first scrape lands.
+    if (mounted) setState(() {});
+  }
 
   Future<void> _goToRequestedPage() async {
     final uri = widget.navigationRequests?.value;
@@ -423,6 +447,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       if (decoded is! Map<String, dynamic>) return;
       if (decoded['type'] == 'pullRefresh') {
         _handlePullRefresh(decoded);
+        return;
+      }
+      if (decoded['type'] == 'courseLevel') {
+        final level = decoded['level'];
+        if (level is int && level > 0) unawaited(_recordCourseLevel(level));
         return;
       }
       if (decoded['type'] != 'markWatchedResult' ||
@@ -2370,7 +2399,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         ),
       ),
       bottomNavigationBar: BottomAppBar(
-        height: 60,
+        height: 56,
         padding: EdgeInsets.zero,
         child: DecoratedBox(
           // Hairline instead of elevation: the WebView scrolls right up to the
@@ -2384,7 +2413,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             ),
           ),
           child: SizedBox(
-            height: 60,
+            height: 56,
             child: Row(
               children: [
                 _navAction(
@@ -2395,16 +2424,17 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   onTap: _webView.goBack,
                 ),
                 _navAction(
-                  key: const Key('nav-forward'),
-                  icon: Icons.arrow_forward_rounded,
-                  label: strings.forward,
-                  enabled: _canForward,
-                  onTap: _webView.goForward,
-                ),
-                _navAction(
                   key: const Key('nav-home'),
                   icon: Icons.home_rounded,
                   label: strings.home,
+                  selected: isCourseUri(_currentUri),
+                  onTap: _goCourseHome,
+                ),
+                _navAction(
+                  key: const Key('nav-lessons'),
+                  selectedKey: const Key('lessons-selected'),
+                  icon: Icons.event_note_rounded,
+                  label: strings.scheduledLessons,
                   selected: isHomeUri(_currentUri),
                   onTap: _goHome,
                 ),
@@ -2469,33 +2499,44 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     );
   }
 
+  /// One bar action: an icon alone, with its name reachable by long press.
+  ///
+  /// Icon-only because five well-known glyphs do not need captions, and the
+  /// labels were what forced the taller bar. The name still reaches both a
+  /// screen reader ([Semantics]) and a sighted user unsure of an icon
+  /// ([Tooltip]) -- long press is the only trigger that fires on a touch
+  /// screen, the same reason [InfoHint] drives its tooltip manually.
+  ///
+  /// With the caption gone the filled pill is the only thing marking the
+  /// current page, so it stays.
   Widget _navAction({
     required Key key,
     required IconData icon,
     required String label,
     required FutureOr<void> Function() onTap,
+    Key selectedKey = const Key('home-selected'),
     bool enabled = true,
     bool selected = false,
   }) {
     final colors = Theme.of(context).colorScheme;
     return Expanded(
-      child: InkWell(
-        key: key,
-        onTap: enabled ? onTap : null,
-        child: Semantics(
-          selected: selected,
-          button: true,
-          label: label,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                key: selected ? const Key('home-selected') : null,
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          key: key,
+          onTap: enabled ? onTap : null,
+          child: Semantics(
+            selected: selected,
+            button: true,
+            label: label,
+            child: Center(
+              child: AnimatedContainer(
+                key: selected ? selectedKey : null,
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 3,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
                   color: selected ? colors.secondaryContainer : null,
@@ -2503,7 +2544,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 ),
                 child: Icon(
                   icon,
-                  size: 21,
+                  size: 24,
                   color: enabled
                       ? selected
                             ? colors.onSecondaryContainer
@@ -2511,21 +2552,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                       : colors.onSurface.withValues(alpha: 0.38),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: enabled
-                      ? selected
-                            ? colors.onSurface
-                            : colors.onSurfaceVariant
-                      : colors.onSurface.withValues(alpha: 0.38),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

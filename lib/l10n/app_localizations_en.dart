@@ -19,6 +19,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home => 'Home';
 
   @override
+  String get scheduledLessons => 'Scheduled lessons';
+
+  @override
   String get refresh => 'Refresh';
 
   @override
@@ -213,9 +216,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get customizeSound => 'Customize';
-
-  @override
-  String get scheduledLessons => 'Scheduled lessons';
 
   @override
   String get noScheduledLessons => 'No scheduled lessons';

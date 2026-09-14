@@ -119,6 +119,12 @@ abstract class AppLocalizations {
   /// **'Бош саҳифа'**
   String get home;
 
+  /// No description provided for @scheduledLessons.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Режалаштирилган дарслар'**
+  String get scheduledLessons;
+
   /// No description provided for @refresh.
   ///
   /// In uz_Cyrl, this message translates to:
@@ -496,12 +502,6 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Мослаш'**
   String get customizeSound;
-
-  /// No description provided for @scheduledLessons.
-  ///
-  /// In uz_Cyrl, this message translates to:
-  /// **'Режалаштирилган дарслар'**
-  String get scheduledLessons;
 
   /// No description provided for @noScheduledLessons.
   ///

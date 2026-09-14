@@ -38,6 +38,11 @@ const Set<String> supportedSiteLanguages = {'uz', 'ru'};
 
 const String _homePath = 'profile/my-online-lessons';
 
+/// The user's own course page, which is where the site actually lands them.
+/// The trailing segment is a course level that differs per user, so unlike
+/// [_homePath] this path is never complete on its own — see [courseUrlFor].
+const String _coursePath = 'profile/my-courses';
+
 /// The LMS host, which is allowed to receive session cookies and to run the
 /// scripts and bridge calls the shell injects. Deliberately narrower than
 /// [isSiteHttps] — do not widen it to bring in another host.
@@ -74,6 +79,28 @@ bool isHomeUri(Uri uri) {
   if (!isTrustedHttps(uri)) return false;
   final path = uri.path.replaceAll(RegExp(r'/+$'), '');
   return supportedSiteLanguages.any((lang) => path == '/$lang/$_homePath');
+}
+
+/// The course page for [level] in the app's language. The level is read out of
+/// the site's own nav (`courseLevelScript`) rather than assumed: it is per-user,
+/// and the server does not redirect a level-less `/profile/my-courses`.
+String courseUrlFor(String localeTag, int level) =>
+    'https://$trustedHost/${siteLanguageFor(localeTag)}/$_coursePath/$level';
+
+/// Whether [uri] is a course page — `<lang>/profile/my-courses/<level>`.
+///
+/// Deliberately strict, like [isRussianCourseVideoUri]: this drives the Home
+/// highlight, and a loose match would light it up on unrelated course routes.
+bool isCourseUri(Uri uri) {
+  if (!isTrustedHttps(uri)) return false;
+  final segments = uri.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  // <lang>/profile/my-courses/<level>
+  if (segments.length != 4) return false;
+  return supportedSiteLanguages.contains(segments[0]) &&
+      '${segments[1]}/${segments[2]}' == _coursePath &&
+      RegExp(r'^[1-9]\d*$').hasMatch(segments[3]);
 }
 
 bool isLessonUri(Uri uri) {
