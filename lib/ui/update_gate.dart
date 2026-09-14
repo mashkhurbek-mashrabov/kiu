@@ -72,21 +72,46 @@ class _UpdateGateState extends State<UpdateGate> {
                   ),
                   if (widget.update.notes.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 220),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceContainerLow,
+                    // Collapsed by default: the gate's job is to get the user
+                    // updated, and a wall of notes pushes the button down and
+                    // buries the one action that matters. Anyone who wants the
+                    // detail can open it.
+                    Material(
+                      color: colors.surfaceContainerLow,
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
+                        side: BorderSide(
                           color: colors.outlineVariant.withValues(alpha: 0.5),
                         ),
                       ),
-                      child: SingleChildScrollView(
-                        child: Text(
-                          widget.update.notes,
-                          style: theme.textTheme.bodySmall,
+                      child: ExpansionTile(
+                        key: const Key('update-notes'),
+                        title: Text(
+                          strings.whatsNew,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
+                        shape: const RoundedRectangleBorder(),
+                        collapsedShape: const RoundedRectangleBorder(),
+                        childrenPadding: const EdgeInsets.fromLTRB(
+                          14,
+                          0,
+                          14,
+                          14,
+                        ),
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 220),
+                            child: SingleChildScrollView(
+                              child: Text(
+                                widget.update.notes,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

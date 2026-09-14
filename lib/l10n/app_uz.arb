@@ -155,6 +155,7 @@
   "updateRequired": "Yangilanish talab qilinadi",
   "updateVersion": "Versiya {value}",
   "updateNow": "Yangilash",
+  "whatsNew": "Nima yangilandi",
   "updateLater": "Keyinroq",
   "downloadingUpdate": "Yuklab olinmoqda…",
   "installingUpdate": "O‘rnatilmoqda…",

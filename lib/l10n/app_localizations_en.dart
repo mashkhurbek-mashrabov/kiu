@@ -436,6 +436,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateNow => 'Update';
 
   @override
+  String get whatsNew => 'What\'s new';
+
+  @override
   String get updateLater => 'Later';
 
   @override

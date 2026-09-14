@@ -436,6 +436,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get updateNow => 'Обновить';
 
   @override
+  String get whatsNew => 'Что нового';
+
+  @override
   String get updateLater => 'Позже';
 
   @override

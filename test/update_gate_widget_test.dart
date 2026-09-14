@@ -120,6 +120,32 @@ void main() {
     expect(find.byKey(const Key('actions-menu')), findsNothing);
   });
 
+  testWidgets('release notes start collapsed and expand on tap', (
+    tester,
+  ) async {
+    final checker = _FakeChecker(UpdateCheckResult.answered(_update()));
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The gate's job is to get the user updated, so the notes must not push
+    // the action button down the screen before it is asked for.
+    expect(find.byKey(const Key('update-notes')), findsOneWidget);
+    expect(find.text('Shiny new things.'), findsNothing);
+    expect(find.byKey(const Key('update-now')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('update-notes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Shiny new things.'), findsOneWidget);
+  });
+
   testWidgets('an optional update does not gate the app', (tester) async {
     final checker = _FakeChecker(
       UpdateCheckResult.answered(_update(mandatory: false)),

@@ -155,6 +155,7 @@
   "updateRequired": "Update required",
   "updateVersion": "Version {value}",
   "updateNow": "Update",
+  "whatsNew": "What's new",
   "updateLater": "Later",
   "downloadingUpdate": "Downloading…",
   "installingUpdate": "Installing…",

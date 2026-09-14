@@ -437,6 +437,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get updateNow => 'Yangilash';
 
   @override
+  String get whatsNew => 'Nima yangilandi';
+
+  @override
   String get updateLater => 'Keyinroq';
 
   @override
@@ -890,6 +893,9 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get updateNow => 'Янгилаш';
+
+  @override
+  String get whatsNew => 'Нима янгиланди';
 
   @override
   String get updateLater => 'Кейинроқ';

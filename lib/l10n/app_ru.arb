@@ -155,6 +155,7 @@
   "updateRequired": "Требуется обновление",
   "updateVersion": "Версия {value}",
   "updateNow": "Обновить",
+  "whatsNew": "Что нового",
   "updateLater": "Позже",
   "downloadingUpdate": "Загрузка…",
   "installingUpdate": "Установка…",

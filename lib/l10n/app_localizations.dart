@@ -905,6 +905,12 @@ abstract class AppLocalizations {
   /// **'Янгилаш'**
   String get updateNow;
 
+  /// No description provided for @whatsNew.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Нима янгиланди'**
+  String get whatsNew;
+
   /// No description provided for @updateLater.
   ///
   /// In uz_Cyrl, this message translates to:

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+import '../app/app.dart';
 import '../app/app_controller.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
@@ -1594,14 +1595,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     // A mandatory update replaces the whole tree, so the sheet is already gone
     // and a snack bar would have nowhere to land.
     if (update != null && update.mandatory) return;
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          update == null ? strings.upToDate : strings.updateAvailable,
+    // Raised on the root messenger, not this sheet's: a bar shown from inside
+    // a modal route waits for the sheet to close, so the user saw the answer
+    // only after backing out and could not tell what it referred to.
+    rootMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            update == null ? strings.upToDate : strings.updateAvailable,
+          ),
         ),
-      ),
-    );
+      );
   }
 
   /// Sync status line.
