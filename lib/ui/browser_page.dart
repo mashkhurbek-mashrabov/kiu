@@ -617,12 +617,27 @@ class _BrowserPageState extends State<BrowserPage>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // The drag handle stays (it comes from the theme), so the
+                  // sheet still swipes away; this is the tap route for anyone
+                  // who does not reach for a swipe, or cannot make one stick.
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                    child: Text(
-                      strings.settings,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            strings.settings,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        IconButton(
+                          key: const Key('settings-close'),
+                          icon: const Icon(Icons.close_rounded),
+                          tooltip: strings.close,
+                          onPressed: () => Navigator.pop(sheetContext),
+                        ),
+                      ],
                     ),
                   ),
                   Flexible(

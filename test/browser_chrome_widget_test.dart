@@ -92,6 +92,38 @@ void main() {
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
   });
 
+  testWidgets('settings closes from the close button, and still drags away', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    expect(findCaption('Ижро'), findsOneWidget);
+
+    // Tap route, for anyone who does not reach for a swipe.
+    await tester.tap(find.byKey(const Key('settings-close')));
+    await tester.pumpAndSettle();
+    expect(findCaption('Ижро'), findsNothing);
+
+    // The drag handle is themed on, so swiping the sheet away still works.
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-close')), findsOneWidget);
+    await tester.fling(
+      find.byKey(const Key('settings-close')),
+      const Offset(0, 600),
+      1200,
+    );
+    await tester.pumpAndSettle();
+    expect(findCaption('Ижро'), findsNothing);
+  });
+
   testWidgets('tapping refresh turns the icon a full rotation', (tester) async {
     await tester.pumpWidget(
       KiuApp(
