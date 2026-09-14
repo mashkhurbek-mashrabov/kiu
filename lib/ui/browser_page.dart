@@ -666,7 +666,8 @@ class _BrowserPageState extends State<BrowserPage>
                                 icon: Icons.task_alt_rounded,
                                 title: _marking
                                     ? strings.marking
-                                    : strings.markWatchedShort,
+                                    : strings.markWatched,
+                                hint: strings.markWatchedHint,
                                 enabled: !_marking,
                                 onTap: () {
                                   Navigator.pop(sheetContext);

@@ -138,7 +138,7 @@
   "granted": "Granted",
   "notGranted": "Not granted",
   "about": "About",
-  "markWatchedShort": "Mark watched",
+  "markWatchedHint": "Marks the lesson you have open as watched in the LMS. Works even if the video was not played to the end.",
   "openLink": "Open",
   "searchHint": "Search",
   "reset": "Reset",

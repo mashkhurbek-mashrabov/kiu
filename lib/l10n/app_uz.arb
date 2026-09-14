@@ -138,7 +138,7 @@
   "granted": "Berilgan",
   "notGranted": "Berilmagan",
   "about": "Ilova haqida",
-  "markWatchedShort": "Ko‘rilgan",
+  "markWatchedHint": "Ochiq turgan darsni LMS'da ko‘rilgan deb belgilaydi. Video oxirigacha o‘ynatilmagan bo‘lsa ham ishlaydi.",
   "openLink": "Ochish",
   "searchHint": "Qidirish",
   "reset": "Tiklash",

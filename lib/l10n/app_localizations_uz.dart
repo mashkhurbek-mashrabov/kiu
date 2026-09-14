@@ -377,7 +377,8 @@ class AppLocalizationsUz extends AppLocalizations {
   String get about => 'Ilova haqida';
 
   @override
-  String get markWatchedShort => 'Ko‘rilgan';
+  String get markWatchedHint =>
+      'Ochiq turgan darsni LMS\'da ko‘rilgan deb belgilaydi. Video oxirigacha o‘ynatilmagan bo‘lsa ham ishlaydi.';
 
   @override
   String get openLink => 'Ochish';
@@ -872,7 +873,8 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get about => 'Илова ҳақида';
 
   @override
-  String get markWatchedShort => 'Кўрилган';
+  String get markWatchedHint =>
+      'Очиқ турган дарсни LMS\'да кўрилган деб белгилайди. Видео охиригача ўйнатилмаган бўлса ҳам ишлайди.';
 
   @override
   String get openLink => 'Очиш';
