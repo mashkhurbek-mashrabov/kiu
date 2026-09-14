@@ -461,6 +461,13 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get installPermissionHelp =>
       'Android ilova o‘zini yangilashi uchun «Noma’lum ilovalarni o‘rnatish» ruxsatini so‘raydi. Tizim sozlamalari ochiladi.';
+
+  @override
+  String get callsDisabledMissingPermission =>
+      'Dars qo‘ng‘iroqlari yoqilmadi — kerakli ruxsat berilmadi. Sozlamalar → Ruxsatlar bo‘limidan yoqing.';
+
+  @override
+  String get callsEnabledAfterOnboarding => 'Dars qo‘ng‘iroqlari yoqildi.';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -919,4 +926,11 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   @override
   String get installPermissionHelp =>
       'Android илова ўзини янгилаши учун «Номаълум иловаларни ўрнатиш» рухсатини сўрайди. Тизим созламалари очилади.';
+
+  @override
+  String get callsDisabledMissingPermission =>
+      'Дарс қўнғироқлари ёқилмади — керакли рухсат берилмади. Созламалар → Рухсатлар бўлимидан ёқинг.';
+
+  @override
+  String get callsEnabledAfterOnboarding => 'Дарс қўнғироқлари ёқилди.';
 }

@@ -35,6 +35,7 @@ class SettingsRepository {
   static const _syncStatus = 'kiu.syncStatus';
   static const _webViewUserAgent = 'kiu.webViewUserAgent';
   static const _backgroundExplainerShown = 'kiu.backgroundExplainerShown';
+  static const _onboardingShown = 'kiu.permissionOnboardingShown';
   static const _lastUpdateCheck = 'kiu.lastUpdateCheck';
   static const _skippedUpdateBuild = 'kiu.skippedUpdateBuild';
   static const _pendingUpdate = 'kiu.pendingUpdate';
@@ -210,6 +211,15 @@ class SettingsRepository {
 
   Future<void> markBackgroundExplainerShown() =>
       _preferences.setBool(_backgroundExplainerShown, true);
+
+  /// Whether the first-launch permission sequence has already run. Marked once
+  /// per install, so a user who declined something is never asked again on
+  /// every launch -- the settings sheet is where they change their mind.
+  bool get permissionOnboardingShown =>
+      _preferences.getBool(_onboardingShown) ?? false;
+
+  Future<void> markPermissionOnboardingShown() =>
+      _preferences.setBool(_onboardingShown, true);
 
   /// When the updater last got an answer from GitHub. `tryParse` rather than
   /// `parse`: this is read on the path that gates the whole app, and a corrupt

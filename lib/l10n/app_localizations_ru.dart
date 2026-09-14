@@ -460,4 +460,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get installPermissionHelp =>
       'Android запрашивает разрешение «Установка неизвестных приложений», чтобы приложение могло обновить себя. Откроются системные настройки.';
+
+  @override
+  String get callsDisabledMissingPermission =>
+      'Звонки на занятия не включены — нужное разрешение не выдано. Включите их в «Настройки → Разрешения».';
+
+  @override
+  String get callsEnabledAfterOnboarding => 'Звонки на занятия включены.';
 }

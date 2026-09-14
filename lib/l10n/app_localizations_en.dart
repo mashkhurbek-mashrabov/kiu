@@ -460,4 +460,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get installPermissionHelp =>
       'Android asks for the “Install unknown apps” permission before an app can update itself. The system settings will open.';
+
+  @override
+  String get callsDisabledMissingPermission =>
+      'Lesson calls stayed off — a required permission was not granted. Turn them on in Settings → Permissions.';
+
+  @override
+  String get callsEnabledAfterOnboarding => 'Lesson calls are on.';
 }

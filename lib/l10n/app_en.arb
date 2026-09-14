@@ -162,5 +162,7 @@
   "updateFailed": "Could not download the update",
   "updateRequiredHelp": "This version is out of date and cannot keep running. Install the update to continue.",
   "installPermissionNeeded": "Install permission needed",
-  "installPermissionHelp": "Android asks for the “Install unknown apps” permission before an app can update itself. The system settings will open."
+  "installPermissionHelp": "Android asks for the “Install unknown apps” permission before an app can update itself. The system settings will open.",
+  "callsDisabledMissingPermission": "Lesson calls stayed off — a required permission was not granted. Turn them on in Settings → Permissions.",
+  "callsEnabledAfterOnboarding": "Lesson calls are on."
 }

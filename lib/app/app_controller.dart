@@ -12,6 +12,7 @@ import '../services/app_version_service.dart';
 import '../services/background_access_service.dart';
 import '../services/lesson_widget_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_onboarding.dart';
 import '../services/reminder_reconciler.dart';
 import '../services/schedule_sync_service.dart';
 import '../services/update_service.dart';
@@ -53,6 +54,7 @@ class AppController extends ChangeNotifier {
     BackgroundAccessGateway? backgroundAccess,
     LessonWidgetGateway? lessonWidgets,
     UpdateChecker? updateChecker,
+    PermissionOnboarding? onboarding,
   }) : _repository = repository,
        _syncService = syncService,
        _reconciler = reconciler,
@@ -64,7 +66,17 @@ class AppController extends ChangeNotifier {
        _updateChecker = updateChecker,
        settings = repository.loadSettings(),
        lastSuccessfulSync = repository.lastSuccessfulSync,
-       lastUpdateCheck = repository.lastUpdateCheck;
+       lastUpdateCheck = repository.lastUpdateCheck {
+    // Built here rather than in the initializer list: the default needs the
+    // two gateways resolved above, and one initializer cannot read another's
+    // field.
+    _onboarding =
+        onboarding ??
+        PermissionOnboarding(
+          notifications: _notifications,
+          backgroundAccess: _backgroundAccess,
+        );
+  }
 
   final SettingsRepository _repository;
   final ScheduleSyncService _syncService;
@@ -75,6 +87,7 @@ class AppController extends ChangeNotifier {
   final BackgroundAccessGateway _backgroundAccess;
   final LessonWidgetGateway? _lessonWidgets;
   final UpdateChecker? _updateChecker;
+  late final PermissionOnboarding _onboarding;
 
   AppSettings settings;
   ScheduleSyncStatus syncStatus = ScheduleSyncStatus.idle;
@@ -249,6 +262,41 @@ class AppController extends ChangeNotifier {
       _backgroundAccess.openFullScreenIntentSettings();
 
   Future<void> openOverlaySettings() => _backgroundAccess.openOverlaySettings();
+
+  /// Whether the first-launch permission sequence still has to run.
+  bool get needsPermissionOnboarding => !_repository.permissionOnboardingShown;
+
+  /// Asks Android for everything KIU needs, once per install, and turns lesson
+  /// calls on when the answers allow it.
+  ///
+  /// Returns what was granted so the caller can tell the user why calls stayed
+  /// off. Calls are only enabled here, never disabled: a user who turned them
+  /// on by hand before this ran must not have them taken away.
+  Future<OnboardingResult> runPermissionOnboarding() async {
+    // Marked before the sequence rather than after. A crash or a kill partway
+    // through -- the user backgrounding the app on a settings screen and never
+    // returning is the ordinary case -- would otherwise replay the whole flow
+    // on every single launch, which is far worse than asking once and missing.
+    await _repository.markPermissionOnboardingShown();
+    // The explainer dialog asks for the same battery permission this flow just
+    // requested, so suppress it: two asks for one permission reads as a bug.
+    await _repository.markBackgroundExplainerShown();
+
+    final result = await _onboarding.run();
+    if (result.callsUsable && !settings.callsEnabled) {
+      // Reuses the normal path: it persists, republishes the widget payload the
+      // alarms ride on, and notifies. The permission it re-requests is already
+      // granted at this point, so it cannot fail.
+      await setCallsEnabled(true);
+    }
+    await refreshBackgroundAccess();
+    exactTiming = await _notifications.canScheduleExactly();
+    // Reminders and calls both depend on the permissions that just changed, so
+    // re-arm what is cached against the new state.
+    await _rescheduleCached();
+    notifyListeners();
+    return result;
+  }
 
   Future<bool> setCallsEnabled(bool enabled) async {
     if (enabled && !await _notifications.requestNotificationPermission()) {
