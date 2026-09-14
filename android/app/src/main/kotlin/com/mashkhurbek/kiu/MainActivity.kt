@@ -95,6 +95,35 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * Shows the one-tap "allow KIU to ignore battery optimizations?" dialog.
+     *
+     * Unlike every other background permission this one has a real dialog, reached by
+     * ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS with a `package:` URI. Sending it without
+     * holding REQUEST_IGNORE_BATTERY_OPTIMIZATIONS throws, and sending it while already exempt
+     * does nothing at all -- the system dismisses it immediately -- so both cases fall back to
+     * the settings list, which always renders something the user can act on.
+     *
+     * Returns true when the dialog was actually launched, so the caller knows whether to expect
+     * an answer or whether it dropped back to the list.
+     */
+    private fun requestBatteryExemption(): Boolean {
+        val manager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (manager.isIgnoringBatteryOptimizations(packageName)) return false
+        val launched = runCatching {
+            @android.annotation.SuppressLint("BatteryLife")
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                .setData(Uri.parse("package:$packageName"))
+            startActivity(intent)
+        }.isSuccess
+        if (!launched) {
+            runCatching {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            }
+        }
+        return launched
+    }
+
     private fun openInstallPermissionSettings() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
@@ -214,6 +243,9 @@ class MainActivity : FlutterActivity() {
                 "openBatteryOptimizationSettings" -> {
                     startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                     result.success(null)
+                }
+                "requestBatteryExemption" -> {
+                    result.success(requestBatteryExemption())
                 }
                 "canUseFullScreenIntent" -> {
                     val canUse = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

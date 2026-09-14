@@ -467,4 +467,34 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get callsEnabledAfterOnboarding => 'Звонки на занятия включены.';
+
+  @override
+  String get notNow => 'Не сейчас';
+
+  @override
+  String get permissionAllow => 'Разрешить';
+
+  @override
+  String get permissionWhyBattery =>
+      'Чтобы расписание обновлялось даже после закрытия KIU.';
+
+  @override
+  String get permissionWhyExactTiming =>
+      'Чтобы напоминания приходили точно в срок, а не с опозданием.';
+
+  @override
+  String get permissionWhyOverlay =>
+      'Чтобы звонок на занятие открывался, пока вы пользуетесь телефоном.';
+
+  @override
+  String get permissionWhyFullScreen =>
+      'Чтобы звонок на занятие появлялся на заблокированном экране.';
+
+  @override
+  String get permissionWhyNotifications =>
+      'Чтобы KIU предупреждал вас до начала занятия.';
+
+  @override
+  String get permissionNotificationsHelp =>
+      'Все напоминания и звонки на занятия приходят как уведомления. Без этого разрешения KIU не сможет сообщить вам ни о чём.';
 }

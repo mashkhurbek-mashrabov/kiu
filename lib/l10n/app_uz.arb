@@ -164,5 +164,13 @@
   "installPermissionNeeded": "O‘rnatishga ruxsat kerak",
   "installPermissionHelp": "Android ilova o‘zini yangilashi uchun «Noma’lum ilovalarni o‘rnatish» ruxsatini so‘raydi. Tizim sozlamalari ochiladi.",
   "callsDisabledMissingPermission": "Dars qo‘ng‘iroqlari yoqilmadi — kerakli ruxsat berilmadi. Sozlamalar → Ruxsatlar bo‘limidan yoqing.",
-  "callsEnabledAfterOnboarding": "Dars qo‘ng‘iroqlari yoqildi."
+  "callsEnabledAfterOnboarding": "Dars qo‘ng‘iroqlari yoqildi.",
+  "notNow": "Hozir emas",
+  "permissionAllow": "Ruxsat berish",
+  "permissionWhyBattery": "KIU yopilgandan keyin ham dars jadvali yangilanib turishi uchun.",
+  "permissionWhyExactTiming": "Eslatmalar kechikmasdan, aniq vaqtida kelishi uchun.",
+  "permissionWhyOverlay": "Telefondan foydalanayotganingizda dars qo‘ng‘irog‘i ochilishi uchun.",
+  "permissionWhyFullScreen": "Dars qo‘ng‘irog‘i qulflangan ekranda ko‘rinishi uchun.",
+  "permissionWhyNotifications": "KIU dars boshlanishidan oldin xabar berishi uchun.",
+  "permissionNotificationsHelp": "Barcha eslatmalar va dars qo‘ng‘iroqlari bildirishnoma sifatida keladi. Bu ruxsatsiz KIU sizga hech qanday xabar yubora olmaydi."
 }

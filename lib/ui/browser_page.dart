@@ -15,6 +15,7 @@ import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../l10n/app_localizations.dart';
 import '../services/lesson_widget_service.dart';
+import '../services/permission_onboarding.dart';
 import '../services/time_zone_service.dart';
 import '../web/js_scripts.dart';
 import 'widgets/settings_widgets.dart';
@@ -282,6 +283,76 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     await widget.controller.synchronize(userAgent: userAgent);
   }
 
+  /// KIU's own "why we need this" dialog, shown before each Android screen.
+  ///
+  /// The short reason is the dialog body; the full explanation is behind the ⓘ,
+  /// reusing [InfoHint] so a long paragraph never stretches the dialog. Returns
+  /// whether to continue to Android -- declining skips that permission without
+  /// opening anything.
+  Future<bool> _explainPermission(PermissionKind permission) async {
+    if (!mounted) return false;
+    final (icon, title, why, help) = switch (permission) {
+      PermissionKind.notifications => (
+        Icons.notifications_active_rounded,
+        strings.reminders,
+        strings.permissionWhyNotifications,
+        strings.permissionNotificationsHelp,
+      ),
+      PermissionKind.exactTiming => (
+        Icons.alarm_on_rounded,
+        strings.exactTiming,
+        strings.permissionWhyExactTiming,
+        strings.exactTimingHelp,
+      ),
+      PermissionKind.battery => (
+        Icons.battery_saver_rounded,
+        strings.backgroundAccess,
+        strings.permissionWhyBattery,
+        strings.backgroundAccessHelp,
+      ),
+      PermissionKind.overlay => (
+        Icons.picture_in_picture_alt_rounded,
+        strings.overlayAccess,
+        strings.permissionWhyOverlay,
+        strings.overlayAccessHelp,
+      ),
+      PermissionKind.fullScreen => (
+        Icons.fullscreen_rounded,
+        strings.fullScreenAccess,
+        strings.permissionWhyFullScreen,
+        strings.fullScreenAccessHelp,
+      ),
+    };
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const Key('permission-explainer'),
+        icon: Icon(icon),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: Text(title)),
+            InfoHint(message: help),
+          ],
+        ),
+        content: Text(why),
+        actions: [
+          TextButton(
+            key: const Key('permission-explainer-decline'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(strings.notNow),
+          ),
+          FilledButton(
+            key: const Key('permission-explainer-allow'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(strings.permissionAllow),
+          ),
+        ],
+      ),
+    );
+    return agreed ?? false;
+  }
+
   /// Runs the first-launch permission sequence, then reports the outcome.
   ///
   /// Fired from the first Home page rather than from `initialize()`: the flow
@@ -294,7 +365,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       return;
     }
     _onboardingStarted = true;
-    final result = await widget.controller.runPermissionOnboarding();
+    final result = await widget.controller.runPermissionOnboarding(
+      explain: _explainPermission,
+    );
     if (!mounted) return;
     // Only worth a message when calls were the thing at stake. Silence on the
     // happy path would leave the user wondering whether anything took.

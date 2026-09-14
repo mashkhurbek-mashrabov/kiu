@@ -13,6 +13,13 @@
          unlocked and in use, the way a real incoming call does. User-granted, and the call
          still falls back to a heads-up notification when it is not granted. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Lets the first-launch flow show the one-tap battery-exemption dialog instead of dumping
+         the user in the full app list. Holding it does not exempt the app; it only makes
+         ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS legal to send, and Android still asks.
+         Google Play restricts this to a narrow set of app categories that KIU does not fall
+         into, so it is only acceptable because KIU ships outside the Play Store. Do not add a
+         Play release track without removing this first. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- KIU ships outside the Play Store, so updates are downloaded in-app and handed to the
          system installer. User-granted per app; when it is not granted the update screen routes
          to the system settings rather than failing silently. -->

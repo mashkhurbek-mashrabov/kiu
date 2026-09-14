@@ -3,6 +3,11 @@ import 'package:flutter/services.dart';
 abstract interface class BackgroundAccessGateway {
   Future<bool> isBatteryOptimizationDisabled();
   Future<void> openBatteryOptimizationSettings();
+
+  /// Shows the one-tap battery-exemption dialog, falling back to the settings
+  /// list when it cannot be launched. Returns whether the dialog itself
+  /// appeared.
+  Future<bool> requestBatteryExemption();
   Future<bool> canUseFullScreenIntent();
   Future<void> openFullScreenIntentSettings();
   Future<bool> canDrawOverlays();
@@ -29,6 +34,18 @@ class AndroidBackgroundAccessGateway implements BackgroundAccessGateway {
   @override
   Future<void> openBatteryOptimizationSettings() =>
       _channel.invokeMethod<void>('openBatteryOptimizationSettings');
+
+  @override
+  Future<bool> requestBatteryExemption() async {
+    try {
+      return await _channel.invokeMethod<bool>('requestBatteryExemption') ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
 
   @override
   Future<bool> canUseFullScreenIntent() async {

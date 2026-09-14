@@ -272,7 +272,9 @@ class AppController extends ChangeNotifier {
   /// Returns what was granted so the caller can tell the user why calls stayed
   /// off. Calls are only enabled here, never disabled: a user who turned them
   /// on by hand before this ran must not have them taken away.
-  Future<OnboardingResult> runPermissionOnboarding() async {
+  Future<OnboardingResult> runPermissionOnboarding({
+    required PermissionExplainer explain,
+  }) async {
     // Marked before the sequence rather than after. A crash or a kill partway
     // through -- the user backgrounding the app on a settings screen and never
     // returning is the ordinary case -- would otherwise replay the whole flow
@@ -282,7 +284,7 @@ class AppController extends ChangeNotifier {
     // requested, so suppress it: two asks for one permission reads as a bug.
     await _repository.markBackgroundExplainerShown();
 
-    final result = await _onboarding.run();
+    final result = await _onboarding.run(explain: explain);
     if (result.callsUsable && !settings.callsEnabled) {
       // Reuses the normal path: it persists, republishes the widget payload the
       // alarms ride on, and notifies. The permission it re-requests is already
