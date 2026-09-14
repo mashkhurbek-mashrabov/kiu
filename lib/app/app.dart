@@ -92,6 +92,7 @@ class _KiuAppState extends State<KiuApp> {
       controller: controller,
       homeRequests: widget.homeRequests,
       navigationRequests: widget.navigationRequests,
+      updateDownloader: downloader,
     );
     if (downloader == null) return browser;
     return ValueListenableBuilder<AppUpdate?>(

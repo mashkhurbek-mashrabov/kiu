@@ -168,6 +168,62 @@ void main() {
     expect(find.byKey(const Key('actions-menu')), findsOneWidget);
   });
 
+  testWidgets('an optional update is downloadable from the About section', (
+    tester,
+  ) async {
+    final installer = _FakeInstaller();
+    final checker = _FakeChecker(
+      UpdateCheckResult.answered(_update(mandatory: false)),
+    );
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: installer),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('check-updates')),
+      200,
+    );
+    await tester.pumpAndSettle();
+
+    // The row announcing the update is useless without something to press.
+    expect(find.byKey(const Key('update-now')), findsOneWidget);
+  });
+
+  testWidgets('no optional-update button when the app is current', (
+    tester,
+  ) async {
+    final checker = _FakeChecker(const UpdateCheckResult.answered(null));
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('check-updates')),
+      200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('update-now')), findsNothing);
+  });
+
   testWidgets('no update leaves the browser alone', (tester) async {
     final checker = _FakeChecker(const UpdateCheckResult.answered(null));
     final controller = await _controller(checker);
