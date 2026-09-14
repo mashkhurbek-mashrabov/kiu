@@ -2422,10 +2422,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   /// translucent pill if the frosted pass ever costs too much on a real device.
   /// Cheap here because the blurred region is only the pill, not the screen.
   ///
-  /// 12 rather than the 24 this started at: the heavier frost flattened the
+  /// 10 rather than the 24 this started at: the heavier frost flattened the
   /// page behind the bar into a wash of colour, which read as an opaque bar
   /// rather than glass. Lower sigma keeps the page legible through it.
-  static const double _navBlurSigma = 12;
+  static const double _navBlurSigma = 10;
 
   /// The floating navigation pill, modelled on Instagram's iOS bar: frosted
   /// glass over the page, fully rounded, inset from all three edges, with the
@@ -2463,47 +2463,59 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 color: colors.outlineVariant.withValues(alpha: 0.45),
               ),
             ),
-            child: SizedBox(
-              height: _navBarHeight,
-              child: Row(
-                children: [
-                  _navAction(
-                    key: const Key('nav-back'),
-                    icon: Icons.arrow_back_ios_new_rounded,
-                    label: strings.back,
-                    enabled: _canBack,
-                    onTap: _webView.goBack,
-                  ),
-                  _navAction(
-                    key: const Key('nav-home'),
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home_rounded,
-                    label: strings.home,
-                    selected: isCourseUri(_currentUri),
-                    onTap: _goCourseHome,
-                  ),
-                  _navAction(
-                    key: const Key('nav-lessons'),
-                    selectedKey: const Key('lessons-selected'),
-                    icon: Icons.event_note_outlined,
-                    selectedIcon: Icons.event_note_rounded,
-                    label: strings.scheduledLessons,
-                    selected: isHomeUri(_currentUri),
-                    onTap: _goHome,
-                  ),
-                  _navAction(
-                    key: const Key('nav-refresh'),
-                    icon: Icons.refresh_rounded,
-                    label: strings.refresh,
-                    onTap: _webView.reload,
-                  ),
-                  _navAction(
-                    key: const Key('actions-menu'),
-                    icon: Icons.menu_rounded,
-                    label: strings.settings,
-                    onTap: _openActions,
-                  ),
-                ],
+            // Material, not a bare box: InkWell paints its ripple on the
+            // nearest Material ancestor, and without one every tap in the bar
+            // is silent -- the same trap SettingsSection documents. Transparent
+            // so the glass above still shows through.
+            child: Material(
+              type: MaterialType.transparency,
+              child: SizedBox(
+                height: _navBarHeight,
+                child: Stack(
+                  children: [
+                    _selectionCapsule(),
+                    Row(
+                      children: [
+                        _navAction(
+                          key: const Key('nav-back'),
+                          icon: Icons.arrow_back_ios_new_rounded,
+                          label: strings.back,
+                          enabled: _canBack,
+                          onTap: _webView.goBack,
+                        ),
+                        _navAction(
+                          key: const Key('nav-home'),
+                          icon: Icons.home_outlined,
+                          selectedIcon: Icons.home_rounded,
+                          label: strings.home,
+                          selected: isCourseUri(_currentUri),
+                          onTap: _goCourseHome,
+                        ),
+                        _navAction(
+                          key: const Key('nav-lessons'),
+                          selectedKey: const Key('lessons-selected'),
+                          icon: Icons.event_note_outlined,
+                          selectedIcon: Icons.event_note_rounded,
+                          label: strings.scheduledLessons,
+                          selected: isHomeUri(_currentUri),
+                          onTap: _goHome,
+                        ),
+                        _navAction(
+                          key: const Key('nav-refresh'),
+                          icon: Icons.refresh_rounded,
+                          label: strings.refresh,
+                          onTap: _webView.reload,
+                        ),
+                        _navAction(
+                          key: const Key('actions-menu'),
+                          icon: Icons.menu_rounded,
+                          label: strings.settings,
+                          onTap: _openActions,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -2563,6 +2575,53 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   ///
   /// With the caption gone the filled pill is the only thing marking the
   /// current page, so it stays.
+  /// Index of the bar slot the selection capsule sits in, or null when the
+  /// current page is neither destination. Back, refresh and the menu are
+  /// actions rather than destinations, so they are never selected.
+  int? get _selectedNavIndex {
+    if (isCourseUri(_currentUri)) return 1;
+    if (isHomeUri(_currentUri)) return 2;
+    return null;
+  }
+
+  /// The selection marker, as one capsule that slides between slots rather
+  /// than a per-slot box that fades in place -- the fade gave no sense of
+  /// moving from one destination to another.
+  ///
+  /// Drawn behind the row in the bar's [Stack]. The five slots are equal
+  /// width, so slot i sits at [Alignment.x] `-1 + 2i/4`, which is what lets a
+  /// plain [AnimatedAlign] do the travel without measuring anything.
+  Widget _selectionCapsule() {
+    final index = _selectedNavIndex;
+    return Positioned.fill(
+      child: AnimatedOpacity(
+        // Fades out rather than snapping when the user lands on a page that is
+        // neither destination, so the capsule never blinks away mid-slide.
+        opacity: index == null ? 0 : 1,
+        duration: const Duration(milliseconds: 180),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment(-1 + (index ?? 1) * 2 / 4, 0),
+          child: FractionallySizedBox(
+            widthFactor: 1 / 5,
+            child: Center(
+              child: Container(
+                height: 36,
+                width: 52,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _navAction({
     required Key key,
     required IconData icon,
@@ -2577,45 +2636,51 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     return Expanded(
       child: Tooltip(
         message: label,
-        child: InkWell(
+        child: InkResponse(
           key: key,
           onTap: enabled ? onTap : null,
-          // Matches the pill: a square ripple inside a rounded bar bleeds
-          // square corners over the glass at the two ends.
-          customBorder: const StadiumBorder(),
+          // InkResponse over InkWell: a circular splash centred on the icon
+          // reads as pressing *that* button. An InkWell fills its whole slot,
+          // which on a 5-up bar looks like a slab lighting up rather than a
+          // tap. Back and refresh are not destinations and so have no capsule
+          // -- this splash is the only feedback they get, which is why they
+          // felt dead before.
+          radius: 26,
+          containedInkWell: false,
+          highlightShape: BoxShape.circle,
+          splashColor: colors.onSurface.withValues(alpha: 0.12),
+          highlightColor: colors.onSurface.withValues(alpha: 0.06),
           child: Semantics(
             selected: selected,
             button: true,
             label: label,
             child: Center(
-              child: AnimatedContainer(
+              // Marks the selected slot for tests and screen readers; the
+              // visible capsule is drawn by _selectionCapsule so it can slide
+              // between slots instead of fading in place.
+              child: SizedBox(
                 key: selected ? selectedKey : null,
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  // A lighter capsule rather than a filled container: over
-                  // frosted glass a solid secondaryContainer reads as a patch
-                  // stuck on the bar instead of part of it.
-                  color: selected
-                      ? colors.onSurface.withValues(alpha: 0.10)
-                      : null,
-                  borderRadius: BorderRadius.circular(_navBarHeight / 2),
-                ),
-                child: Icon(
-                  // Instagram fills the icon for the current tab and leaves the
-                  // rest as outlines; actions that are not a destination (back,
-                  // refresh) have no filled variant and pass none.
-                  selected ? (selectedIcon ?? icon) : icon,
-                  size: 24,
-                  color: enabled
-                      ? selected
-                            ? colors.onSurface
-                            : colors.onSurfaceVariant
-                      : colors.onSurface.withValues(alpha: 0.38),
+                height: 36,
+                width: 52,
+                child: Center(
+                  child: AnimatedSwitcher(
+                    // Cross-fades outline to filled as the capsule arrives,
+                    // rather than swapping the glyph in one frame.
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      // Instagram fills the icon for the current tab and leaves
+                      // the rest as outlines; actions that are not a
+                      // destination have no filled variant and pass none.
+                      selected ? (selectedIcon ?? icon) : icon,
+                      key: ValueKey(selected),
+                      size: 24,
+                      color: enabled
+                          ? selected
+                                ? colors.onSurface
+                                : colors.onSurfaceVariant
+                          : colors.onSurface.withValues(alpha: 0.38),
+                    ),
+                  ),
                 ),
               ),
             ),

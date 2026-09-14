@@ -90,6 +90,41 @@ void main() {
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
   });
 
+  testWidgets('the selection capsule slides to the slot it marks', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Opens on the lessons page, so the capsule starts over that slot.
+    Rect capsule() => tester.getRect(
+      find.descendant(
+        of: find.byKey(const Key('nav-bar')),
+        matching: find.byType(FractionallySizedBox),
+      ),
+    );
+    final lessonsSlot = tester.getRect(find.byKey(const Key('nav-lessons')));
+    expect(capsule().center.dx, closeTo(lessonsSlot.center.dx, 1));
+
+    // Moving to a course page has to animate it across, not jump it: mid
+    // flight it sits between the two slots.
+    navigateTo?.call('https://uz.do-kazankiu.ru/uz/profile/my-courses/2');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    final homeSlot = tester.getRect(find.byKey(const Key('nav-home')));
+    final midFlight = capsule().center.dx;
+    expect(midFlight, lessThan(lessonsSlot.center.dx));
+    expect(midFlight, greaterThan(homeSlot.center.dx));
+
+    await tester.pumpAndSettle();
+    expect(capsule().center.dx, closeTo(homeSlot.center.dx, 1));
+  });
+
   testWidgets('the loading bar stays clear of the floating nav pill', (
     tester,
   ) async {
