@@ -797,11 +797,11 @@ abstract class AppLocalizations {
   /// **'Илова ҳақида'**
   String get about;
 
-  /// No description provided for @markWatchedShort.
+  /// No description provided for @markWatchedHint.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Кўрилган'**
-  String get markWatchedShort;
+  /// **'Очиқ турган дарсни LMS\'да кўрилган деб белгилайди. Видео охиригача ўйнатилмаган бўлса ҳам ишлайди.'**
+  String get markWatchedHint;
 
   /// No description provided for @openLink.
   ///
