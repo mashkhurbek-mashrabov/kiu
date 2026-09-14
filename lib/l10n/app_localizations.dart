@@ -964,6 +964,54 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Дарс қўнғироқлари ёқилди.'**
   String get callsEnabledAfterOnboarding;
+
+  /// No description provided for @notNow.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳозир эмас'**
+  String get notNow;
+
+  /// No description provided for @permissionAllow.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Рухсат бериш'**
+  String get permissionAllow;
+
+  /// No description provided for @permissionWhyBattery.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'KIU ёпилгандан кейин ҳам дарс жадвали янгиланиб туриши учун.'**
+  String get permissionWhyBattery;
+
+  /// No description provided for @permissionWhyExactTiming.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Эслатмалар кечикмасдан, аниқ вақтида келиши учун.'**
+  String get permissionWhyExactTiming;
+
+  /// No description provided for @permissionWhyOverlay.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Телефондан фойдаланаётганингизда дарс қўнғироғи очилиши учун.'**
+  String get permissionWhyOverlay;
+
+  /// No description provided for @permissionWhyFullScreen.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс қўнғироғи қулфланган экранда кўриниши учун.'**
+  String get permissionWhyFullScreen;
+
+  /// No description provided for @permissionWhyNotifications.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'KIU дарс бошланишидан олдин хабар бериши учун.'**
+  String get permissionWhyNotifications;
+
+  /// No description provided for @permissionNotificationsHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Барча эслатмалар ва дарс қўнғироқлари билдиришнома сифатида келади. Бу рухсатсиз KIU сизга ҳеч қандай хабар юбора олмайди.'**
+  String get permissionNotificationsHelp;
 }
 
 class _AppLocalizationsDelegate

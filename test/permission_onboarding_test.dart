@@ -19,6 +19,22 @@ class ImmediateResumeWaiter implements ResumeWaiter {
   Future<void> waitForResume() async => waits++;
 }
 
+/// Stands in for a user who taps Allow on every explainer.
+Future<bool> agreeAll(PermissionKind permission) async => true;
+
+/// Stands in for a user who taps "Not now" on every explainer.
+Future<bool> declineAll(PermissionKind permission) async => false;
+
+/// Records which explainers were shown, in order.
+class RecordingExplainer {
+  final List<PermissionKind> shown = [];
+
+  Future<bool> call(PermissionKind permission) async {
+    shown.add(permission);
+    return true;
+  }
+}
+
 Future<AppController> createController({
   required FakeNotificationGateway notifications,
   required FakeBackgroundAccessGateway backgroundAccess,
@@ -46,6 +62,8 @@ Future<AppController> createController({
       notifications: notifications,
       backgroundAccess: backgroundAccess,
       resumeWaiter: resumeWaiter,
+      // No real pause in tests; the delay is asserted separately.
+      settleDelay: Duration.zero,
     ),
   );
 }
@@ -68,7 +86,9 @@ void main() {
       );
 
       expect(controller.needsPermissionOnboarding, isTrue);
-      final result = await controller.runPermissionOnboarding();
+      final result = await controller.runPermissionOnboarding(
+        explain: agreeAll,
+      );
 
       expect(result.callsUsable, isTrue);
       expect(controller.settings.callsEnabled, isTrue);
@@ -87,7 +107,7 @@ void main() {
       resumeWaiter: ImmediateResumeWaiter(),
     );
 
-    final result = await controller.runPermissionOnboarding();
+    final result = await controller.runPermissionOnboarding(explain: agreeAll);
 
     expect(result.overlay, isFalse);
     expect(result.callsUsable, isFalse);
@@ -103,7 +123,7 @@ void main() {
       resumeWaiter: ImmediateResumeWaiter(),
     );
 
-    final result = await controller.runPermissionOnboarding();
+    final result = await controller.runPermissionOnboarding(explain: agreeAll);
 
     expect(result.notifications, isFalse);
     expect(result.callsUsable, isFalse);
@@ -124,8 +144,9 @@ void main() {
         resumeWaiter: waiter,
       );
 
-      await controller.runPermissionOnboarding();
+      await controller.runPermissionOnboarding(explain: agreeAll);
 
+      expect(access.batteryDialogShown, 0);
       expect(access.batterySettingsOpened, 0);
       expect(access.overlaySettingsOpened, 0);
       expect(access.fullScreenSettingsOpened, 0);
@@ -145,11 +166,13 @@ void main() {
       resumeWaiter: waiter,
     );
 
-    await controller.runPermissionOnboarding();
+    await controller.runPermissionOnboarding(explain: agreeAll);
 
     // One wait per opened screen: without them the activities stack and the
     // user lands on the last one with the rest hidden behind it.
-    expect(access.batterySettingsOpened, 1);
+    // Battery uses its one-tap dialog, not the app list the other two fall to.
+    expect(access.batteryDialogShown, 1);
+    expect(access.batterySettingsOpened, 0);
     expect(access.overlaySettingsOpened, 1);
     expect(access.fullScreenSettingsOpened, 1);
     expect(waiter.waits, 3);
@@ -163,7 +186,7 @@ void main() {
     );
 
     expect(controller.needsPermissionOnboarding, isTrue);
-    await controller.runPermissionOnboarding();
+    await controller.runPermissionOnboarding(explain: agreeAll);
     expect(controller.needsPermissionOnboarding, isFalse);
 
     // A fresh controller over the same storage is the next launch.
@@ -182,7 +205,10 @@ void main() {
       resumeWaiter: ImmediateResumeWaiter(),
     );
 
-    await expectLater(controller.runPermissionOnboarding(), throwsStateError);
+    await expectLater(
+      controller.runPermissionOnboarding(explain: agreeAll),
+      throwsStateError,
+    );
 
     // The marker is what stops a crash mid-flow from replaying the whole
     // sequence on every single launch.
@@ -196,12 +222,152 @@ void main() {
       resumeWaiter: ImmediateResumeWaiter(),
     );
 
-    await controller.runPermissionOnboarding();
+    await controller.runPermissionOnboarding(explain: agreeAll);
 
     expect(
       controller.shouldShowBackgroundExplainer,
       isFalse,
       reason: 'the flow already asked for the battery permission',
+    );
+  });
+
+  test('declining an explainer opens nothing for that permission', () async {
+    final access = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false
+      ..overlaysAllowed = false
+      ..fullScreenIntentAllowed = false;
+    final waiter = ImmediateResumeWaiter();
+    final controller = await createController(
+      notifications: FakeNotificationGateway(),
+      backgroundAccess: access,
+      resumeWaiter: waiter,
+    );
+
+    final result = await controller.runPermissionOnboarding(
+      explain: declineAll,
+    );
+
+    // "Not now" has to mean nothing opens -- not "the screen appears anyway".
+    expect(access.batteryDialogShown, 0);
+    expect(access.batterySettingsOpened, 0);
+    expect(access.overlaySettingsOpened, 0);
+    expect(access.fullScreenSettingsOpened, 0);
+    expect(waiter.waits, 0);
+    expect(result.callsUsable, isFalse);
+  });
+
+  test('a decline skips only that permission, not the rest', () async {
+    final access = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false
+      ..overlaysAllowed = false
+      ..fullScreenIntentAllowed = false;
+    final controller = await createController(
+      notifications: FakeNotificationGateway(),
+      backgroundAccess: access,
+      resumeWaiter: ImmediateResumeWaiter(),
+    );
+
+    await controller.runPermissionOnboarding(
+      explain: (permission) async => permission != PermissionKind.battery,
+    );
+
+    expect(access.batteryDialogShown, 0, reason: 'declined');
+    expect(access.overlaySettingsOpened, 1, reason: 'still offered');
+    expect(access.fullScreenSettingsOpened, 1, reason: 'still offered');
+  });
+
+  test('explains every missing permission, in order', () async {
+    final explainer = RecordingExplainer();
+    final controller = await createController(
+      notifications: FakeNotificationGateway()..exact = false,
+      backgroundAccess: FakeBackgroundAccessGateway()
+        ..batteryOptimizationDisabled = false
+        ..overlaysAllowed = false
+        ..fullScreenIntentAllowed = false,
+      resumeWaiter: ImmediateResumeWaiter(),
+    );
+
+    await controller.runPermissionOnboarding(explain: explainer.call);
+
+    expect(explainer.shown, [
+      PermissionKind.notifications,
+      PermissionKind.exactTiming,
+      PermissionKind.battery,
+      PermissionKind.overlay,
+      PermissionKind.fullScreen,
+    ]);
+  });
+
+  test('never explains an already-granted permission', () async {
+    final explainer = RecordingExplainer();
+    final controller = await createController(
+      notifications: FakeNotificationGateway(),
+      backgroundAccess: FakeBackgroundAccessGateway(),
+      resumeWaiter: ImmediateResumeWaiter(),
+    );
+
+    await controller.runPermissionOnboarding(explain: explainer.call);
+
+    // Notifications are always explained: Android reports no "already asked"
+    // state, so the flow cannot know it is redundant.
+    expect(explainer.shown, [PermissionKind.notifications]);
+  });
+
+  test('the settings row still opens the list, not the dialog', () async {
+    final access = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false;
+    final controller = await createController(
+      notifications: FakeNotificationGateway(),
+      backgroundAccess: access,
+      resumeWaiter: ImmediateResumeWaiter(),
+    );
+
+    await controller.openBatteryOptimizationSettings();
+
+    // Android shows the dialog at most once per app; after a denial it becomes
+    // a no-op. The settings row has to keep working after that, so it stays on
+    // the list, which always renders.
+    expect(access.batterySettingsOpened, 1);
+    expect(access.batteryDialogShown, 0);
+  });
+
+  test('asks nothing else until the settle delay has passed', () async {
+    final explainer = RecordingExplainer();
+    final onboarding = PermissionOnboarding(
+      notifications: FakeNotificationGateway()..exact = false,
+      backgroundAccess: FakeBackgroundAccessGateway()
+        ..batteryOptimizationDisabled = false
+        ..overlaysAllowed = false
+        ..fullScreenIntentAllowed = false,
+      resumeWaiter: ImmediateResumeWaiter(),
+      settleDelay: const Duration(milliseconds: 120),
+    );
+
+    final running = onboarding.run(explain: explainer.call);
+
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(explainer.shown, [
+      PermissionKind.notifications,
+    ], reason: 'only notifications may be asked before the settle delay');
+
+    await running;
+    expect(
+      explainer.shown.length,
+      greaterThan(1),
+      reason: 'the rest resume once the delay elapses',
+    );
+  });
+
+  test('defaults the settle delay to 15 seconds', () {
+    // The delay is the whole point of the pause; a default that silently
+    // shrank would make the flow an interrogation again.
+    expect(
+      PermissionOnboarding(
+        notifications: FakeNotificationGateway(),
+        backgroundAccess: FakeBackgroundAccessGateway(),
+        resumeWaiter: ImmediateResumeWaiter(),
+      ).settleDelay,
+      const Duration(seconds: 15),
     );
   });
 
@@ -214,7 +380,7 @@ void main() {
     );
     await controller.setCallsEnabled(true);
 
-    await controller.runPermissionOnboarding();
+    await controller.runPermissionOnboarding(explain: agreeAll);
 
     expect(controller.settings.callsEnabled, isTrue);
   });

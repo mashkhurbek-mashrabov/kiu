@@ -467,4 +467,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get callsEnabledAfterOnboarding => 'Lesson calls are on.';
+
+  @override
+  String get notNow => 'Not now';
+
+  @override
+  String get permissionAllow => 'Allow';
+
+  @override
+  String get permissionWhyBattery =>
+      'So your schedule keeps updating after you close KIU.';
+
+  @override
+  String get permissionWhyExactTiming =>
+      'So reminders arrive at the exact minute, not minutes late.';
+
+  @override
+  String get permissionWhyOverlay =>
+      'So a lesson call can open while you are using your phone.';
+
+  @override
+  String get permissionWhyFullScreen =>
+      'So a lesson call can appear over the lock screen.';
+
+  @override
+  String get permissionWhyNotifications =>
+      'So KIU can tell you before a lesson starts.';
+
+  @override
+  String get permissionNotificationsHelp =>
+      'Every reminder and lesson call arrives as a notification. Without this permission KIU cannot alert you about anything, even while the app is open.';
 }

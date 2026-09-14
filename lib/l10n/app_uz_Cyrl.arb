@@ -192,5 +192,13 @@
   "installPermissionNeeded": "Ўрнатишга рухсат керак",
   "installPermissionHelp": "Android илова ўзини янгилаши учун «Номаълум иловаларни ўрнатиш» рухсатини сўрайди. Тизим созламалари очилади.",
   "callsDisabledMissingPermission": "Дарс қўнғироқлари ёқилмади — керакли рухсат берилмади. Созламалар → Рухсатлар бўлимидан ёқинг.",
-  "callsEnabledAfterOnboarding": "Дарс қўнғироқлари ёқилди."
+  "callsEnabledAfterOnboarding": "Дарс қўнғироқлари ёқилди.",
+  "notNow": "Ҳозир эмас",
+  "permissionAllow": "Рухсат бериш",
+  "permissionWhyBattery": "KIU ёпилгандан кейин ҳам дарс жадвали янгиланиб туриши учун.",
+  "permissionWhyExactTiming": "Эслатмалар кечикмасдан, аниқ вақтида келиши учун.",
+  "permissionWhyOverlay": "Телефондан фойдаланаётганингизда дарс қўнғироғи очилиши учун.",
+  "permissionWhyFullScreen": "Дарс қўнғироғи қулфланган экранда кўриниши учун.",
+  "permissionWhyNotifications": "KIU дарс бошланишидан олдин хабар бериши учун.",
+  "permissionNotificationsHelp": "Барча эслатмалар ва дарс қўнғироқлари билдиришнома сифатида келади. Бу рухсатсиз KIU сизга ҳеч қандай хабар юбора олмайди."
 }

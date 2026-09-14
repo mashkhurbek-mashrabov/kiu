@@ -468,6 +468,36 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get callsEnabledAfterOnboarding => 'Dars qo‘ng‘iroqlari yoqildi.';
+
+  @override
+  String get notNow => 'Hozir emas';
+
+  @override
+  String get permissionAllow => 'Ruxsat berish';
+
+  @override
+  String get permissionWhyBattery =>
+      'KIU yopilgandan keyin ham dars jadvali yangilanib turishi uchun.';
+
+  @override
+  String get permissionWhyExactTiming =>
+      'Eslatmalar kechikmasdan, aniq vaqtida kelishi uchun.';
+
+  @override
+  String get permissionWhyOverlay =>
+      'Telefondan foydalanayotganingizda dars qo‘ng‘irog‘i ochilishi uchun.';
+
+  @override
+  String get permissionWhyFullScreen =>
+      'Dars qo‘ng‘irog‘i qulflangan ekranda ko‘rinishi uchun.';
+
+  @override
+  String get permissionWhyNotifications =>
+      'KIU dars boshlanishidan oldin xabar berishi uchun.';
+
+  @override
+  String get permissionNotificationsHelp =>
+      'Barcha eslatmalar va dars qo‘ng‘iroqlari bildirishnoma sifatida keladi. Bu ruxsatsiz KIU sizga hech qanday xabar yubora olmaydi.';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -933,4 +963,34 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get callsEnabledAfterOnboarding => 'Дарс қўнғироқлари ёқилди.';
+
+  @override
+  String get notNow => 'Ҳозир эмас';
+
+  @override
+  String get permissionAllow => 'Рухсат бериш';
+
+  @override
+  String get permissionWhyBattery =>
+      'KIU ёпилгандан кейин ҳам дарс жадвали янгиланиб туриши учун.';
+
+  @override
+  String get permissionWhyExactTiming =>
+      'Эслатмалар кечикмасдан, аниқ вақтида келиши учун.';
+
+  @override
+  String get permissionWhyOverlay =>
+      'Телефондан фойдаланаётганингизда дарс қўнғироғи очилиши учун.';
+
+  @override
+  String get permissionWhyFullScreen =>
+      'Дарс қўнғироғи қулфланган экранда кўриниши учун.';
+
+  @override
+  String get permissionWhyNotifications =>
+      'KIU дарс бошланишидан олдин хабар бериши учун.';
+
+  @override
+  String get permissionNotificationsHelp =>
+      'Барча эслатмалар ва дарс қўнғироқлари билдиришнома сифатида келади. Бу рухсатсиз KIU сизга ҳеч қандай хабар юбора олмайди.';
 }
