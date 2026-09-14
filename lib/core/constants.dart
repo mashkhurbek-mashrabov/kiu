@@ -11,9 +11,9 @@ const String backgroundTaskUniqueName = 'kiu.periodicScheduleSync';
 const String latestReleaseApiUrl =
     'https://api.github.com/repos/mashkhurbek-mashrabov/kiu/releases/latest';
 
-/// Where users reach the developer with feedback or a problem. Reached from
-/// both the About section and Useful links, so it lives here rather than being
-/// spelled out at each call site.
+/// Where users reach the developer with feedback or a problem. Shown once, in
+/// the main settings sheet — kept here so the handle and the URL cannot drift
+/// apart from each other.
 const String contactHandle = '@developer_aka';
 const String contactUrl = 'https://t.me/developer_aka';
 

@@ -568,9 +568,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                                   _openUsefulLinks();
                                 },
                               ),
-                              // Also listed inside Useful links, but questions
-                              // and problem reports are common enough to earn
-                              // a row in the main sheet rather than two taps.
+                              // The only place this link lives. It used to be
+                              // duplicated inside Useful links, which put the
+                              // same destination two taps away from itself.
                               SettingsRow(
                                 key: const Key('contact-developer'),
                                 icon: Icons.telegram_rounded,
@@ -1940,18 +1940,6 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     trailing: const Icon(Icons.open_in_new_rounded, size: 20),
                     onTap: () => _launchExternal(link.$2),
                   ),
-              ],
-            ),
-            SettingsSection(
-              title: strings.feedback,
-              icon: Icons.chat_bubble_outline_rounded,
-              children: [
-                SettingsRow(
-                  icon: Icons.telegram_rounded,
-                  title: contactHandle,
-                  trailing: const Icon(Icons.open_in_new_rounded, size: 20),
-                  onTap: () => _launchExternal(contactUrl),
-                ),
               ],
             ),
           ],

@@ -308,6 +308,34 @@ void main() {
     });
   });
 
+  testWidgets('the contact link is listed once, in the main sheet', (
+    tester,
+  ) async {
+    // It used to appear both here and inside Useful links, which put the same
+    // destination two taps away from itself.
+    final checker = _FakeChecker(const UpdateCheckResult.answered(null));
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(controller: controller, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('contact-developer')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('useful-links-menu')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(contactHandle),
+      findsNothing,
+      reason: 'Useful links must not repeat the contact row',
+    );
+  });
+
   testWidgets('the gate closes an open settings sheet', (tester) async {
     // The gate swaps the widget behind `home:`, which does not pop routes: an
     // open settings sheet is a pushed route and used to stay on top of the
