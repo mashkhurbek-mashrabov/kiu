@@ -90,6 +90,66 @@ void main() {
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
   });
 
+  testWidgets('a held action renders active and clears on release', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    double scaleOf(String key) => tester
+        .widget<AnimatedScale>(
+          find.descendant(
+            of: find.byKey(Key(key)),
+            matching: find.byType(AnimatedScale),
+          ),
+        )
+        .scale;
+
+    // Refresh carries no capsule, so this shrink is its only feedback.
+    expect(scaleOf('nav-refresh'), 1);
+
+    final press = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('nav-refresh'))),
+    );
+    await tester.pump();
+    expect(scaleOf('nav-refresh'), lessThan(1));
+
+    await press.up();
+    await tester.pumpAndSettle();
+    expect(scaleOf('nav-refresh'), 1);
+  });
+
+  testWidgets('a disabled action never renders active', (tester) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Back starts disabled with no history behind it.
+    final press = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('nav-back'))),
+    );
+    await tester.pump();
+    final scale = tester
+        .widget<AnimatedScale>(
+          find.descendant(
+            of: find.byKey(const Key('nav-back')),
+            matching: find.byType(AnimatedScale),
+          ),
+        )
+        .scale;
+    expect(scale, 1);
+    await press.up();
+  });
+
   testWidgets('the selection capsule slides to the slot it marks', (
     tester,
   ) async {

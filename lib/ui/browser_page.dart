@@ -50,6 +50,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   bool _onboardingStarted = false;
   bool _checking = false;
 
+  /// Which bar action is currently held down, so it can render as active.
+  /// A splash was too slow to read on a quick tap -- see [_navAction].
+  Key? _pressedNavKey;
+
   /// Outcome of the last manual update check, shown in the row itself. Cleared
   /// when the sheet reopens so a stale answer never reads as a fresh one.
   String? _checkResult;
@@ -2463,10 +2467,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 color: colors.outlineVariant.withValues(alpha: 0.45),
               ),
             ),
-            // Material, not a bare box: InkWell paints its ripple on the
-            // nearest Material ancestor, and without one every tap in the bar
-            // is silent -- the same trap SettingsSection documents. Transparent
-            // so the glass above still shows through.
+            // The tooltips each action carries resolve their text style from
+            // the nearest Material ancestor. Transparent so the glass above
+            // still shows through -- nothing here paints ink any more.
             child: Material(
               type: MaterialType.transparency,
               child: SizedBox(
@@ -2476,9 +2479,13 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                     _selectionCapsule(),
                     Row(
                       children: [
+                        // Rounded variants throughout: Instagram's glyphs are
+                        // uniformly round-joined, so a boxy calendar or a
+                        // square-ended menu reads as a different icon set
+                        // sitting in the same bar.
                         _navAction(
                           key: const Key('nav-back'),
-                          icon: Icons.arrow_back_ios_new_rounded,
+                          icon: Icons.chevron_left_rounded,
                           label: strings.back,
                           enabled: _canBack,
                           onTap: _webView.goBack,
@@ -2494,8 +2501,8 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                         _navAction(
                           key: const Key('nav-lessons'),
                           selectedKey: const Key('lessons-selected'),
-                          icon: Icons.event_note_outlined,
-                          selectedIcon: Icons.event_note_rounded,
+                          icon: Icons.calendar_today_rounded,
+                          selectedIcon: Icons.calendar_month_rounded,
                           label: strings.scheduledLessons,
                           selected: isHomeUri(_currentUri),
                           onTap: _goHome,
@@ -2633,52 +2640,72 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     bool selected = false,
   }) {
     final colors = Theme.of(context).colorScheme;
+    final pressed = _pressedNavKey == key;
     return Expanded(
-      child: Tooltip(
-        message: label,
-        child: InkResponse(
-          key: key,
+      // No ink. A splash animates outward over ~200ms, which on a tap the user
+      // has already lifted from reads as a smear *after* the fact rather than
+      // a button responding. Instead the icon goes active the moment the
+      // finger lands: darker and a touch smaller, restored on release.
+      // GestureDetector rather than InkResponse so nothing is painted on the
+      // Material at all, and outside the Tooltip so the tooltip's own
+      // recognizer cannot win the pointer and swallow onTapDown.
+      child: Listener(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        // Listener, not GestureDetector's onTapDown: the tap recognizer only
+        // reports a press once it wins the gesture arena, which the tooltip's
+        // own recognizer delays by the ~100ms tap deadline. A raw pointer
+        // event lands on the first frame, which is the whole point here.
+        onPointerDown: enabled
+            ? (_) => setState(() => _pressedNavKey = key)
+            : null,
+        onPointerUp: enabled ? (_) => _clearNavPress() : null,
+        onPointerCancel: enabled ? (_) => _clearNavPress() : null,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: enabled ? onTap : null,
-          // InkResponse over InkWell: a circular splash centred on the icon
-          // reads as pressing *that* button. An InkWell fills its whole slot,
-          // which on a 5-up bar looks like a slab lighting up rather than a
-          // tap. Back and refresh are not destinations and so have no capsule
-          // -- this splash is the only feedback they get, which is why they
-          // felt dead before.
-          radius: 26,
-          containedInkWell: false,
-          highlightShape: BoxShape.circle,
-          splashColor: colors.onSurface.withValues(alpha: 0.12),
-          highlightColor: colors.onSurface.withValues(alpha: 0.06),
-          child: Semantics(
-            selected: selected,
-            button: true,
-            label: label,
-            child: Center(
-              // Marks the selected slot for tests and screen readers; the
-              // visible capsule is drawn by _selectionCapsule so it can slide
-              // between slots instead of fading in place.
-              child: SizedBox(
-                key: selected ? selectedKey : null,
-                height: 36,
-                width: 52,
-                child: Center(
-                  child: AnimatedSwitcher(
-                    // Cross-fades outline to filled as the capsule arrives,
-                    // rather than swapping the glyph in one frame.
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      // Instagram fills the icon for the current tab and leaves
-                      // the rest as outlines; actions that are not a
-                      // destination have no filled variant and pass none.
-                      selected ? (selectedIcon ?? icon) : icon,
-                      key: ValueKey(selected),
-                      size: 24,
-                      color: enabled
-                          ? selected
-                                ? colors.onSurface
-                                : colors.onSurfaceVariant
-                          : colors.onSurface.withValues(alpha: 0.38),
+          // Covers the pointer leaving the button before release, which sends
+          // no pointer-up here and would otherwise leave it stuck active.
+          onTapCancel: enabled ? _clearNavPress : null,
+          child: Tooltip(
+            message: label,
+            child: Semantics(
+              selected: selected,
+              button: true,
+              label: label,
+              child: Center(
+                // Marks the selected slot for tests and screen readers; the
+                // visible capsule is drawn by _selectionCapsule so it can slide
+                // between slots instead of fading in place.
+                child: SizedBox(
+                  key: selected ? selectedKey : null,
+                  height: 36,
+                  width: 52,
+                  child: Center(
+                    child: AnimatedScale(
+                      // Fast enough to land while the finger is still down; the
+                      // release animates back over the same span.
+                      scale: pressed ? 0.86 : 1,
+                      duration: const Duration(milliseconds: 90),
+                      curve: Curves.easeOut,
+                      child: AnimatedSwitcher(
+                        // Cross-fades outline to filled as the capsule arrives,
+                        // rather than swapping the glyph in one frame.
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          // Instagram fills the icon for the current tab and
+                          // leaves the rest as outlines; actions that are not a
+                          // destination have no filled variant and pass none.
+                          selected ? (selectedIcon ?? icon) : icon,
+                          key: ValueKey(selected),
+                          size: 24,
+                          color: !enabled
+                              ? colors.onSurface.withValues(alpha: 0.38)
+                              : pressed || selected
+                              ? colors.onSurface
+                              : colors.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -2688,6 +2715,12 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  void _clearNavPress() {
+    if (_pressedNavKey != null && mounted) {
+      setState(() => _pressedNavKey = null);
+    }
   }
 }
 
