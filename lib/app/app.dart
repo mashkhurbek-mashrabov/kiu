@@ -9,15 +9,6 @@ import '../ui/browser_page.dart';
 import '../ui/update_gate.dart';
 import 'app_controller.dart';
 
-/// Messenger for snack bars raised from inside a modal sheet.
-///
-/// `ScaffoldMessenger.of(context)` inside a bottom sheet resolves to the
-/// sheet's own messenger, so the bar queues behind the modal route and only
-/// surfaces once the user backs out — long after the action that caused it.
-/// Routing through the root messenger shows it over whatever is on screen.
-final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-
 class KiuApp extends StatelessWidget {
   const KiuApp({
     super.key,
@@ -39,7 +30,6 @@ class KiuApp extends StatelessWidget {
     animation: controller,
     builder: (context, _) => MaterialApp(
       title: 'KIU',
-      scaffoldMessengerKey: rootMessengerKey,
       debugShowCheckedModeBanner: false,
       locale: controller.settings.locale,
       supportedLocales: AppLocalizations.supportedLocales,

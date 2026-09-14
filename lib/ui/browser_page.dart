@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
-import '../app/app.dart';
 import '../app/app_controller.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
@@ -48,6 +47,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   bool _fullscreenOpen = false;
   bool _backgroundPromptOpen = false;
   bool _checking = false;
+
+  /// Outcome of the last manual update check, shown in the row itself. Cleared
+  /// when the sheet reopens so a stale answer never reads as a fresh one.
+  String? _checkResult;
   double _pullDistance = 0;
   Timer? _pullWatchdog;
   Completer<Map<String, dynamic>>? _markCompleter;
@@ -428,12 +431,18 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   /// touches once during setup sinks below it.
   Future<void> _openActions() async {
     var selected = widget.controller.settings.playbackRate;
+    // A result from a previous visit would otherwise read as the answer to a
+    // check the user has not run yet.
+    _checkResult = null;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
           final settings = widget.controller.settings;
+          // Read before SafeArea consumes it, so the scroll view can still pad
+          // for the system bar; inside, viewPadding is already zero.
+          final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
           return SafeArea(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -453,7 +462,13 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ),
                   Flexible(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      // Sections carry no bottom padding of their own, so the
+                      // last row would end flush with the scroll extent and be
+                      // clipped by the sheet's rounded edge -- on a short
+                      // screen it could not be tapped at all. The system-bar
+                      // inset is added on top because SafeArea sizes the sheet
+                      // without padding this scroll view.
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 36 + bottomInset),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
@@ -1565,13 +1580,15 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
             key: const Key('check-updates'),
             icon: Icons.system_update_rounded,
             title: strings.checkForUpdates,
-            value: _checking
-                ? strings.checking
-                : strings.lastChecked(
-                    lastChecked == null
-                        ? strings.never
-                        : DateFormat('yyyy-MM-dd HH:mm').format(lastChecked),
-                  ),
+            value: switch ((_checking, _checkResult)) {
+              (true, _) => strings.checking,
+              (_, final result?) => result,
+              _ => strings.lastChecked(
+                lastChecked == null
+                    ? strings.never
+                    : DateFormat('dd.MM.yyyy HH:mm').format(lastChecked),
+              ),
+            },
             trailing: _checking
                 ? const SizedBox(
                     width: 20,
@@ -1590,23 +1607,17 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     setSheetState(() => _checking = true);
     await widget.controller.checkForUpdate(force: true);
     if (!mounted) return;
-    setSheetState(() => _checking = false);
     final update = widget.controller.availableUpdate.value;
-    // A mandatory update replaces the whole tree, so the sheet is already gone
-    // and a snack bar would have nowhere to land.
-    if (update != null && update.mandatory) return;
-    // Raised on the root messenger, not this sheet's: a bar shown from inside
-    // a modal route waits for the sheet to close, so the user saw the answer
-    // only after backing out and could not tell what it referred to.
-    rootMessengerKey.currentState
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            update == null ? strings.upToDate : strings.updateAvailable,
-          ),
-        ),
-      );
+    setSheetState(() {
+      _checking = false;
+      // Shown in the row rather than as a snack bar. The sheet is 88% of the
+      // screen and a snack bar renders at the very bottom, so on a short
+      // device it came up *behind* the sheet and the user saw nothing until
+      // they backed out -- by which point it no longer explained itself.
+      _checkResult = update == null
+          ? strings.upToDate
+          : strings.updateAvailable;
+    });
   }
 
   /// Sync status line.
