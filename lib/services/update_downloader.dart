@@ -14,6 +14,15 @@ typedef UpdateDownloadProgress = ({
 });
 
 abstract interface class ApkInstaller {
+  /// The directory the APK may be written to.
+  ///
+  /// Must be Android's `cacheDir`: `Directory.systemTemp` resolves to `/tmp`,
+  /// which does not exist on Android, so writing there throws and every real
+  /// download fails with an unhelpful error. It is also the directory the
+  /// FileProvider's `<cache-path>` exposes, so the installer can read the
+  /// result.
+  Future<String?> cacheDirectory();
+
   Future<bool> canInstallPackages();
   Future<void> openInstallPermissionSettings();
   Future<void> installApk(String path);
@@ -103,8 +112,18 @@ class UpdateDownloader {
       total: update.apkSize,
     );
 
-    final directory = _cacheDirectory ?? Directory.systemTemp;
-    final file = File('${directory.path}/update.apk');
+    // Asked of the platform rather than defaulted to Directory.systemTemp,
+    // which is /tmp -- a path that does not exist on Android.
+    final resolved =
+        _cacheDirectory ??
+        switch (await _installer.cacheDirectory()) {
+          final path? when path.isNotEmpty => Directory(path),
+          _ => null,
+        };
+    if (resolved == null) {
+      throw const FileSystemException('no cache directory for the update');
+    }
+    final file = File('${resolved.path}/update.apk');
     // A partial file from an interrupted run would otherwise be appended to,
     // producing an APK the installer rejects with an opaque parse error.
     if (file.existsSync()) await file.delete();

@@ -48,6 +48,9 @@ class _FakeInstaller implements ApkInstaller {
   final List<String> installed = [];
 
   @override
+  Future<String?> cacheDirectory() async => null;
+
+  @override
   Future<bool> canInstallPackages() async => allowed;
 
   @override

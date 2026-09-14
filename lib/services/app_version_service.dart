@@ -56,6 +56,10 @@ class AndroidAppVersionProvider implements AppVersionProvider {
 /// Drives the system package installer over the shared [platformChannel].
 class AndroidApkInstaller implements ApkInstaller {
   @override
+  Future<String?> cacheDirectory() =>
+      platformChannel.invokeMethod<String>('getUpdateCacheDir');
+
+  @override
   Future<bool> canInstallPackages() async =>
       await platformChannel.invokeMethod<bool>('canInstallPackages') ?? false;
 

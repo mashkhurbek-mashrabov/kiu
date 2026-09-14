@@ -133,6 +133,13 @@ class MainActivity : FlutterActivity() {
                         ),
                     )
                 }
+                "getUpdateCacheDir" -> {
+                    // Dart's Directory.systemTemp resolves to /tmp, which does
+                    // not exist on Android -- writing there throws. The cache
+                    // dir is also what the FileProvider's <cache-path> exposes,
+                    // so the installer can read what we download.
+                    result.success(cacheDir.absolutePath)
+                }
                 "canInstallPackages" -> {
                     result.success(
                         Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||

@@ -16,6 +16,15 @@ class _RecordingInstaller implements ApkInstaller {
   final List<String> installed = [];
   int permissionPrompts = 0;
 
+  String? cacheDir;
+  int cacheDirectoryCalls = 0;
+
+  @override
+  Future<String?> cacheDirectory() async {
+    cacheDirectoryCalls++;
+    return cacheDir;
+  }
+
   @override
   Future<bool> canInstallPackages() async => allowed;
 
@@ -223,6 +232,60 @@ void main() {
     expect(downloader.progress.value.stage, UpdateDownloadStage.idle);
     downloader.dispose();
   });
+
+  // Regression: the downloader used to default to Directory.systemTemp, which
+  // is /tmp -- a path that does not exist on Android. Every real download
+  // failed with an unhelpful "could not download" while every test passed,
+  // because the tests injected a cache directory. The platform is now the
+  // source of truth, and this pins that it is actually consulted.
+  test('the cache directory comes from the platform', () async {
+    final installer = _RecordingInstaller()..cacheDir = cache.path;
+    final downloader = UpdateDownloader(
+      installer: installer,
+      isAllowedHost: allowLoopback,
+    );
+    final ok = await downloader.download(
+      AppUpdate(
+        versionName: '1.5.0',
+        buildNumber: 19,
+        mandatory: true,
+        notes: '',
+        apkUrl: localApk('x86_64'),
+        apkSize: apkBytes.length,
+      ),
+    );
+
+    expect(installer.cacheDirectoryCalls, 1);
+    expect(ok, isTrue);
+    expect(installer.installed.single, '${cache.path}/update.apk');
+    downloader.dispose();
+  });
+
+  test(
+    'a platform with no cache directory fails instead of writing to /tmp',
+    () async {
+      final installer = _RecordingInstaller();
+      final downloader = UpdateDownloader(
+        installer: installer,
+        isAllowedHost: allowLoopback,
+      );
+      final ok = await downloader.download(
+        AppUpdate(
+          versionName: '1.5.0',
+          buildNumber: 19,
+          mandatory: true,
+          notes: '',
+          apkUrl: localApk('x86_64'),
+          apkSize: apkBytes.length,
+        ),
+      );
+
+      expect(ok, isFalse);
+      expect(installer.installed, isEmpty);
+      expect(downloader.progress.value.stage, UpdateDownloadStage.failed);
+      downloader.dispose();
+    },
+  );
 
   test('an off-allowlist APK host is refused', () async {
     final installer = _RecordingInstaller();
