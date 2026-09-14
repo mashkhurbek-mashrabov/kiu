@@ -1575,15 +1575,19 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   /// that matches every other row in the sheet.
   Widget _aboutSection(StateSetter setSheetState) {
     final version = widget.controller.appVersion;
+    // Resolved once here rather than inside the builder below. The notifier
+    // can fire while this sheet is being popped for the update gate, and a
+    // Localizations lookup from a deactivated route throws.
+    final texts = strings;
     return SettingsSection(
-      title: strings.sectionAbout,
+      title: texts.sectionAbout,
       icon: Icons.info_rounded,
       children: [
         if (version != null)
           SettingsRow(
             key: const Key('app-version'),
             icon: Icons.badge_rounded,
-            title: strings.version,
+            title: texts.version,
             value: '${version.name} (${version.code})',
           ),
         // Listens to the check notifier for the same reason the sync row does:
@@ -1593,13 +1597,13 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           builder: (context, lastChecked, _) => SettingsRow(
             key: const Key('check-updates'),
             icon: Icons.system_update_rounded,
-            title: strings.checkForUpdates,
+            title: texts.checkForUpdates,
             value: switch ((_checking, _checkResult)) {
-              (true, _) => strings.checking,
+              (true, _) => texts.checking,
               (_, final result?) => result,
-              _ => strings.lastChecked(
+              _ => texts.lastChecked(
                 lastChecked == null
-                    ? strings.never
+                    ? texts.never
                     : DateFormat('dd.MM.yyyy HH:mm').format(lastChecked),
               ),
             },
@@ -1622,6 +1626,10 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     await widget.controller.checkForUpdate(force: true);
     if (!mounted) return;
     final update = widget.controller.availableUpdate.value;
+    // A mandatory update pops this sheet on its way to the gate, so there is
+    // no longer a sheet to update -- calling setSheetState on the dead route
+    // throws while its StatefulBuilder is being deactivated.
+    if (update != null && update.mandatory) return;
     setSheetState(() {
       _checking = false;
       // Shown in the row rather than as a snack bar. The sheet is 88% of the

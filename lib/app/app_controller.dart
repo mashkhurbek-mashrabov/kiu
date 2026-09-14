@@ -107,7 +107,11 @@ class AppController extends ChangeNotifier {
   );
 
   Future<void>? _inFlightUpdateCheck;
-  static const _updateCheckInterval = Duration(hours: 6);
+  // Short enough that a cold start almost always asks GitHub: a launch is a
+  // deliberate action, and a user who opens the app after a release was
+  // published expects to be told. Still far inside the unauthenticated
+  // 60 requests/hour, since the resume hook shares this window.
+  static const _updateCheckInterval = Duration(minutes: 30);
 
   Future<SyncResult>? _inFlightSync;
   bool exactTiming = false;
@@ -132,6 +136,19 @@ class AppController extends ChangeNotifier {
       appVersion = null;
     } on MissingPluginException {
       appVersion = null;
+    }
+    // Restore a pending update before anything renders, so a mandatory one
+    // gates the app on this launch rather than waiting for the network. Only
+    // honored when it is still newer than what is installed: a stored update
+    // the user has since installed must not gate the build that replaced it.
+    final stored = _repository.pendingUpdate;
+    if (stored != null) {
+      final version = appVersion;
+      if (version != null && stored.buildNumber > version.code) {
+        availableUpdate.value = stored;
+      } else if (version != null) {
+        await _repository.savePendingUpdate(null);
+      }
     }
     exactTiming = await _notifications.canScheduleExactly();
     await _scheduler.setEnabled(settings.backgroundSyncEnabled);
@@ -426,22 +443,30 @@ class AppController extends ChangeNotifier {
     updateCheckState.value = lastUpdateCheck;
 
     final update = result.update;
+    // Persisted on every answered check, including "up to date", which clears
+    // it -- otherwise a gate could outlive the release that caused it.
+    await _repository.savePendingUpdate(update);
+
     // A dismissed optional build stays dismissed; a mandatory one ignores it.
     if (update != null &&
         !update.mandatory &&
         update.buildNumber <= _repository.skippedUpdateBuild) {
       return;
     }
+    // No notifyListeners() here, even for a mandatory update: KiuApp renders
+    // the gate from a ValueListenableBuilder on this notifier, so the rebuild
+    // is redundant -- and rebuilding MaterialApp while the settings sheet is
+    // being popped for the gate throws on its deactivated StatefulBuilder.
     availableUpdate.value = update;
-    // The gate is main-tree state that KiuApp itself renders, so this one
-    // transition has to rebuild -- unlike every other notifier here.
-    if (update != null && update.mandatory) notifyListeners();
   }
 
   /// Dismisses an optional update so it stops prompting on every resume.
   Future<void> skipUpdate(AppUpdate update) async {
     if (update.mandatory) return;
     await _repository.skipUpdateBuild(update.buildNumber);
+    // Cleared from storage too, or the dismissed build would be restored on
+    // the next launch before any check had a chance to run.
+    await _repository.savePendingUpdate(null);
     availableUpdate.value = null;
   }
 

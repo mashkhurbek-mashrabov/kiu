@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app.dart';
@@ -230,6 +232,113 @@ void main() {
     expect(find.byKey(const Key('update-now')), findsOneWidget);
   });
 
+  group('pending update persistence', () {
+    // Regression for the gate being escapable by restarting: availableUpdate
+    // used to be memory-only, so killing the app cleared it and the throttle
+    // then suppressed the check that would have found it again.
+    test('a stored mandatory update gates on launch with no network', () async {
+      final checker = _FakeChecker(const UpdateCheckResult.unavailable());
+      final controller = await _controller(
+        checker,
+        prefs: {'kiu.pendingUpdate': jsonEncode(_update().toJson())},
+      );
+      await controller.initialize();
+
+      expect(controller.availableUpdate.value, isNotNull);
+      expect(controller.availableUpdate.value!.mandatory, isTrue);
+    });
+
+    test('a stored update already installed is dropped', () async {
+      final checker = _FakeChecker(const UpdateCheckResult.unavailable());
+      // _VersionProvider reports build 18; a stored build 18 is not newer.
+      final controller = await _controller(
+        checker,
+        prefs: {'kiu.pendingUpdate': jsonEncode(_update(build: 18).toJson())},
+      );
+      await controller.initialize();
+
+      expect(controller.availableUpdate.value, isNull);
+    });
+
+    test('a malformed stored update does not throw on launch', () async {
+      final checker = _FakeChecker(const UpdateCheckResult.unavailable());
+      final controller = await _controller(
+        checker,
+        prefs: {'kiu.pendingUpdate': 'not json at all'},
+      );
+      // The launch path must survive this: a throw here is unrecoverable.
+      await controller.initialize();
+
+      expect(controller.availableUpdate.value, isNull);
+    });
+
+    test('an off-allowlist stored URL is rejected', () async {
+      final checker = _FakeChecker(const UpdateCheckResult.unavailable());
+      final controller = await _controller(
+        checker,
+        prefs: {
+          'kiu.pendingUpdate': jsonEncode({
+            'versionName': '1.5.2',
+            'buildNumber': 21,
+            'mandatory': true,
+            'notes': '',
+            'apkUrl': 'https://evil.example.com/payload.apk',
+            'apkSize': 100,
+          }),
+        },
+      );
+      await controller.initialize();
+
+      expect(controller.availableUpdate.value, isNull);
+    });
+
+    test('an "up to date" answer clears the stored update', () async {
+      final checker = _FakeChecker(UpdateCheckResult.answered(_update()));
+      final controller = await _controller(checker);
+      await controller.initialize();
+      await controller.checkForUpdate(force: true);
+      expect(controller.availableUpdate.value, isNotNull);
+
+      checker.result = const UpdateCheckResult.answered(null);
+      await controller.checkForUpdate(force: true);
+
+      expect(controller.availableUpdate.value, isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('kiu.pendingUpdate'), isNull);
+    });
+  });
+
+  testWidgets('the gate closes an open settings sheet', (tester) async {
+    // The gate swaps the widget behind `home:`, which does not pop routes: an
+    // open settings sheet is a pushed route and used to stay on top of the
+    // block, leaving the user to swipe it away by hand.
+    final checker = _FakeChecker(const UpdateCheckResult.answered(null));
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('check-updates')), findsOneWidget);
+
+    // A mandatory update arrives while the sheet is open.
+    checker.result = UpdateCheckResult.answered(_update());
+    await controller.checkForUpdate(force: true);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UpdateGate), findsOneWidget);
+    expect(
+      find.byKey(const Key('check-updates')),
+      findsNothing,
+      reason: 'the sheet must be gone, not merely behind the gate',
+    );
+  });
+
   group('checkForUpdate', () {
     test('passes the stripped build and the ABI to the checker', () async {
       final checker = _FakeChecker(const UpdateCheckResult.answered(null));
@@ -239,6 +348,35 @@ void main() {
 
       expect(checker.lastInstalledBuild, 18);
       expect(checker.lastAbi, 2);
+    });
+
+    test('the throttle window is 30 minutes', () async {
+      final checker = _FakeChecker(const UpdateCheckResult.answered(null));
+      // 29 minutes ago: still inside the window.
+      final controller = await _controller(
+        checker,
+        prefs: {
+          'kiu.lastUpdateCheck': DateTime.now()
+              .subtract(const Duration(minutes: 29))
+              .toIso8601String(),
+        },
+      );
+      await controller.initialize();
+      await controller.checkForUpdate();
+      expect(checker.calls, 0, reason: '29 min is inside the window');
+
+      // 31 minutes ago: a launch must ask GitHub again.
+      final later = await _controller(
+        checker,
+        prefs: {
+          'kiu.lastUpdateCheck': DateTime.now()
+              .subtract(const Duration(minutes: 31))
+              .toIso8601String(),
+        },
+      );
+      await later.initialize();
+      await later.checkForUpdate();
+      expect(checker.calls, greaterThan(0), reason: '31 min is outside it');
     });
 
     test('throttles repeat checks but honors force', () async {

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import '../services/update_service.dart';
 
 class SettingsRepository {
   SettingsRepository(this._preferences);
@@ -36,6 +37,7 @@ class SettingsRepository {
   static const _backgroundExplainerShown = 'kiu.backgroundExplainerShown';
   static const _lastUpdateCheck = 'kiu.lastUpdateCheck';
   static const _skippedUpdateBuild = 'kiu.skippedUpdateBuild';
+  static const _pendingUpdate = 'kiu.pendingUpdate';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -224,6 +226,25 @@ class SettingsRepository {
 
   Future<void> skipUpdateBuild(int build) =>
       _preferences.setInt(_skippedUpdateBuild, build);
+
+  /// The update found by the last check, so a mandatory one survives a restart
+  /// -- otherwise closing the app is a way around the gate.
+  ///
+  /// Decoded tolerantly: this runs on the launch path, where a throw is an
+  /// unrecoverable crash with no way for the user to clear the bad value.
+  AppUpdate? get pendingUpdate {
+    final raw = _preferences.getString(_pendingUpdate);
+    if (raw == null) return null;
+    try {
+      return AppUpdate.tryFromJson(jsonDecode(raw));
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<void> savePendingUpdate(AppUpdate? update) => update == null
+      ? _preferences.remove(_pendingUpdate)
+      : _preferences.setString(_pendingUpdate, jsonEncode(update.toJson()));
 
   Future<void> recordSuccess(DateTime value) async {
     await _preferences.setString(_lastSuccess, value.toIso8601String());

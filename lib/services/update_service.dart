@@ -26,7 +26,51 @@ class AppUpdate {
 
   /// Declared asset size in bytes, used both to show progress and to reject a
   /// truncated download before it reaches the installer.
+  ///
+  /// [apkUrl] must be the stable `browser_download_url`, never a URL the
+  /// download resolved to: GitHub redirects that to a signed, time-limited
+  /// asset URL, which would be dead by the time a persisted copy is read back.
   final int apkSize;
+
+  Map<String, dynamic> toJson() => {
+    'versionName': versionName,
+    'buildNumber': buildNumber,
+    'mandatory': mandatory,
+    'notes': notes,
+    'apkUrl': apkUrl,
+    'apkSize': apkSize,
+  };
+
+  /// Rebuilds a stored update, or returns null for anything unusable.
+  ///
+  /// Tolerant by design: this is read on the launch path, where a throw is an
+  /// unrecoverable crash the user cannot clear without reinstalling. Same
+  /// discipline as `Lesson.tryFromJson`.
+  static AppUpdate? tryFromJson(Object? value) {
+    if (value is! Map) return null;
+    final versionName = value['versionName'];
+    final buildNumber = value['buildNumber'];
+    final notes = value['notes'];
+    final apkUrl = value['apkUrl'];
+    final apkSize = value['apkSize'];
+    if (versionName is! String || versionName.isEmpty) return null;
+    if (buildNumber is! int || buildNumber <= 0) return null;
+    if (apkUrl is! String || apkUrl.isEmpty) return null;
+    if (apkSize is! int || apkSize < 0) return null;
+    final uri = Uri.tryParse(apkUrl);
+    // Re-checked on the way out of storage, not just on the way in: the
+    // download is installed as code, and prefs are not a trust boundary.
+    if (uri == null || !isGitHubReleaseAsset(uri)) return null;
+    return AppUpdate(
+      versionName: versionName,
+      buildNumber: buildNumber,
+      // Absent or malformed means mandatory, matching the marker default.
+      mandatory: value['mandatory'] != false,
+      notes: notes is String ? notes : '',
+      apkUrl: apkUrl,
+      apkSize: apkSize,
+    );
+  }
 }
 
 /// The outcome of one check.

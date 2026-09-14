@@ -48,7 +48,9 @@ void main() {
 
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
-      if (request.uri.path.endsWith('.apk')) {
+      if (request.uri.path.endsWith('.bin')) {
+        request.response.statusCode = HttpStatus.notFound;
+      } else if (request.uri.path.endsWith('.apk')) {
         request.response.headers.contentType = ContentType.binary;
         request.response.add(apkBytes);
       } else {
@@ -286,6 +288,63 @@ void main() {
       downloader.dispose();
     },
   );
+
+  // Regression for slow downloads on a real phone: progress used to publish on
+  // every ~8 KB chunk, rebuilding a Column with text layout thousands of times
+  // per download while the socket read waited on each disk write.
+  test('progress is published far less often than there are chunks', () async {
+    final installer = _RecordingInstaller()..cacheDir = cache.path;
+    final downloader = UpdateDownloader(
+      installer: installer,
+      isAllowedHost: allowLoopback,
+    );
+    var publishes = 0;
+    downloader.progress.addListener(() => publishes++);
+
+    await downloader.download(
+      AppUpdate(
+        versionName: '1.5.2',
+        buildNumber: 21,
+        mandatory: true,
+        notes: '',
+        apkUrl: localApk('x86_64'),
+        apkSize: apkBytes.length,
+      ),
+    );
+
+    // 256 KB at ~8 KB per chunk is ~32 reads; the cap is generous but still
+    // far below one publish per chunk.
+    expect(publishes, lessThan(20), reason: 'publishes=$publishes');
+    // Whatever the throttle swallowed, the bar must land on the full size.
+    expect(downloader.progress.value.received, apkBytes.length);
+    expect(downloader.progress.value.total, apkBytes.length);
+    downloader.dispose();
+  });
+
+  test('a non-200 response fails without leaving a partial file', () async {
+    final installer = _RecordingInstaller()..cacheDir = cache.path;
+    final downloader = UpdateDownloader(
+      installer: installer,
+      isAllowedHost: allowLoopback,
+    );
+    final ok = await downloader.download(
+      AppUpdate(
+        versionName: '1.5.2',
+        buildNumber: 21,
+        mandatory: true,
+        notes: '',
+        // Served by the same socket, but this path 404s.
+        apkUrl: 'http://${server.address.host}:${server.port}/missing.bin',
+        apkSize: 1024,
+      ),
+    );
+
+    expect(ok, isFalse);
+    expect(installer.installed, isEmpty);
+    expect(downloader.progress.value.stage, UpdateDownloadStage.failed);
+    expect(File('${cache.path}/update.apk').existsSync(), isFalse);
+    downloader.dispose();
+  });
 
   test('an off-allowlist APK host is refused', () async {
     final installer = _RecordingInstaller();
