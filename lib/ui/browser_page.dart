@@ -46,6 +46,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   bool _marking = false;
   bool _fullscreenOpen = false;
   bool _backgroundPromptOpen = false;
+  bool _onboardingStarted = false;
   bool _checking = false;
 
   /// Outcome of the last manual update check, shown in the row itself. Cleared
@@ -208,7 +209,13 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       }
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
-        unawaited(_maybeExplainBackgroundAccess());
+        // Onboarding first, and the explainer only when it did not run: both
+        // ask for the battery permission, so running both is a double ask.
+        if (widget.controller.needsPermissionOnboarding) {
+          unawaited(_maybeRunPermissionOnboarding());
+        } else {
+          unawaited(_maybeExplainBackgroundAccess());
+        }
       }
     }
     if (mounted) {
@@ -273,6 +280,33 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       userAgent = null;
     }
     await widget.controller.synchronize(userAgent: userAgent);
+  }
+
+  /// Runs the first-launch permission sequence, then reports the outcome.
+  ///
+  /// Fired from the first Home page rather than from `initialize()`: the flow
+  /// opens system settings screens and needs a mounted tree to wait on the
+  /// lifecycle and a ScaffoldMessenger to report back.
+  Future<void> _maybeRunPermissionOnboarding() async {
+    if (_onboardingStarted ||
+        !widget.controller.needsPermissionOnboarding ||
+        !mounted) {
+      return;
+    }
+    _onboardingStarted = true;
+    final result = await widget.controller.runPermissionOnboarding();
+    if (!mounted) return;
+    // Only worth a message when calls were the thing at stake. Silence on the
+    // happy path would leave the user wondering whether anything took.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.callsUsable
+              ? strings.callsEnabledAfterOnboarding
+              : strings.callsDisabledMissingPermission,
+        ),
+      ),
+    );
   }
 
   Future<void> _maybeExplainBackgroundAccess() async {

@@ -162,5 +162,7 @@
   "updateFailed": "Yangilanishni yuklab bo‘lmadi",
   "updateRequiredHelp": "Bu versiya eskirgan va ishlashda davom etolmaydi. Davom etish uchun yangilanishni o‘rnating.",
   "installPermissionNeeded": "O‘rnatishga ruxsat kerak",
-  "installPermissionHelp": "Android ilova o‘zini yangilashi uchun «Noma’lum ilovalarni o‘rnatish» ruxsatini so‘raydi. Tizim sozlamalari ochiladi."
+  "installPermissionHelp": "Android ilova o‘zini yangilashi uchun «Noma’lum ilovalarni o‘rnatish» ruxsatini so‘raydi. Tizim sozlamalari ochiladi.",
+  "callsDisabledMissingPermission": "Dars qo‘ng‘iroqlari yoqilmadi — kerakli ruxsat berilmadi. Sozlamalar → Ruxsatlar bo‘limidan yoqing.",
+  "callsEnabledAfterOnboarding": "Dars qo‘ng‘iroqlari yoqildi."
 }

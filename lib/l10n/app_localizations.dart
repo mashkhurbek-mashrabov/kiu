@@ -952,6 +952,18 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Android илова ўзини янгилаши учун «Номаълум иловаларни ўрнатиш» рухсатини сўрайди. Тизим созламалари очилади.'**
   String get installPermissionHelp;
+
+  /// No description provided for @callsDisabledMissingPermission.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс қўнғироқлари ёқилмади — керакли рухсат берилмади. Созламалар → Рухсатлар бўлимидан ёқинг.'**
+  String get callsDisabledMissingPermission;
+
+  /// No description provided for @callsEnabledAfterOnboarding.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс қўнғироқлари ёқилди.'**
+  String get callsEnabledAfterOnboarding;
 }
 
 class _AppLocalizationsDelegate
