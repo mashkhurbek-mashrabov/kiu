@@ -51,7 +51,9 @@ void main() {
     navigateTo = null;
   });
 
-  testWidgets('uses headerless compact five-action bottom bar', (tester) async {
+  testWidgets('uses a headerless floating five-action nav pill', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       KiuApp(
         controller: await controller(),
@@ -60,8 +62,10 @@ void main() {
     );
 
     expect(find.byType(AppBar), findsNothing);
-    expect(find.byType(BottomAppBar), findsOneWidget);
-    expect(tester.getSize(find.byType(BottomAppBar)).height, 56);
+    // A floating pill, so no docked BottomAppBar at all.
+    expect(find.byType(BottomAppBar), findsNothing);
+    expect(find.byKey(const Key('nav-bar')), findsOneWidget);
+    expect(tester.getSize(find.byKey(const Key('nav-bar'))).height, 56);
     for (final key in const [
       'nav-back',
       'nav-home',
@@ -72,11 +76,10 @@ void main() {
       expect(find.byKey(Key(key)), findsOneWidget);
     }
     expect(find.byKey(const Key('nav-forward')), findsNothing);
-    // Icon-only: the captions are what forced the taller bar, and the name is
-    // reachable by long press instead.
+    // Icon-only: the name is reachable by long press instead.
     expect(
       find.descendant(
-        of: find.byType(BottomAppBar),
+        of: find.byKey(const Key('nav-bar')),
         matching: find.byType(Text),
       ),
       findsNothing,
@@ -85,6 +88,25 @@ void main() {
     expect(find.byKey(const Key('lessons-selected')), findsOneWidget);
     expect(find.byKey(const Key('home-selected')), findsNothing);
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
+  });
+
+  testWidgets('the nav pill floats clear of both screen edges', (tester) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final bar = tester.getRect(find.byKey(const Key('nav-bar')));
+    final screen = tester.getSize(find.byType(MaterialApp));
+    // Inset on both sides, so it reads as a pill rather than a docked bar.
+    expect(bar.left, greaterThan(0));
+    expect(bar.right, lessThan(screen.width));
+    // Off the bottom edge, but only just -- deliberately tighter than iOS.
+    final gap = screen.height - bar.bottom;
+    expect(gap, greaterThan(0));
+    expect(gap, lessThan(24));
   });
 
   testWidgets('Home falls back to the lessons page before a level is known', (
@@ -172,7 +194,7 @@ void main() {
       ),
     );
 
-    final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
+    final colors = Theme.of(tester.element(find.byKey(const Key('nav-bar'))))
         .colorScheme;
     expect(colors.brightness, Brightness.dark);
     expect(colors.surface, darkSurface);
@@ -189,7 +211,7 @@ void main() {
       ),
     );
 
-    final colors = Theme.of(tester.element(find.byType(BottomAppBar)))
+    final colors = Theme.of(tester.element(find.byKey(const Key('nav-bar'))))
         .colorScheme;
     expect(colors.brightness, Brightness.light);
     expect(colors.surface, lightSurface);
@@ -216,7 +238,9 @@ void main() {
 
     expect(appController.settings.themeMode, ThemeMode.dark);
     expect(
-      Theme.of(tester.element(find.byType(BottomAppBar))).colorScheme.surface,
+      Theme.of(tester.element(find.byKey(const Key('nav-bar'))))
+          .colorScheme
+          .surface,
       darkSurface,
     );
     expect(injectedScripts.last, contains("setItem('darkMode'"));

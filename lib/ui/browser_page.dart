@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2395,68 +2396,114 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   value: _progress / 100,
                 ),
               ),
+            _floatingNavBar(),
           ],
-        ),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        height: 56,
-        padding: EdgeInsets.zero,
-        child: DecoratedBox(
-          // Hairline instead of elevation: the WebView scrolls right up to the
-          // bar, and a shadow over arbitrary page content reads as grime.
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant
-                    .withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-          child: SizedBox(
-            height: 56,
-            child: Row(
-              children: [
-                _navAction(
-                  key: const Key('nav-back'),
-                  icon: Icons.arrow_back_rounded,
-                  label: strings.back,
-                  enabled: _canBack,
-                  onTap: _webView.goBack,
-                ),
-                _navAction(
-                  key: const Key('nav-home'),
-                  icon: Icons.home_rounded,
-                  label: strings.home,
-                  selected: isCourseUri(_currentUri),
-                  onTap: _goCourseHome,
-                ),
-                _navAction(
-                  key: const Key('nav-lessons'),
-                  selectedKey: const Key('lessons-selected'),
-                  icon: Icons.event_note_rounded,
-                  label: strings.scheduledLessons,
-                  selected: isHomeUri(_currentUri),
-                  onTap: _goHome,
-                ),
-                _navAction(
-                  key: const Key('nav-refresh'),
-                  icon: Icons.refresh_rounded,
-                  label: strings.refresh,
-                  onTap: _webView.reload,
-                ),
-                _navAction(
-                  key: const Key('actions-menu'),
-                  icon: Icons.tune_rounded,
-                  label: strings.settings,
-                  onTap: _openActions,
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     ),
   );
+
+  /// Height of the pill itself, excluding the gap below it.
+  static const double _navBarHeight = 56;
+
+  /// Gap between the pill and the bottom of the screen. Deliberately tighter
+  /// than iOS Instagram's, which floats far higher above the home indicator --
+  /// Android's gesture bar is shorter, and a large gap here just wastes page.
+  static const double _navBarBottomGap = 8;
+
+  /// Side inset, which is what makes the bar read as a floating pill rather
+  /// than a docked bar.
+  static const double _navBarSideInset = 12;
+
+  /// Blur behind the bar. One knob: drop this to 0 and the bar becomes a plain
+  /// translucent pill if the frosted pass ever costs too much on a real device.
+  /// Cheap here because the blurred region is only the pill, not the screen.
+  static const double _navBlurSigma = 24;
+
+  /// The floating navigation pill, modelled on Instagram's iOS bar: frosted
+  /// glass over the page, fully rounded, inset from all three edges, with the
+  /// current page marked by a lighter capsule behind its icon.
+  ///
+  /// Lives in the body [Stack] rather than `bottomNavigationBar` because that
+  /// slot always docks its child to the bottom edge at full width, which is the
+  /// one thing a floating bar must not do. Overlapping the page is intentional;
+  /// the WebView scrolls under the glass.
+  Widget _floatingNavBar() {
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Positioned(
+      key: const Key('nav-bar'),
+      left: _navBarSideInset,
+      right: _navBarSideInset,
+      // Clears the gesture bar without the large iOS-style float, as asked.
+      bottom: MediaQuery.of(context).padding.bottom + _navBarBottomGap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_navBarHeight / 2),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: _navBlurSigma,
+            sigmaY: _navBlurSigma,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              // Translucent so the page shows through the blur as glass. The
+              // hairline replaces the old top border: a pill floating over
+              // arbitrary page content needs an edge to stay legible on both
+              // a white page and a photo.
+              color: colors.surface.withValues(alpha: dark ? 0.62 : 0.72),
+              borderRadius: BorderRadius.circular(_navBarHeight / 2),
+              border: Border.all(
+                color: colors.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+            child: SizedBox(
+              height: _navBarHeight,
+              child: Row(
+                children: [
+                  _navAction(
+                    key: const Key('nav-back'),
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    label: strings.back,
+                    enabled: _canBack,
+                    onTap: _webView.goBack,
+                  ),
+                  _navAction(
+                    key: const Key('nav-home'),
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home_rounded,
+                    label: strings.home,
+                    selected: isCourseUri(_currentUri),
+                    onTap: _goCourseHome,
+                  ),
+                  _navAction(
+                    key: const Key('nav-lessons'),
+                    selectedKey: const Key('lessons-selected'),
+                    icon: Icons.event_note_outlined,
+                    selectedIcon: Icons.event_note_rounded,
+                    label: strings.scheduledLessons,
+                    selected: isHomeUri(_currentUri),
+                    onTap: _goHome,
+                  ),
+                  _navAction(
+                    key: const Key('nav-refresh'),
+                    icon: Icons.refresh_rounded,
+                    label: strings.refresh,
+                    onTap: _webView.reload,
+                  ),
+                  _navAction(
+                    key: const Key('actions-menu'),
+                    icon: Icons.person_outline_rounded,
+                    label: strings.settings,
+                    onTap: _openActions,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   /// The pull indicator: a spinner that rides down with the finger and fills
   /// as it approaches the threshold, so the release point is visible rather
@@ -2514,6 +2561,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
     required IconData icon,
     required String label,
     required FutureOr<void> Function() onTap,
+    IconData? selectedIcon,
     Key selectedKey = const Key('home-selected'),
     bool enabled = true,
     bool selected = false,
@@ -2525,6 +2573,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
         child: InkWell(
           key: key,
           onTap: enabled ? onTap : null,
+          // Matches the pill: a square ripple inside a rounded bar bleeds
+          // square corners over the glass at the two ends.
+          customBorder: const StadiumBorder(),
           child: Semantics(
             selected: selected,
             button: true,
@@ -2536,18 +2587,26 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 4,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: selected ? colors.secondaryContainer : null,
-                  borderRadius: BorderRadius.circular(16),
+                  // A lighter capsule rather than a filled container: over
+                  // frosted glass a solid secondaryContainer reads as a patch
+                  // stuck on the bar instead of part of it.
+                  color: selected
+                      ? colors.onSurface.withValues(alpha: 0.10)
+                      : null,
+                  borderRadius: BorderRadius.circular(_navBarHeight / 2),
                 ),
                 child: Icon(
-                  icon,
+                  // Instagram fills the icon for the current tab and leaves the
+                  // rest as outlines; actions that are not a destination (back,
+                  // refresh) have no filled variant and pass none.
+                  selected ? (selectedIcon ?? icon) : icon,
                   size: 24,
                   color: enabled
                       ? selected
-                            ? colors.onSecondaryContainer
+                            ? colors.onSurface
                             : colors.onSurfaceVariant
                       : colors.onSurface.withValues(alpha: 0.38),
                 ),
