@@ -18,7 +18,10 @@ import '../l10n/app_localizations.dart';
 import '../services/lesson_widget_service.dart';
 import '../services/permission_onboarding.dart';
 import '../services/time_zone_service.dart';
+import '../services/update_downloader.dart';
+import '../services/update_service.dart';
 import '../web/js_scripts.dart';
+import 'update_gate.dart';
 import 'widgets/settings_widgets.dart';
 
 class BrowserPage extends StatefulWidget {
@@ -27,11 +30,17 @@ class BrowserPage extends StatefulWidget {
     required this.controller,
     required this.homeRequests,
     this.navigationRequests,
+    this.updateDownloader,
   });
 
   final AppController controller;
   final ValueNotifier<int> homeRequests;
   final ValueNotifier<Uri?>? navigationRequests;
+
+  /// Drives the download for an *optional* update, offered in the About
+  /// section. A mandatory one never reaches here — `KiuApp` has already
+  /// replaced this page with the gate.
+  final UpdateDownloader? updateDownloader;
 
   @override
   State<BrowserPage> createState() => _BrowserPageState();
@@ -599,6 +608,12 @@ class _BrowserPageState extends State<BrowserPage>
     // A result from a previous visit would otherwise read as the answer to a
     // check the user has not run yet.
     _checkResult = null;
+    // Same reason: a bar left at "installing" or "failed" from the previous
+    // visit would describe a download this sheet never started.
+    if (widget.updateDownloader?.progress.value.stage !=
+        UpdateDownloadStage.downloading) {
+      widget.updateDownloader?.reset();
+    }
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1744,6 +1759,7 @@ class _BrowserPageState extends State<BrowserPage>
     // can fire while this sheet is being popped for the update gate, and a
     // Localizations lookup from a deactivated route throws.
     final texts = strings;
+    final downloader = widget.updateDownloader;
     return SettingsSection(
       title: texts.sectionAbout,
       icon: Icons.info_rounded,
@@ -1782,6 +1798,23 @@ class _BrowserPageState extends State<BrowserPage>
             onTap: _checking ? null : () => _checkForUpdates(setSheetState),
           ),
         ),
+        // An optional update is only ever announced here, so the download has
+        // to be reachable from here too: a mandatory one gets the full gate,
+        // but before this the row said "update available" and offered nothing
+        // to press.
+        if (downloader != null)
+          ValueListenableBuilder<AppUpdate?>(
+            valueListenable: widget.controller.availableUpdate,
+            builder: (context, update, _) => update == null || update.mandatory
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+                    child: UpdateActionButton(
+                      update: update,
+                      downloader: downloader,
+                    ),
+                  ),
+          ),
       ],
     );
   }
