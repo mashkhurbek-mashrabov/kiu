@@ -1,0 +1,152 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
+import '../core/constants.dart';
+import 'update_service.dart';
+
+enum UpdateDownloadStage { idle, downloading, installing, failed }
+
+typedef UpdateDownloadProgress = ({
+  UpdateDownloadStage stage,
+  int received,
+  int total,
+});
+
+abstract interface class ApkInstaller {
+  Future<bool> canInstallPackages();
+  Future<void> openInstallPermissionSettings();
+  Future<void> installApk(String path);
+}
+
+/// Streams a release APK to the cache directory and hands it to the system
+/// installer.
+///
+/// Progress is published through a [ValueNotifier] rather than
+/// `notifyListeners()` on the controller: rebuilding `KiuApp` tears down and
+/// recreates the WebView, which is exactly what the project forbids for
+/// periodic state. One `ValueListenableBuilder` renders the bar.
+class UpdateDownloader {
+  UpdateDownloader({
+    required ApkInstaller installer,
+    HttpClient? client,
+    Directory? cacheDirectory,
+  }) : _installer = installer,
+       _client = client ?? HttpClient(),
+       _cacheDirectory = cacheDirectory;
+
+  final ApkInstaller _installer;
+  final HttpClient _client;
+  final Directory? _cacheDirectory;
+
+  final ValueNotifier<UpdateDownloadProgress> progress = ValueNotifier((
+    stage: UpdateDownloadStage.idle,
+    received: 0,
+    total: 0,
+  ));
+
+  bool _inFlight = false;
+
+  /// Downloads [update] and launches the installer. Returns false when the
+  /// user still has to act — granting "install unknown apps", or retrying a
+  /// failed download.
+  Future<bool> download(AppUpdate update) async {
+    if (_inFlight) return false;
+    _inFlight = true;
+    try {
+      return await _download(update);
+    } on Object {
+      progress.value = (
+        stage: UpdateDownloadStage.failed,
+        received: 0,
+        total: update.apkSize,
+      );
+      return false;
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<bool> _download(AppUpdate update) async {
+    final uri = Uri.parse(update.apkUrl);
+    // Re-checked here and not only at parse time: this is the call that turns
+    // a remote string into executable code on the device.
+    if (!isGitHubReleaseAsset(uri)) {
+      progress.value = (
+        stage: UpdateDownloadStage.failed,
+        received: 0,
+        total: update.apkSize,
+      );
+      return false;
+    }
+
+    if (!await _installer.canInstallPackages()) {
+      await _installer.openInstallPermissionSettings();
+      progress.value = (
+        stage: UpdateDownloadStage.idle,
+        received: 0,
+        total: update.apkSize,
+      );
+      return false;
+    }
+
+    progress.value = (
+      stage: UpdateDownloadStage.downloading,
+      received: 0,
+      total: update.apkSize,
+    );
+
+    final directory = _cacheDirectory ?? Directory.systemTemp;
+    final file = File('${directory.path}/update.apk');
+    // A partial file from an interrupted run would otherwise be appended to,
+    // producing an APK the installer rejects with an opaque parse error.
+    if (file.existsSync()) await file.delete();
+
+    final request = await _client.getUrl(uri);
+    final response = await request.close();
+    if (response.statusCode != HttpStatus.ok) {
+      throw HttpException('${response.statusCode}', uri: uri);
+    }
+
+    final sink = file.openWrite();
+    var received = 0;
+    try {
+      await for (final chunk in response) {
+        sink.add(chunk);
+        received += chunk.length;
+        progress.value = (
+          stage: UpdateDownloadStage.downloading,
+          received: received,
+          total: update.apkSize,
+        );
+      }
+    } finally {
+      await sink.close();
+    }
+
+    // Size is the one integrity check available without shipping a hash.
+    // Android verifies the signature at install, which is the check that
+    // actually gates what runs; this only catches a truncated transfer before
+    // it becomes a confusing "app not installed" dialog.
+    if (update.apkSize > 0 && received != update.apkSize) {
+      await file.delete();
+      throw const HttpException('truncated download');
+    }
+
+    progress.value = (
+      stage: UpdateDownloadStage.installing,
+      received: received,
+      total: update.apkSize,
+    );
+    await _installer.installApk(file.path);
+    return true;
+  }
+
+  void reset() =>
+      progress.value = (stage: UpdateDownloadStage.idle, received: 0, total: 0);
+
+  void dispose() {
+    progress.dispose();
+    _client.close(force: true);
+  }
+}

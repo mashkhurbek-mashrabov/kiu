@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
@@ -12,6 +14,7 @@ import '../services/lesson_widget_service.dart';
 import '../services/notification_service.dart';
 import '../services/reminder_reconciler.dart';
 import '../services/schedule_sync_service.dart';
+import '../services/update_service.dart';
 
 abstract interface class BackgroundScheduler {
   Future<void> setEnabled(bool enabled);
@@ -49,6 +52,7 @@ class AppController extends ChangeNotifier {
     AppVersionProvider? appVersionProvider,
     BackgroundAccessGateway? backgroundAccess,
     LessonWidgetGateway? lessonWidgets,
+    UpdateChecker? updateChecker,
   }) : _repository = repository,
        _syncService = syncService,
        _reconciler = reconciler,
@@ -57,8 +61,10 @@ class AppController extends ChangeNotifier {
        _appVersionProvider = appVersionProvider ?? AndroidAppVersionProvider(),
        _backgroundAccess = backgroundAccess ?? AndroidBackgroundAccessGateway(),
        _lessonWidgets = lessonWidgets,
+       _updateChecker = updateChecker,
        settings = repository.loadSettings(),
-       lastSuccessfulSync = repository.lastSuccessfulSync;
+       lastSuccessfulSync = repository.lastSuccessfulSync,
+       lastUpdateCheck = repository.lastUpdateCheck;
 
   final SettingsRepository _repository;
   final ScheduleSyncService _syncService;
@@ -68,10 +74,12 @@ class AppController extends ChangeNotifier {
   final AppVersionProvider _appVersionProvider;
   final BackgroundAccessGateway _backgroundAccess;
   final LessonWidgetGateway? _lessonWidgets;
+  final UpdateChecker? _updateChecker;
 
   AppSettings settings;
   ScheduleSyncStatus syncStatus = ScheduleSyncStatus.idle;
   DateTime? lastSuccessfulSync;
+  DateTime? lastUpdateCheck;
 
   /// Sync progress is published here rather than through [notifyListeners] so
   /// the 10-minute background sync cannot rebuild the whole app -- including
@@ -84,6 +92,22 @@ class AppController extends ChangeNotifier {
     status: ScheduleSyncStatus.idle,
     lastSuccessfulSync: lastSuccessfulSync,
   ));
+
+  /// The update offer, rendered by the gate and the settings row.
+  ///
+  /// A [ValueNotifier] for the same reason as [syncState]: a routine check
+  /// firing on resume must not rebuild `KiuApp` and tear down the WebView.
+  /// A *mandatory* update is the one exception -- see [checkForUpdate].
+  late final ValueNotifier<AppUpdate?> availableUpdate = ValueNotifier(null);
+
+  /// Published separately so the settings row can re-render the "last checked"
+  /// time without the whole tree rebuilding.
+  late final ValueNotifier<DateTime?> updateCheckState = ValueNotifier(
+    lastUpdateCheck,
+  );
+
+  Future<void>? _inFlightUpdateCheck;
+  static const _updateCheckInterval = Duration(hours: 6);
 
   Future<SyncResult>? _inFlightSync;
   bool exactTiming = false;
@@ -117,6 +141,9 @@ class AppController extends ChangeNotifier {
     await _rescheduleCached();
     await _refreshWidget();
     notifyListeners();
+    // Unawaited on purpose: a slow or hanging GitHub request must never hold
+    // up cold start. The gate appears when the answer arrives.
+    unawaited(checkForUpdate());
   }
 
   Future<void> setPlaybackRate(double value) async {
@@ -361,6 +388,63 @@ class AppController extends ChangeNotifier {
     return result;
   }
 
+  /// Asks GitHub whether a newer release exists.
+  ///
+  /// Throttled to [_updateCheckInterval] unless [force], so the resume hook can
+  /// fire freely without hammering the unauthenticated API (60 req/hour/IP).
+  /// Overlapping calls coalesce the way [synchronize] does -- cold start and a
+  /// resume in the same second must not produce two requests.
+  Future<void> checkForUpdate({bool force = false}) {
+    return _inFlightUpdateCheck ??= _checkForUpdate(force: force)
+        .whenComplete(() {
+          _inFlightUpdateCheck = null;
+        });
+  }
+
+  Future<void> _checkForUpdate({required bool force}) async {
+    final checker = _updateChecker;
+    final version = appVersion;
+    if (checker == null || version == null) return;
+    final last = lastUpdateCheck;
+    if (!force &&
+        last != null &&
+        DateTime.now().difference(last) < _updateCheckInterval) {
+      return;
+    }
+
+    final result = await checker.check(
+      installedBuild: version.code,
+      abi: version.abi,
+    );
+
+    // Only a real answer advances the timestamp. Recording a failed check would
+    // silence the updater for six hours every time the user opens the app
+    // offline -- and would show a "last checked" time that never happened.
+    if (!result.answered) return;
+    lastUpdateCheck = DateTime.now();
+    await _repository.recordUpdateCheck(lastUpdateCheck!);
+    updateCheckState.value = lastUpdateCheck;
+
+    final update = result.update;
+    // A dismissed optional build stays dismissed; a mandatory one ignores it.
+    if (update != null &&
+        !update.mandatory &&
+        update.buildNumber <= _repository.skippedUpdateBuild) {
+      return;
+    }
+    availableUpdate.value = update;
+    // The gate is main-tree state that KiuApp itself renders, so this one
+    // transition has to rebuild -- unlike every other notifier here.
+    if (update != null && update.mandatory) notifyListeners();
+  }
+
+  /// Dismisses an optional update so it stops prompting on every resume.
+  Future<void> skipUpdate(AppUpdate update) async {
+    if (update.mandatory) return;
+    await _repository.skipUpdateBuild(update.buildNumber);
+    availableUpdate.value = null;
+  }
+
   void _setSyncStatus(ScheduleSyncStatus status) {
     syncStatus = status;
     syncState.value = (status: status, lastSuccessfulSync: lastSuccessfulSync);
@@ -369,6 +453,8 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     syncState.dispose();
+    availableUpdate.dispose();
+    updateCheckState.dispose();
     super.dispose();
   }
 

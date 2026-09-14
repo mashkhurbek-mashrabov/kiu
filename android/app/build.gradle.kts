@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing material, kept out of the repo (gitignored, and the keystore
+// itself lives outside the tree). Absent on a machine that only runs debug
+// builds, which is why every use below is null-guarded rather than assumed.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -56,11 +66,34 @@ android {
         }
     }
 
+    signingConfigs {
+        // Only declared when key.properties is present. The APK the updater
+        // downloads must be signed with the same key as the installed build --
+        // Android rejects the upgrade outright otherwise -- so a release built
+        // on a machine without the keystore must be recognisably unsigned
+        // rather than silently falling back to the debug key.
+        if (keystoreProperties.isNotEmpty()) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // The shared Flutter debug key ships with every SDK install, so a
+            // debug-signed release lets anyone build an APK Android accepts as
+            // an upgrade over KIU. With an in-app updater that is a code
+            // delivery path, so a real keystore is required to ship.
+            //
+            // Falls back to debug only when key.properties is missing, which
+            // keeps `flutter run --release` working locally. Never publish an
+            // APK produced by that fallback.
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
 
             // Measured on this project: without R8 the release APK is
             // 25.2 MB with ~15.9 MB of dex (workmanager pulls in a large
@@ -94,4 +127,10 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // FileProvider is named in AndroidManifest.xml for the update installer.
+    // Declared explicitly rather than leaned on transitively through a Flutter
+    // plugin: a manifest-named class that vanishes when a plugin bumps its
+    // dependencies fails silently at runtime, which is this project's worst
+    // failure mode.
+    implementation("androidx.core:core-ktx:1.13.1")
 }

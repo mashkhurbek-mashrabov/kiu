@@ -850,6 +850,102 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Қўнғироқ экрани ўзи тўхтагунга қадар қанча вақт жиринглаши.'**
   String get ringDurationHelp;
+
+  /// No description provided for @sectionAbout.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Илова ҳақида'**
+  String get sectionAbout;
+
+  /// No description provided for @checkForUpdates.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Янгиланишни текшириш'**
+  String get checkForUpdates;
+
+  /// No description provided for @checking.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Текширилмоқда…'**
+  String get checking;
+
+  /// No description provided for @lastChecked.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Охирги текширув: {value}'**
+  String lastChecked(String value);
+
+  /// No description provided for @upToDate.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Сизда энг сўнгги версия'**
+  String get upToDate;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Янгиланиш мавжуд'**
+  String get updateAvailable;
+
+  /// No description provided for @updateRequired.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Янгиланиш талаб қилинади'**
+  String get updateRequired;
+
+  /// No description provided for @updateVersion.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Версия {value}'**
+  String updateVersion(String value);
+
+  /// No description provided for @updateNow.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Янгилаш'**
+  String get updateNow;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Кейинроқ'**
+  String get updateLater;
+
+  /// No description provided for @downloadingUpdate.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Юклаб олинмоқда…'**
+  String get downloadingUpdate;
+
+  /// No description provided for @installingUpdate.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ўрнатилмоқда…'**
+  String get installingUpdate;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Янгиланишни юклаб бўлмади'**
+  String get updateFailed;
+
+  /// No description provided for @updateRequiredHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бу версия эскирган ва ишлашда давом этолмайди. Давом этиш учун янгиланишни ўрнатинг.'**
+  String get updateRequiredHelp;
+
+  /// No description provided for @installPermissionNeeded.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ўрнатишга рухсат керак'**
+  String get installPermissionNeeded;
+
+  /// No description provided for @installPermissionHelp.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Android илова ўзини янгилаши учун «Номаълум иловаларни ўрнатиш» рухсатини сўрайди. Тизим созламалари очилади.'**
+  String get installPermissionHelp;
 }
 
 class _AppLocalizationsDelegate

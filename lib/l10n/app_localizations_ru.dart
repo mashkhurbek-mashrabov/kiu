@@ -403,4 +403,58 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get ringDurationHelp =>
       'Сколько времени экран звонка звонит, прежде чем остановиться сам.';
+
+  @override
+  String get sectionAbout => 'О приложении';
+
+  @override
+  String get checkForUpdates => 'Проверить обновления';
+
+  @override
+  String get checking => 'Проверка…';
+
+  @override
+  String lastChecked(String value) {
+    return 'Последняя проверка: $value';
+  }
+
+  @override
+  String get upToDate => 'У вас последняя версия';
+
+  @override
+  String get updateAvailable => 'Доступно обновление';
+
+  @override
+  String get updateRequired => 'Требуется обновление';
+
+  @override
+  String updateVersion(String value) {
+    return 'Версия $value';
+  }
+
+  @override
+  String get updateNow => 'Обновить';
+
+  @override
+  String get updateLater => 'Позже';
+
+  @override
+  String get downloadingUpdate => 'Загрузка…';
+
+  @override
+  String get installingUpdate => 'Установка…';
+
+  @override
+  String get updateFailed => 'Не удалось загрузить обновление';
+
+  @override
+  String get updateRequiredHelp =>
+      'Эта версия устарела и не может продолжить работу. Установите обновление, чтобы продолжить.';
+
+  @override
+  String get installPermissionNeeded => 'Нужно разрешение на установку';
+
+  @override
+  String get installPermissionHelp =>
+      'Android запрашивает разрешение «Установка неизвестных приложений», чтобы приложение могло обновить себя. Откроются системные настройки.';
 }

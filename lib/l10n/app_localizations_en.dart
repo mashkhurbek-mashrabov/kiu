@@ -403,4 +403,58 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get ringDurationHelp =>
       'How long the call screen keeps ringing before it gives up and stops on its own.';
+
+  @override
+  String get sectionAbout => 'About';
+
+  @override
+  String get checkForUpdates => 'Check for updates';
+
+  @override
+  String get checking => 'Checking…';
+
+  @override
+  String lastChecked(String value) {
+    return 'Last checked: $value';
+  }
+
+  @override
+  String get upToDate => 'You are on the latest version';
+
+  @override
+  String get updateAvailable => 'Update available';
+
+  @override
+  String get updateRequired => 'Update required';
+
+  @override
+  String updateVersion(String value) {
+    return 'Version $value';
+  }
+
+  @override
+  String get updateNow => 'Update';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get downloadingUpdate => 'Downloading…';
+
+  @override
+  String get installingUpdate => 'Installing…';
+
+  @override
+  String get updateFailed => 'Could not download the update';
+
+  @override
+  String get updateRequiredHelp =>
+      'This version is out of date and cannot keep running. Install the update to continue.';
+
+  @override
+  String get installPermissionNeeded => 'Install permission needed';
+
+  @override
+  String get installPermissionHelp =>
+      'Android asks for the “Install unknown apps” permission before an app can update itself. The system settings will open.';
 }

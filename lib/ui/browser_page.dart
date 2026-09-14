@@ -46,6 +46,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   bool _marking = false;
   bool _fullscreenOpen = false;
   bool _backgroundPromptOpen = false;
+  bool _checking = false;
   double _pullDistance = 0;
   Timer? _pullWatchdog;
   Completer<Map<String, dynamic>>? _markCompleter;
@@ -146,6 +147,9 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
       _synchronize();
       // The user may have just granted a permission in Android settings.
       unawaited(widget.controller.refreshBackgroundAccess());
+      // Throttled to 6h inside the controller, so resuming repeatedly costs
+      // nothing. Catches an update published while the app sat backgrounded.
+      unawaited(widget.controller.checkForUpdate());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _foregroundTimer?.cancel();
@@ -550,21 +554,7 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                               ),
                             ],
                           ),
-                          if (widget.controller.appVersion case final version?)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 20),
-                              child: Text(
-                                version.label(strings.version),
-                                key: const Key('app-version'),
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            ),
+                          _aboutSection(setSheetState),
                         ],
                       ),
                     ),
@@ -1547,6 +1537,72 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
           ),
         ],
       );
+
+  /// Version plus the manual update check.
+  ///
+  /// The version used to be a bare centered `Text` under the last section;
+  /// promoting it to a real section gives the update check somewhere to live
+  /// that matches every other row in the sheet.
+  Widget _aboutSection(StateSetter setSheetState) {
+    final version = widget.controller.appVersion;
+    return SettingsSection(
+      title: strings.sectionAbout,
+      icon: Icons.info_rounded,
+      children: [
+        if (version != null)
+          SettingsRow(
+            key: const Key('app-version'),
+            icon: Icons.badge_rounded,
+            title: strings.version,
+            value: '${version.name} (${version.code})',
+          ),
+        // Listens to the check notifier for the same reason the sync row does:
+        // a check firing on resume repaints this row alone.
+        ValueListenableBuilder<DateTime?>(
+          valueListenable: widget.controller.updateCheckState,
+          builder: (context, lastChecked, _) => SettingsRow(
+            key: const Key('check-updates'),
+            icon: Icons.system_update_rounded,
+            title: strings.checkForUpdates,
+            value: _checking
+                ? strings.checking
+                : strings.lastChecked(
+                    lastChecked == null
+                        ? strings.never
+                        : DateFormat('yyyy-MM-dd HH:mm').format(lastChecked),
+                  ),
+            trailing: _checking
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+            onTap: _checking ? null : () => _checkForUpdates(setSheetState),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _checkForUpdates(StateSetter setSheetState) async {
+    setSheetState(() => _checking = true);
+    await widget.controller.checkForUpdate(force: true);
+    if (!mounted) return;
+    setSheetState(() => _checking = false);
+    final update = widget.controller.availableUpdate.value;
+    // A mandatory update replaces the whole tree, so the sheet is already gone
+    // and a snack bar would have nowhere to land.
+    if (update != null && update.mandatory) return;
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          update == null ? strings.upToDate : strings.updateAvailable,
+        ),
+      ),
+    );
+  }
 
   /// Sync status line.
   ///

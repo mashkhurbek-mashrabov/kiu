@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Scoped to the cache root only, which is where Dart's Directory.systemTemp
+  resolves to on Android (/data/data/<package>/cache). Widening this to
+  <files-path> or a bare <external-path> would expose the app's private
+  storage — cached lessons and settings included — to whatever app receives
+  the install intent.
+-->
+<paths>
+    <cache-path name="updates" path="." />
+</paths>

@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import androidx.core.content.FileProvider
+import java.io.File
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
@@ -66,6 +68,37 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun openInstallPermissionSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                    .setData(Uri.parse("package:$packageName")),
+            )
+        }
+    }
+
+    // Hands a downloaded APK to the system installer.
+    //
+    // The file lives in the app's cache directory, which is not world
+    // readable, so it is exposed through a FileProvider rather than a
+    // `file://` URI -- the latter throws FileUriExposedException on API 24+.
+    // The read grant is scoped to this one intent.
+    private fun installApk(path: String) {
+        val file = File(path)
+        val uri = FileProvider.getUriForFile(
+            this,
+            "$packageName.updates",
+            file,
+        )
+        startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
@@ -87,12 +120,40 @@ class MainActivity : FlutterActivity() {
                     } else {
                         installedVersionCode
                     }
+                    // The prefix itself is reported separately: stripping it
+                    // makes the build number comparable to the release marker,
+                    // but the updater still needs to know which ABI's APK to
+                    // download, and that is unrecoverable once it is gone.
+                    val abi = (installedVersionCode / 1000).toInt()
                     result.success(
                         mapOf(
                             "versionName" to packageInfo.versionName,
                             "versionCode" to versionCode,
+                            "abi" to abi,
                         ),
                     )
+                }
+                "canInstallPackages" -> {
+                    result.success(
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                            packageManager.canRequestPackageInstalls(),
+                    )
+                }
+                "openInstallPermissionSettings" -> {
+                    openInstallPermissionSettings()
+                    result.success(null)
+                }
+                "installApk" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) {
+                        result.error("invalid_path", "Missing APK path.", null)
+                    } else {
+                        runCatching { installApk(path) }
+                            .onSuccess { result.success(null) }
+                            .onFailure {
+                                result.error("install_failed", it.message, null)
+                            }
+                    }
                 }
                 "isBatteryOptimizationDisabled" -> {
                     val manager = getSystemService(Context.POWER_SERVICE) as PowerManager

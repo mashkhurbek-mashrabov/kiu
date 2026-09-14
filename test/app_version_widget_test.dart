@@ -19,9 +19,7 @@ class _VersionProvider implements AppVersionProvider {
 }
 
 void main() {
-  testWidgets('More sheet shows Android package version footer', (
-    tester,
-  ) async {
+  testWidgets('More sheet shows the Android package version', (tester) async {
     WebViewPlatform.instance = FakeWebViewPlatform();
     SharedPreferences.setMockInitialValues({});
     final repository = SettingsRepository(
@@ -52,7 +50,10 @@ void main() {
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
 
+    // The version lives in the About section as a settings row: the label and
+    // the value are separate, rather than one concatenated footer line.
     expect(find.byKey(const Key('app-version')), findsOneWidget);
-    expect(find.text('Версия 1.2.0 (3)'), findsOneWidget);
+    expect(find.text('Версия'), findsOneWidget);
+    expect(find.text('1.2.0 (3)'), findsOneWidget);
   });
 }

@@ -404,6 +404,60 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get ringDurationHelp =>
       'Qo‘ng‘iroq ekrani o‘zi to‘xtagunga qadar qancha vaqt jiringlashi.';
+
+  @override
+  String get sectionAbout => 'Ilova haqida';
+
+  @override
+  String get checkForUpdates => 'Yangilanishni tekshirish';
+
+  @override
+  String get checking => 'Tekshirilmoqda…';
+
+  @override
+  String lastChecked(String value) {
+    return 'Oxirgi tekshiruv: $value';
+  }
+
+  @override
+  String get upToDate => 'Sizda eng so‘nggi versiya';
+
+  @override
+  String get updateAvailable => 'Yangilanish mavjud';
+
+  @override
+  String get updateRequired => 'Yangilanish talab qilinadi';
+
+  @override
+  String updateVersion(String value) {
+    return 'Versiya $value';
+  }
+
+  @override
+  String get updateNow => 'Yangilash';
+
+  @override
+  String get updateLater => 'Keyinroq';
+
+  @override
+  String get downloadingUpdate => 'Yuklab olinmoqda…';
+
+  @override
+  String get installingUpdate => 'O‘rnatilmoqda…';
+
+  @override
+  String get updateFailed => 'Yangilanishni yuklab bo‘lmadi';
+
+  @override
+  String get updateRequiredHelp =>
+      'Bu versiya eskirgan va ishlashda davom etolmaydi. Davom etish uchun yangilanishni o‘rnating.';
+
+  @override
+  String get installPermissionNeeded => 'O‘rnatishga ruxsat kerak';
+
+  @override
+  String get installPermissionHelp =>
+      'Android ilova o‘zini yangilashi uchun «Noma’lum ilovalarni o‘rnatish» ruxsatini so‘raydi. Tizim sozlamalari ochiladi.';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -805,4 +859,58 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   @override
   String get ringDurationHelp =>
       'Қўнғироқ экрани ўзи тўхтагунга қадар қанча вақт жиринглаши.';
+
+  @override
+  String get sectionAbout => 'Илова ҳақида';
+
+  @override
+  String get checkForUpdates => 'Янгиланишни текшириш';
+
+  @override
+  String get checking => 'Текширилмоқда…';
+
+  @override
+  String lastChecked(String value) {
+    return 'Охирги текширув: $value';
+  }
+
+  @override
+  String get upToDate => 'Сизда энг сўнгги версия';
+
+  @override
+  String get updateAvailable => 'Янгиланиш мавжуд';
+
+  @override
+  String get updateRequired => 'Янгиланиш талаб қилинади';
+
+  @override
+  String updateVersion(String value) {
+    return 'Версия $value';
+  }
+
+  @override
+  String get updateNow => 'Янгилаш';
+
+  @override
+  String get updateLater => 'Кейинроқ';
+
+  @override
+  String get downloadingUpdate => 'Юклаб олинмоқда…';
+
+  @override
+  String get installingUpdate => 'Ўрнатилмоқда…';
+
+  @override
+  String get updateFailed => 'Янгиланишни юклаб бўлмади';
+
+  @override
+  String get updateRequiredHelp =>
+      'Бу версия эскирган ва ишлашда давом этолмайди. Давом этиш учун янгиланишни ўрнатинг.';
+
+  @override
+  String get installPermissionNeeded => 'Ўрнатишга рухсат керак';
+
+  @override
+  String get installPermissionHelp =>
+      'Android илова ўзини янгилаши учун «Номаълум иловаларни ўрнатиш» рухсатини сўрайди. Тизим созламалари очилади.';
 }

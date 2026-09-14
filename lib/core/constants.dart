@@ -5,6 +5,26 @@ const String websiteTimeZone = 'Asia/Tashkent';
 const String backgroundTaskName = 'kiuScheduleSync';
 const String backgroundTaskUniqueName = 'kiu.periodicScheduleSync';
 
+/// The repository releases are published to. Read unauthenticated — no token
+/// ships in the APK — which caps us at 60 requests/hour per IP, far above what
+/// the 6-hour check throttle uses.
+const String latestReleaseApiUrl =
+    'https://api.github.com/repos/mashkhurbek-mashrabov/kiu/releases/latest';
+
+/// Hosts allowed to serve an update APK.
+///
+/// The download ends up installed as code, so the URL is allowlisted rather
+/// than trusted because it arrived in the release payload. `github.com` issues
+/// the asset URL and redirects to `objects.githubusercontent.com`, which is
+/// where the bytes actually come from.
+bool isGitHubReleaseAsset(Uri uri) =>
+    uri.scheme == 'https' &&
+    const {
+      'github.com',
+      'objects.githubusercontent.com',
+      'release-assets.githubusercontent.com',
+    }.contains(uri.host.toLowerCase());
+
 /// Path prefixes the sites accept as a language. Both servers happily set a
 /// `lang` cookie for *any* two-letter prefix (`/en/` included) without
 /// validating it, so the app clamps to this set rather than trusting them.

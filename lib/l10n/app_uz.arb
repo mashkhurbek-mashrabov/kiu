@@ -145,5 +145,21 @@
   "preset": "Tayyor",
   "noResults": "Hech narsa topilmadi",
   "reminderTimesHelp": "Dars boshlanishidan qancha vaqt oldin xabar berishni tanlang. Yoqilgan har bir vaqt alohida bildirishnoma yuboradi, shuning uchun bitta darsga bir nechtasi kelishi mumkin.",
-  "ringDurationHelp": "Qo‘ng‘iroq ekrani o‘zi to‘xtagunga qadar qancha vaqt jiringlashi."
+  "ringDurationHelp": "Qo‘ng‘iroq ekrani o‘zi to‘xtagunga qadar qancha vaqt jiringlashi.",
+  "sectionAbout": "Ilova haqida",
+  "checkForUpdates": "Yangilanishni tekshirish",
+  "checking": "Tekshirilmoqda…",
+  "lastChecked": "Oxirgi tekshiruv: {value}",
+  "upToDate": "Sizda eng so‘nggi versiya",
+  "updateAvailable": "Yangilanish mavjud",
+  "updateRequired": "Yangilanish talab qilinadi",
+  "updateVersion": "Versiya {value}",
+  "updateNow": "Yangilash",
+  "updateLater": "Keyinroq",
+  "downloadingUpdate": "Yuklab olinmoqda…",
+  "installingUpdate": "O‘rnatilmoqda…",
+  "updateFailed": "Yangilanishni yuklab bo‘lmadi",
+  "updateRequiredHelp": "Bu versiya eskirgan va ishlashda davom etolmaydi. Davom etish uchun yangilanishni o‘rnating.",
+  "installPermissionNeeded": "O‘rnatishga ruxsat kerak",
+  "installPermissionHelp": "Android ilova o‘zini yangilashi uchun «Noma’lum ilovalarni o‘rnatish» ruxsatini so‘raydi. Tizim sozlamalari ochiladi."
 }

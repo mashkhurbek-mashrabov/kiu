@@ -13,6 +13,10 @@
          unlocked and in use, the way a real incoming call does. User-granted, and the call
          still falls back to a heads-up notification when it is not granted. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- KIU ships outside the Play Store, so updates are downloaded in-app and handed to the
+         system installer. User-granted per app; when it is not granted the update screen routes
+         to the system settings rather than failing silently. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <application
         android:label="KIU"
         android:name="${applicationName}"
@@ -114,6 +118,18 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- Exposes only the downloaded update APK to the system installer. Scoped to one
+             cache subdirectory on purpose: a provider over the whole files dir would hand a
+             read grant on the app's private storage to whoever receives the intent. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

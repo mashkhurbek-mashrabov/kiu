@@ -159,5 +159,35 @@
   "preset": "Тайёр",
   "noResults": "Ҳеч нарса топилмади",
   "reminderTimesHelp": "Дарс бошланишидан қанча вақт олдин хабар беришни танланг. Ёқилган ҳар бир вақт алоҳида билдиришнома юборади, шунинг учун битта дарсга бир нечтаси келиши мумкин.",
-  "ringDurationHelp": "Қўнғироқ экрани ўзи тўхтагунга қадар қанча вақт жиринглаши."
+  "ringDurationHelp": "Қўнғироқ экрани ўзи тўхтагунга қадар қанча вақт жиринглаши.",
+  "sectionAbout": "Илова ҳақида",
+  "checkForUpdates": "Янгиланишни текшириш",
+  "checking": "Текширилмоқда…",
+  "lastChecked": "Охирги текширув: {value}",
+  "@lastChecked": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "upToDate": "Сизда энг сўнгги версия",
+  "updateAvailable": "Янгиланиш мавжуд",
+  "updateRequired": "Янгиланиш талаб қилинади",
+  "updateVersion": "Версия {value}",
+  "@updateVersion": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "updateNow": "Янгилаш",
+  "updateLater": "Кейинроқ",
+  "downloadingUpdate": "Юклаб олинмоқда…",
+  "installingUpdate": "Ўрнатилмоқда…",
+  "updateFailed": "Янгиланишни юклаб бўлмади",
+  "updateRequiredHelp": "Бу версия эскирган ва ишлашда давом этолмайди. Давом этиш учун янгиланишни ўрнатинг.",
+  "installPermissionNeeded": "Ўрнатишга рухсат керак",
+  "installPermissionHelp": "Android илова ўзини янгилаши учун «Номаълум иловаларни ўрнатиш» рухсатини сўрайди. Тизим созламалари очилади."
 }

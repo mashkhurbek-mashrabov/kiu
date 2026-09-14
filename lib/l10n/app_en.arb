@@ -145,5 +145,21 @@
   "preset": "Preset",
   "noResults": "Nothing found",
   "reminderTimesHelp": "Pick how long before a lesson you want to be notified. Each time you turn on sends its own notification, so several can fire for one lesson.",
-  "ringDurationHelp": "How long the call screen keeps ringing before it gives up and stops on its own."
+  "ringDurationHelp": "How long the call screen keeps ringing before it gives up and stops on its own.",
+  "sectionAbout": "About",
+  "checkForUpdates": "Check for updates",
+  "checking": "Checking…",
+  "lastChecked": "Last checked: {value}",
+  "upToDate": "You are on the latest version",
+  "updateAvailable": "Update available",
+  "updateRequired": "Update required",
+  "updateVersion": "Version {value}",
+  "updateNow": "Update",
+  "updateLater": "Later",
+  "downloadingUpdate": "Downloading…",
+  "installingUpdate": "Installing…",
+  "updateFailed": "Could not download the update",
+  "updateRequiredHelp": "This version is out of date and cannot keep running. Install the update to continue.",
+  "installPermissionNeeded": "Install permission needed",
+  "installPermissionHelp": "Android asks for the “Install unknown apps” permission before an app can update itself. The system settings will open."
 }

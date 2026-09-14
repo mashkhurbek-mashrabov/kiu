@@ -34,6 +34,8 @@ class SettingsRepository {
   static const _syncStatus = 'kiu.syncStatus';
   static const _webViewUserAgent = 'kiu.webViewUserAgent';
   static const _backgroundExplainerShown = 'kiu.backgroundExplainerShown';
+  static const _lastUpdateCheck = 'kiu.lastUpdateCheck';
+  static const _skippedUpdateBuild = 'kiu.skippedUpdateBuild';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -206,6 +208,22 @@ class SettingsRepository {
 
   Future<void> markBackgroundExplainerShown() =>
       _preferences.setBool(_backgroundExplainerShown, true);
+
+  /// When the updater last got an answer from GitHub. `tryParse` rather than
+  /// `parse`: this is read on the path that gates the whole app, and a corrupt
+  /// value must degrade to "never checked", not throw.
+  DateTime? get lastUpdateCheck =>
+      DateTime.tryParse(_preferences.getString(_lastUpdateCheck) ?? '');
+
+  Future<void> recordUpdateCheck(DateTime value) =>
+      _preferences.setString(_lastUpdateCheck, value.toIso8601String());
+
+  /// The build the user dismissed, so an optional update stops nagging. Never
+  /// consulted for a mandatory one.
+  int get skippedUpdateBuild => _preferences.getInt(_skippedUpdateBuild) ?? 0;
+
+  Future<void> skipUpdateBuild(int build) =>
+      _preferences.setInt(_skippedUpdateBuild, build);
 
   Future<void> recordSuccess(DateTime value) async {
     await _preferences.setString(_lastSuccess, value.toIso8601String());

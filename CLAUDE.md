@@ -11,7 +11,7 @@ KIU: Android-only Flutter LMS companion app (`com.mashkhurbek.kiu`, Android API 
 - `lib/app/` — DI, state wiring
 - `lib/domain/` — settings, lesson models
 - `lib/data/` — non-secret state persistence
-- `lib/services/` — sync, notifications, timezones, widget data
+- `lib/services/` — sync, notifications, timezones, widget data, updates
 - `lib/web/` — injected JavaScript
 - `lib/ui/` — WebView shell
 - `lib/l10n/` — `.arb` sources (template `app_uz_Cyrl.arb`) + committed generated output
@@ -125,6 +125,25 @@ compact call metrics live in plain `values/dimens.xml` as the floor and
 silently clips the start-time pill on small devices while looking fine on the
 one you happen to be testing.
 
+**The release marker carries the *pubspec* build number, not the APK's.**
+`--split-per-abi` builds each APK with `1000 * abi + build`, so `1.4.0+18` is
+2018 on arm64 and 4018 on x86_64. `MainActivity.getAppVersion` strips that
+prefix and reports the ABI separately, so `AppVersion.code` compares directly
+against `<!-- kiu-update: build=N -->` and `AppVersion.abi` picks the asset.
+Comparing a raw version code against the marker makes the updater report "up to
+date" forever — silently, with no error anywhere.
+
+**A failed update check must not advance the last-checked time.**
+`UpdateCheckResult` separates "GitHub said you are current" from "GitHub never
+answered" on purpose. Collapsing them to a nullable update makes one offline
+launch silence the updater for the whole 6-hour throttle window, and shows the
+user a "last checked" time at which nothing was checked.
+
+**A malformed release marker means *no update*, never a lockout.**
+`parseUpdateMarker` returns null for anything it cannot read, and the gate only
+appears for a marker that parsed. A typo in a release body would otherwise
+brick every install at once, with no way in to fix it.
+
 **Reminder text is localized.** `ReminderReconciler` loads
 `AppLocalizations.delegate` directly (no `BuildContext` in the background
 isolate). Add strings to all four `.arb` files, never inline them.
@@ -156,6 +175,29 @@ During development the file is an append-only running log — one bullet per cha
 ## Branching & versions
 
 Branch per feature, tag per version — no version branches, no `develop`. Work on `feat/<slug>` or `fix/<slug>` off `main`, merge back, then bump `version:` in `pubspec.yaml` in its own `chore(release): <version>` commit and tag `v<version>`. Build release APKs from the tag. Bump the build number (`+N`) on every release and never reuse one — Android rejects a duplicate on upgrade. Create a `release/<x.y>.x` branch only if a shipped version actually needs a patch after `main` has moved on.
+
+## Updates
+
+KIU ships outside the Play Store. Releases are published to GitHub, and the app
+reads `releases/latest` unauthenticated — **no token ships in the APK**. Build
+number and blocking behavior ride a marker in the release body:
+
+```
+<!-- kiu-update: build=19 mandatory=true minBuild=15 -->
+```
+
+`mandatory` defaults to true when absent; `minBuild` forces the update for
+anyone below that build regardless. Assets must be named
+`KIU-<version>+<build>-<abi>.apk` and served from a GitHub host — the
+`isGitHubReleaseAsset` allowlist rejects anything else, because the download is
+installed as code.
+
+**Release builds must be signed with the real keystore.** `key.properties` +
+`*.jks` are gitignored; Gradle falls back to the debug key only when the file is
+missing, so `flutter run --release` still works locally. Never publish an APK
+from that fallback: the Flutter debug key is on every machine with the SDK, so a
+debug-signed release lets anyone build an APK Android accepts as an upgrade —
+which, with an in-app updater, is a code delivery path.
 
 ## Security
 
