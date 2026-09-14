@@ -21,11 +21,6 @@
   public <init>(...);
 }
 
-# The update installer's FileProvider is named in AndroidManifest.xml, so R8
-# cannot see the reference. Without this the provider is stripped and
-# getUriForFile fails at runtime with no build-time warning.
--keep class androidx.core.content.FileProvider
-
 # home_widget's background receiver is named in the manifest, and the plugin
 # resolves its prefs accessor by name from the widget provider.
 -keep class es.antonborri.home_widget.HomeWidgetBackgroundReceiver

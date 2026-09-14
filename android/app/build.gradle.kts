@@ -127,10 +127,4 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
-    // FileProvider is named in AndroidManifest.xml for the update installer.
-    // Declared explicitly rather than leaned on transitively through a Flutter
-    // plugin: a manifest-named class that vanishes when a plugin bumps its
-    // dependencies fails silently at runtime, which is this project's worst
-    // failure mode.
-    implementation("androidx.core:core-ktx:1.13.1")
 }

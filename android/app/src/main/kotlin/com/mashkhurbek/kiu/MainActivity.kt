@@ -1,6 +1,8 @@
 package com.mashkhurbek.kiu
 
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.pm.PackageInstaller
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -8,7 +10,6 @@ import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
-import androidx.core.content.FileProvider
 import java.io.File
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
@@ -17,6 +18,8 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val SOUND_PICKER_REQUEST = 1001
+        private const val INSTALL_RESULT_ACTION =
+            "com.mashkhurbek.kiu.action.INSTALL_RESULT"
     }
 
     private var pendingSoundResult: MethodChannel.Result? = null
@@ -68,6 +71,30 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // The PackageInstaller session reports back here (singleTop, so an existing
+    // instance gets onNewIntent rather than a new activity).
+    //
+    // STATUS_PENDING_USER_ACTION carries the system's own confirmation prompt,
+    // which has to be launched explicitly -- without this the commit succeeds
+    // but the user is never asked anything and nothing installs.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action != INSTALL_RESULT_ACTION) return
+        val status = intent.getIntExtra(
+            PackageInstaller.EXTRA_STATUS,
+            PackageInstaller.STATUS_FAILURE,
+        )
+        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            val confirm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+            }
+            confirm?.let { runCatching { startActivity(it) } }
+        }
+    }
+
     private fun openInstallPermissionSettings() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
@@ -78,25 +105,43 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // Hands a downloaded APK to the system installer.
+    // Streams a downloaded APK into a PackageInstaller session.
     //
-    // The file lives in the app's cache directory, which is not world
-    // readable, so it is exposed through a FileProvider rather than a
-    // `file://` URI -- the latter throws FileUriExposedException on API 24+.
-    // The read grant is scoped to this one intent.
+    // Deliberately not ACTION_VIEW with the APK mime type: that is a generic
+    // "open this file" request, so any app registered for
+    // application/vnd.android.package-archive (a file manager, WPS Office)
+    // competes for it and Android shows an "Open with" chooser. A session goes
+    // straight to the system installer.
+    //
+    // Android still shows its own confirmation prompt, and always will for a
+    // third-party app: silent install needs INSTALL_PACKAGES, a signature-level
+    // permission only system or device-owner apps can hold.
     private fun installApk(path: String) {
         val file = File(path)
-        val uri = FileProvider.getUriForFile(
-            this,
-            "$packageName.updates",
-            file,
+        val installer = packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(
+            PackageInstaller.SessionParams.MODE_FULL_INSTALL,
         )
-        startActivity(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
+        val sessionId = installer.createSession(params)
+        installer.openSession(sessionId).use { session ->
+            file.inputStream().use { input ->
+                session.openWrite("kiu-update", 0, file.length()).use { output ->
+                    input.copyTo(output, DEFAULT_BUFFER_SIZE)
+                    session.fsync(output)
+                }
+            }
+            // Must be mutable: the installer fills in the status extras.
+            val intent = Intent(this, MainActivity::class.java)
+                .setAction(INSTALL_RESULT_ACTION)
+            // FLAG_MUTABLE only exists from API 31; below that a PendingIntent
+            // is mutable by default and the constant is unavailable.
+            var flags = PendingIntent.FLAG_UPDATE_CURRENT
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                flags = flags or PendingIntent.FLAG_MUTABLE
+            }
+            val pending = PendingIntent.getActivity(this, sessionId, intent, flags)
+            session.commit(pending.intentSender)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -136,8 +181,8 @@ class MainActivity : FlutterActivity() {
                 "getUpdateCacheDir" -> {
                     // Dart's Directory.systemTemp resolves to /tmp, which does
                     // not exist on Android -- writing there throws. The cache
-                    // dir is also what the FileProvider's <cache-path> exposes,
-                    // so the installer can read what we download.
+                    // dir is where the update APK is written before it is
+                    // streamed into the PackageInstaller session.
                     result.success(cacheDir.absolutePath)
                 }
                 "canInstallPackages" -> {
