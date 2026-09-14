@@ -2385,11 +2385,14 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
                   ),
                 ),
               ),
+            // Top, not bottom: the floating pill is painted last and would
+            // cover a bar sitting on the bottom edge, which is what silently
+            // lost the loading indicator when the bar stopped being docked.
             if (_progress < 100)
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 0,
+                top: 0,
                 child: LinearProgressIndicator(
                   key: const Key('page-progress'),
                   minHeight: 2,
@@ -2418,7 +2421,11 @@ class _BrowserPageState extends State<BrowserPage> with WidgetsBindingObserver {
   /// Blur behind the bar. One knob: drop this to 0 and the bar becomes a plain
   /// translucent pill if the frosted pass ever costs too much on a real device.
   /// Cheap here because the blurred region is only the pill, not the screen.
-  static const double _navBlurSigma = 24;
+  ///
+  /// 12 rather than the 24 this started at: the heavier frost flattened the
+  /// page behind the bar into a wash of colour, which read as an opaque bar
+  /// rather than glass. Lower sigma keeps the page legible through it.
+  static const double _navBlurSigma = 12;
 
   /// The floating navigation pill, modelled on Instagram's iOS bar: frosted
   /// glass over the page, fully rounded, inset from all three edges, with the

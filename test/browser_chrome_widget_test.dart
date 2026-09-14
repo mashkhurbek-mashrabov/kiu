@@ -90,6 +90,25 @@ void main() {
     expect(find.byKey(const Key('page-progress')), findsOneWidget);
   });
 
+  testWidgets('the loading bar stays clear of the floating nav pill', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final progress = tester.getRect(find.byKey(const Key('page-progress')));
+    final bar = tester.getRect(find.byKey(const Key('nav-bar')));
+    // The pill paints after the progress bar, so any overlap hides the
+    // indicator outright -- which is how it went missing once the bar started
+    // floating instead of sitting docked below it.
+    expect(progress.overlaps(bar), isFalse);
+    expect(progress.bottom, lessThanOrEqualTo(bar.top));
+  });
+
   testWidgets('the nav pill floats clear of both screen edges', (tester) async {
     await tester.pumpWidget(
       KiuApp(
