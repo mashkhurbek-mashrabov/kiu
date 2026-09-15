@@ -168,10 +168,9 @@ void main() {
     expect(find.byKey(const Key('actions-menu')), findsOneWidget);
   });
 
-  testWidgets('an optional update is downloadable from the About section', (
+  testWidgets('an optional update offers itself without opening settings', (
     tester,
   ) async {
-    final installer = _FakeInstaller();
     final checker = _FakeChecker(
       UpdateCheckResult.answered(_update(mandatory: false)),
     );
@@ -181,10 +180,65 @@ void main() {
       KiuApp(
         controller: controller,
         homeRequests: ValueNotifier<int>(0),
-        updateDownloader: UpdateDownloader(installer: installer),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
       ),
     );
     await tester.pumpAndSettle();
+
+    // Without this the update only existed in a settings row nobody had a
+    // reason to open.
+    expect(find.byKey(const Key('optional-update-dialog')), findsOneWidget);
+    expect(find.byKey(const Key('optional-update-now')), findsOneWidget);
+  });
+
+  testWidgets('declining an optional update stops it asking again', (
+    tester,
+  ) async {
+    final checker = _FakeChecker(
+      UpdateCheckResult.answered(_update(mandatory: false)),
+    );
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('optional-update-later')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('optional-update-dialog')), findsNothing);
+    // Later is a decision, not a postponement: the build is recorded so the
+    // next check does not prompt for it again.
+    expect(controller.availableUpdate.value, isNull);
+  });
+
+  testWidgets('an optional update is downloadable from the check row', (
+    tester,
+  ) async {
+    final checker = _FakeChecker(
+      UpdateCheckResult.answered(_update(mandatory: false)),
+    );
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Dismiss the offer by tapping outside, which leaves the update pending
+    // rather than skipping it -- exactly the state the row has to cover.
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(controller.availableUpdate.value, isNotNull);
 
     await tester.tap(find.byKey(const Key('actions-menu')));
     await tester.pumpAndSettle();
@@ -194,8 +248,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // The row announcing the update is useless without something to press.
-    expect(find.byKey(const Key('update-now')), findsOneWidget);
+    // The download sits in the row that announces it, not in a separate
+    // button below that reads as unrelated.
+    expect(find.byKey(const Key('update-row-now')), findsOneWidget);
+    expect(find.text('Версия 1.5.0'), findsOneWidget);
   });
 
   testWidgets('no optional-update button when the app is current', (
@@ -221,7 +277,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('update-now')), findsNothing);
+    expect(find.byKey(const Key('update-row-now')), findsNothing);
   });
 
   testWidgets('no update leaves the browser alone', (tester) async {

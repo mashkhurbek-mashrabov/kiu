@@ -58,6 +58,8 @@ class _BrowserPageState extends State<BrowserPage>
   bool _fullscreenOpen = false;
   bool _backgroundPromptOpen = false;
   bool _onboardingStarted = false;
+  bool _updatePromptOpen = false;
+  bool _settingsOpen = false;
   bool _checking = false;
 
   /// Drives the one-shot gestures the two non-destination actions play when
@@ -98,6 +100,15 @@ class _BrowserPageState extends State<BrowserPage>
     WidgetsBinding.instance.addObserver(this);
     widget.homeRequests.addListener(_goHome);
     widget.navigationRequests?.addListener(_goToRequestedPage);
+    // Listened to rather than checked after each call site: an optional update
+    // can arrive from the launch check, the resume check or the manual one,
+    // and the user must not have to open Settings to learn it exists.
+    widget.controller.availableUpdate.addListener(_offerOptionalUpdate);
+    // A stored update restored during `initialize()` was already set before
+    // this page existed, so the listener alone would never see it.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_offerOptionalUpdate()),
+    );
     final requestedUri = widget.navigationRequests?.value;
     final initialUri = requestedUri != null && isTrustedHttps(requestedUri)
         ? requestedUri
@@ -444,6 +455,58 @@ class _BrowserPageState extends State<BrowserPage>
     );
   }
 
+  /// Offers an optional update the moment one is known, instead of waiting for
+  /// the user to go looking for it in Settings.
+  ///
+  /// Shown once per build: declining calls [AppController.skipUpdate], which
+  /// records the build and clears the offer, so a dismissed update never asks
+  /// again. A mandatory update is ignored here -- it gets the full gate.
+  Future<void> _offerOptionalUpdate() async {
+    final update = widget.controller.availableUpdate.value;
+    final downloader = widget.updateDownloader;
+    if (update == null ||
+        update.mandatory ||
+        downloader == null ||
+        _updatePromptOpen ||
+        // The settings sheet already offers the download in the check row, so
+        // a dialog over it would announce what the user is looking at.
+        _settingsOpen ||
+        !mounted) {
+      return;
+    }
+    _updatePromptOpen = true;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('optional-update-dialog'),
+        icon: const Icon(Icons.system_update_rounded),
+        title: Text(strings.updateAvailable),
+        content: Text(strings.updateVersion(update.versionName)),
+        actions: [
+          TextButton(
+            key: const Key('optional-update-later'),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(strings.updateLater),
+          ),
+          FilledButton(
+            key: const Key('optional-update-now'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(strings.updateNow),
+          ),
+        ],
+      ),
+    );
+    _updatePromptOpen = false;
+    if (!mounted) return;
+    if (accepted ?? false) {
+      await downloader.download(update);
+      return;
+    }
+    // Dismissing by tapping outside is not a decision -- only Later is, so a
+    // stray tap leaves the update pending in Settings.
+    if (accepted == false) await widget.controller.skipUpdate(update);
+  }
+
   Future<void> _maybeExplainBackgroundAccess() async {
     if (_backgroundPromptOpen ||
         !widget.controller.shouldShowBackgroundExplainer ||
@@ -614,6 +677,7 @@ class _BrowserPageState extends State<BrowserPage>
         UpdateDownloadStage.downloading) {
       widget.updateDownloader?.reset();
     }
+    _settingsOpen = true;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -777,6 +841,7 @@ class _BrowserPageState extends State<BrowserPage>
         },
       ),
     );
+    _settingsOpen = false;
   }
 
   /// Playback speed. Presets as chips plus a fine slider, kept at the top of
@@ -1773,49 +1838,58 @@ class _BrowserPageState extends State<BrowserPage>
             value: '${version.name} (${version.code})',
           ),
         // Listens to the check notifier for the same reason the sync row does:
-        // a check firing on resume repaints this row alone.
-        ValueListenableBuilder<DateTime?>(
-          valueListenable: widget.controller.updateCheckState,
-          builder: (context, lastChecked, _) => SettingsRow(
-            key: const Key('check-updates'),
-            icon: Icons.system_update_rounded,
-            title: texts.checkForUpdates,
-            value: switch ((_checking, _checkResult)) {
-              (true, _) => texts.checking,
-              (_, final result?) => result,
-              _ => texts.lastChecked(
-                lastChecked == null
-                    ? texts.never
-                    : DateFormat('dd.MM.yyyy HH:mm').format(lastChecked),
-              ),
-            },
-            trailing: _checking
-                ? const SizedBox(
+        // a check firing on resume repaints this row alone. Nested inside the
+        // update notifier so the row that *announces* an update is also the
+        // one that downloads it -- a separate button below read as unrelated
+        // to the line above it.
+        ValueListenableBuilder<AppUpdate?>(
+          valueListenable: widget.controller.availableUpdate,
+          builder: (context, update, _) {
+            // A mandatory update never renders here: the gate has already
+            // replaced this whole page by the time it exists.
+            final pending = downloader != null && update != null
+                ? update
+                : null;
+            return ValueListenableBuilder<DateTime?>(
+              valueListenable: widget.controller.updateCheckState,
+              builder: (context, lastChecked, _) => SettingsRow(
+                key: const Key('check-updates'),
+                icon: Icons.system_update_rounded,
+                title: texts.checkForUpdates,
+                value: switch ((_checking, _checkResult)) {
+                  (true, _) => texts.checking,
+                  (_, final result?) => result,
+                  _ => texts.lastChecked(
+                    lastChecked == null
+                        ? texts.never
+                        : DateFormat('dd.MM.yyyy HH:mm').format(lastChecked),
+                  ),
+                },
+                // A pending update takes the subtitle over entirely: the
+                // version, then the progress bar and any failure, none of
+                // which fit the single line `value` allows.
+                valueWidget: pending == null || _checking
+                    ? null
+                    : updateRowStatus(pending, downloader!, texts),
+                trailing: switch ((_checking, pending)) {
+                  (true, _) => const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2.2),
-                  )
-                : const Icon(Icons.refresh_rounded),
-            onTap: _checking ? null : () => _checkForUpdates(setSheetState),
-          ),
-        ),
-        // An optional update is only ever announced here, so the download has
-        // to be reachable from here too: a mandatory one gets the full gate,
-        // but before this the row said "update available" and offered nothing
-        // to press.
-        if (downloader != null)
-          ValueListenableBuilder<AppUpdate?>(
-            valueListenable: widget.controller.availableUpdate,
-            builder: (context, update, _) => update == null || update.mandatory
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                    child: UpdateActionButton(
-                      update: update,
-                      downloader: downloader,
-                    ),
                   ),
-          ),
+                  (_, final update?) => UpdateRowButton(
+                    update: update,
+                    downloader: downloader!,
+                  ),
+                  _ => const Icon(Icons.refresh_rounded),
+                },
+                // Tapping the row still re-checks; the update itself is behind
+                // the button, so the two actions never collide.
+                onTap: _checking ? null : () => _checkForUpdates(setSheetState),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -2403,6 +2477,7 @@ class _BrowserPageState extends State<BrowserPage>
     WidgetsBinding.instance.removeObserver(this);
     widget.homeRequests.removeListener(_goHome);
     widget.navigationRequests?.removeListener(_goToRequestedPage);
+    widget.controller.availableUpdate.removeListener(_offerOptionalUpdate);
     _foregroundTimer?.cancel();
     _pullWatchdog?.cancel();
     _refreshSpin.dispose();
