@@ -518,7 +518,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get additionalFunctionsHint =>
-      'Эти функции открываются только по ключу активации. Напишите разработчику, чтобы получить его.';
+      'Эти функции открываются только по ключу активации. Скопируйте ID ниже и отправьте его разработчику — он создаст ключ для этого ID. Ключ работает только на этом устройстве.';
+
+  @override
+  String get yourUserId => 'Ваш ID';
+
+  @override
+  String get userIdCopied => 'ID скопирован';
 
   @override
   String get activationKey => 'Ключ активации';

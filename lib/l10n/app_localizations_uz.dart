@@ -518,7 +518,13 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get additionalFunctionsHint =>
-      'Bu imkoniyatlar faqat faollashtirish kaliti bilan ochiladi. Kalitni olish uchun dastur muallifiga yozing.';
+      'Bu imkoniyatlar faqat faollashtirish kaliti bilan ochiladi. Quyidagi ID’ni nusxalab, dastur muallifiga yuboring — u shu ID uchun kalit yaratadi. Kalit faqat shu qurilmada ishlaydi.';
+
+  @override
+  String get yourUserId => 'Sizning ID’ingiz';
+
+  @override
+  String get userIdCopied => 'ID nusxalandi';
 
   @override
   String get activationKey => 'Faollashtirish kaliti';
@@ -1055,7 +1061,13 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get additionalFunctionsHint =>
-      'Бу имкониятлар фақат фаоллаштириш калити билан очилади. Калитни олиш учун дастур муаллифига ёзинг.';
+      'Бу имкониятлар фақат фаоллаштириш калити билан очилади. Қуйидаги ID\'ни нусхалаб, дастур муаллифига юборинг — у шу ID учун калит яратади. Калит фақат шу қурилмада ишлайди.';
+
+  @override
+  String get yourUserId => 'Сизнинг ID\'ингиз';
+
+  @override
+  String get userIdCopied => 'ID нусхаланди';
 
   @override
   String get activationKey => 'Фаоллаштириш калити';

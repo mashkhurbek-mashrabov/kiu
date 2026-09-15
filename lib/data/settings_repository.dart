@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/activation.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../services/update_service.dart';
@@ -41,6 +42,8 @@ class SettingsRepository {
   static const _pendingUpdate = 'kiu.pendingUpdate';
   static const _courseLevel = 'kiu.courseLevel';
   static const _activated = 'kiu.additionalFunctionsActivated';
+  static const _userId = 'kiu.userId';
+  static const _activationReset = 'kiu.activationResetV2';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -282,6 +285,35 @@ class SettingsRepository {
   Future<void> saveCourseLevel(int? level) => level == null
       ? _preferences.remove(_courseLevel)
       : _preferences.setInt(_courseLevel, level);
+
+  /// This install's user ID, or null before one has been minted.
+  ///
+  /// Install state rather than a setting, so it stays out of [AppSettings] for
+  /// the same reason as [courseLevel] -- the user never chooses it, and
+  /// `saveSettings` must never rewrite it.
+  ///
+  /// Read tolerantly through untyped [SharedPreferences.get], like
+  /// [courseLevel]: `getString` *casts*, so a key holding another type throws,
+  /// and this sits on the launch path where that is an unrecoverable crash.
+  /// Anything unreadable -- wrong type, or the wrong length -- degrades to "no
+  /// ID yet" and is replaced on the next launch.
+  String? get userId {
+    final value = _preferences.get(_userId);
+    return value is String && value.length == userIdLength ? value : null;
+  }
+
+  Future<void> saveUserId(String value) =>
+      _preferences.setString(_userId, value);
+
+  /// Whether the one-shot clearing of pre-2.1.0 activations has already run.
+  ///
+  /// 2.0.0 keys were not bound to an install, so they all had to be invalidated
+  /// when binding arrived. The marker makes that a single event: without it the
+  /// reset would fire on every launch and no one could ever stay activated.
+  bool get activationResetDone => _preferences.get(_activationReset) == true;
+
+  Future<void> markActivationReset() =>
+      _preferences.setBool(_activationReset, true);
 
   Future<void> recordSuccess(DateTime value) async {
     await _preferences.setString(_lastSuccess, value.toIso8601String());

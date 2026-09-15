@@ -517,7 +517,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get additionalFunctionsHint =>
-      'These functions open only with an activation key. Contact the developer to get one.';
+      'These functions open only with an activation key. Copy the ID below and send it to the developer — they will make a key for that ID. The key works only on this device.';
+
+  @override
+  String get yourUserId => 'Your ID';
+
+  @override
+  String get userIdCopied => 'ID copied';
 
   @override
   String get activationKey => 'Activation key';
