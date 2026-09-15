@@ -1042,6 +1042,60 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Барча эслатмалар ва дарс қўнғироқлари билдиришнома сифатида келади. Бу рухсатсиз KIU сизга ҳеч қандай хабар юбора олмайди.'**
   String get permissionNotificationsHelp;
+
+  /// No description provided for @additionalFunctions.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қўшимча имкониятлар'**
+  String get additionalFunctions;
+
+  /// No description provided for @additionalFunctionsHint.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бу имкониятлар фақат фаоллаштириш калити билан очилади. Калитни олиш учун дастур муаллифига ёзинг.'**
+  String get additionalFunctionsHint;
+
+  /// No description provided for @activationKey.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фаоллаштириш калити'**
+  String get activationKey;
+
+  /// No description provided for @activationKeyHint.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Масалан: KIU-XXXX-XXXX'**
+  String get activationKeyHint;
+
+  /// No description provided for @activate.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фаоллаштириш'**
+  String get activate;
+
+  /// No description provided for @activated.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Фаоллаштирилган'**
+  String get activated;
+
+  /// No description provided for @activationFailed.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Калит нотўғри'**
+  String get activationFailed;
+
+  /// No description provided for @activationSuccess.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Қўшимча имкониятлар очилди'**
+  String get activationSuccess;
+
+  /// No description provided for @contactForKey.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Калит олиш учун ёзинг'**
+  String get contactForKey;
 }
 
 class _AppLocalizationsDelegate

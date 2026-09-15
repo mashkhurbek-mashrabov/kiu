@@ -185,5 +185,14 @@
   "permissionWhyOverlay": "Telefondan foydalanayotganingizda dars qo‘ng‘irog‘i ochilishi uchun.",
   "permissionWhyFullScreen": "Dars qo‘ng‘irog‘i qulflangan ekranda ko‘rinishi uchun.",
   "permissionWhyNotifications": "KIU dars boshlanishidan oldin xabar berishi uchun.",
-  "permissionNotificationsHelp": "Barcha eslatmalar va dars qo‘ng‘iroqlari bildirishnoma sifatida keladi. Bu ruxsatsiz KIU sizga hech qanday xabar yubora olmaydi."
+  "permissionNotificationsHelp": "Barcha eslatmalar va dars qo‘ng‘iroqlari bildirishnoma sifatida keladi. Bu ruxsatsiz KIU sizga hech qanday xabar yubora olmaydi.",
+  "additionalFunctions": "Qo‘shimcha imkoniyatlar",
+  "additionalFunctionsHint": "Bu imkoniyatlar faqat faollashtirish kaliti bilan ochiladi. Kalitni olish uchun dastur muallifiga yozing.",
+  "activationKey": "Faollashtirish kaliti",
+  "activationKeyHint": "Masalan: KIU-XXXX-XXXX",
+  "activate": "Faollashtirish",
+  "activated": "Faollashtirilgan",
+  "activationFailed": "Kalit noto‘g‘ri",
+  "activationSuccess": "Qo‘shimcha imkoniyatlar ochildi",
+  "contactForKey": "Kalit olish uchun yozing"
 }

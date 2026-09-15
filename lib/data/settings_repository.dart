@@ -40,6 +40,7 @@ class SettingsRepository {
   static const _skippedUpdateBuild = 'kiu.skippedUpdateBuild';
   static const _pendingUpdate = 'kiu.pendingUpdate';
   static const _courseLevel = 'kiu.courseLevel';
+  static const _activated = 'kiu.additionalFunctionsActivated';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -60,6 +61,12 @@ class SettingsRepository {
     callRingtoneUri: _preferences.getString(_callRingtoneUri),
     callRingtoneName: _preferences.getString(_callRingtoneName),
     callOverrides: _loadCallOverrides(),
+    // Untyped `get` rather than `getBool`, which *casts* and so throws on a
+    // key holding another type. This runs on the launch path and in the
+    // background isolate, where a throw is an unrecoverable crash the user
+    // cannot clear without reinstalling. Anything that is not exactly `true`
+    // reads as "not activated".
+    additionalFunctionsActivated: _preferences.get(_activated) == true,
   );
 
   /// A single unparsable entry must not throw out of [loadSettings], which runs
@@ -149,6 +156,7 @@ class SettingsRepository {
       ),
       _writeOrRemove(_callRingtoneUri, settings.callRingtoneUri),
       _writeOrRemove(_callRingtoneName, settings.callRingtoneName),
+      _preferences.setBool(_activated, settings.additionalFunctionsActivated),
     ]);
   }
 
