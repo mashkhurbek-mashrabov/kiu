@@ -388,9 +388,6 @@ class AppLocalizationsUz extends AppLocalizations {
   }
 
   @override
-  String get versionCopied => 'Versiya nusxalandi';
-
-  @override
   String get about => 'Ilova haqida';
 
   @override
@@ -926,9 +923,6 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String permissionsMissing(int count) {
     return '$count та берилмаган';
   }
-
-  @override
-  String get versionCopied => 'Версия нусхаланди';
 
   @override
   String get about => 'Илова ҳақида';

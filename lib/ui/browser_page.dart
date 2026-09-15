@@ -2096,27 +2096,17 @@ class _BrowserPageState extends State<BrowserPage>
       title: texts.sectionAbout,
       icon: Icons.info_rounded,
       children: [
-        // Tap copies the version, the way every Android About screen does --
-        // it is the one string a user is ever asked to quote when reporting a
-        // problem, and retyping "1.7.5 (31)" by hand is the alternative.
+        // The tap does nothing visible: it only counts toward the activation
+        // page. Copying used to live here too, but a row that reacts to every
+        // tap makes the ten-tap gesture obvious, which defeats the point of
+        // hiding it behind one.
         if (version != null)
           SettingsRow(
             key: const Key('app-version'),
             icon: Icons.badge_rounded,
             title: texts.version,
             value: '${version.name} (${version.code})',
-            onTap: () async {
-              // Copying stays the row's visible job; the tap count rides along
-              // silently on top of it, so the way in to the activation page is
-              // not advertised to a user who is only reporting a problem.
-              _countVersionTap(sheetContext);
-              await Clipboard.setData(
-                ClipboardData(text: '${version.name} (${version.code})'),
-              );
-              if (!mounted) return;
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(texts.versionCopied)));
-            },
+            onTap: () => _countVersionTap(sheetContext),
           ),
         // Kept separate from the version row rather than merged into it: this
         // row already carries four states -- idle, checking, update offered

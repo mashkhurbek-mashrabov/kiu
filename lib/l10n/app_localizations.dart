@@ -815,12 +815,6 @@ abstract class AppLocalizations {
   /// **'{count} та берилмаган'**
   String permissionsMissing(int count);
 
-  /// No description provided for @versionCopied.
-  ///
-  /// In uz_Cyrl, this message translates to:
-  /// **'Версия нусхаланди'**
-  String get versionCopied;
-
   /// No description provided for @about.
   ///
   /// In uz_Cyrl, this message translates to:

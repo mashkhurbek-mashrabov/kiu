@@ -387,9 +387,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get versionCopied => 'Version copied';
-
-  @override
   String get about => 'About';
 
   @override

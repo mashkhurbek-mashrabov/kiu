@@ -387,9 +387,6 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get versionCopied => 'Версия скопирована';
-
-  @override
   String get about => 'О приложении';
 
   @override
