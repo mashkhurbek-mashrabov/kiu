@@ -33,6 +33,18 @@ class LessonCallActivity : Activity() {
     private var vibrator: Vibrator? = null
     private var countDownTimer: CountDownTimer? = null
     private var requestCode: Int = -1
+
+    /** Millis left on the ring window, so a re-ring keeps the deadline rather than extending it. */
+    private var remainingMillis: Long = 0
+
+    /** Set once the user answers or declines, so leaving afterwards does not re-ring. */
+    private var resolved = false
+
+    /** The call being shown, kept so [onUserLeaveHint] can hand it back to the receiver. */
+    private var callKey: String = ""
+    private var callTitle: String = ""
+    private var callDisplayStart: String = ""
+    private var callMeetingUrl: String? = null
     private var receiverRegistered = false
 
     /** Held so [onDestroy] can unschedule it; it re-posts itself while ringing. */
@@ -46,6 +58,8 @@ class LessonCallActivity : Activity() {
     private val finishReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.getIntExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, -1) == requestCode) {
+                // Something already stopped this call, so leaving now must not re-ring it.
+                resolved = true
                 finish()
             }
         }
@@ -63,6 +77,10 @@ class LessonCallActivity : Activity() {
         val title = intent.getStringExtra(LessonCallReceiver.EXTRA_TITLE) ?: ""
         val displayStart = intent.getStringExtra(LessonCallReceiver.EXTRA_DISPLAY_START) ?: ""
         val meetingUrl = intent.getStringExtra(LessonCallReceiver.EXTRA_MEETING_URL)
+        callKey = key
+        callTitle = title
+        callDisplayStart = displayStart
+        callMeetingUrl = meetingUrl
 
         // Answer tapped on the notification instead of this screen. Activities may start
         // activities, so opening the link here is what sidesteps the trampoline block.
@@ -88,6 +106,7 @@ class LessonCallActivity : Activity() {
             contentDescription = answerLabel
             addPressFeedback()
             setOnClickListener {
+                resolved = true
                 dismissKeyguard()
                 answer(key, title, displayStart, meetingUrl)
             }
@@ -101,6 +120,7 @@ class LessonCallActivity : Activity() {
                     dodge()
                     return@setOnClickListener
                 }
+                resolved = true
                 sendCallAction(LessonCallReceiver.ACTION_DECLINE, key, title, displayStart, meetingUrl)
                 finish()
             }
@@ -112,6 +132,35 @@ class LessonCallActivity : Activity() {
         registerFinishReceiver()
         startRinging(data)
         startCountdown(ringSeconds, data.getString("callSecondsLabel", null) ?: "s")
+    }
+
+    /**
+     * Re-rings the call when the user leaves the screen with it still live.
+     *
+     * Home destroys this activity outright -- `excludeFromRecents` plus an empty
+     * `taskAffinity` mean it is not kept around to come back to -- and the notification
+     * posted beside a visible call screen is deliberately silent, so the call would survive
+     * only as a mute status-bar icon for a lesson that is starting right now.
+     *
+     * [onUserLeaveHint] rather than [onPause] or [onStop]: it fires only for a deliberate
+     * departure (Home, Recents), not when the screen is covered by a dialog, the keyguard, or
+     * the activity finishing itself after Answer or Decline.
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (resolved || isFinishing || requestCode == -1) return
+        sendBroadcast(
+            Intent(this, LessonCallReceiver::class.java).apply {
+                action = LessonCallReceiver.ACTION_RERING
+                setPackage(packageName)
+                putExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, requestCode)
+                putExtra(LessonCallReceiver.EXTRA_KEY, callKey)
+                putExtra(LessonCallReceiver.EXTRA_TITLE, callTitle)
+                putExtra(LessonCallReceiver.EXTRA_DISPLAY_START, callDisplayStart)
+                putExtra(LessonCallReceiver.EXTRA_MEETING_URL, callMeetingUrl)
+                putExtra(LessonCallReceiver.EXTRA_REMAINING_MILLIS, remainingMillis)
+            },
+        )
     }
 
     private fun setUpWindow() {
@@ -572,14 +621,20 @@ class LessonCallActivity : Activity() {
 
     private fun startCountdown(ringSeconds: Int, secondsLabel: String) {
         val countdownView = findViewById<TextView>(R.id.call_countdown)
+        remainingMillis = ringSeconds * 1000L
         countDownTimer = object : CountDownTimer(ringSeconds * 1000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
+                // Tracked so a re-ring can keep this deadline instead of restarting it.
+                remainingMillis = millisUntilFinished
                 // Unit suffix: a bare digit next to the start time read as part
                 // of it rather than as a countdown.
                 countdownView.text = "${millisUntilFinished / 1000L + 1} $secondsLabel"
             }
 
             override fun onFinish() {
+                // The timeout alarm cancels the notification itself; re-ringing on the way
+                // out would resurrect a call that just expired.
+                resolved = true
                 finish()
             }
         }.also { it.start() }
