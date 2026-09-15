@@ -373,6 +373,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notGranted => 'Not granted';
 
   @override
+  String get allPermissionsGranted => 'All granted';
+
+  @override
+  String permissionsMissing(int count) {
+    return '$count not granted';
+  }
+
+  @override
+  String get versionCopied => 'Version copied';
+
+  @override
   String get about => 'About';
 
   @override

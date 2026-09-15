@@ -776,6 +776,48 @@ void main() {
     },
   );
 
+  testWidgets('adds a custom reminder from the dialog', (tester) async {
+    // The amount field and unit picker moved out of the section into a dialog:
+    // inline they were the widest thing in the sheet, and the keyboard opened
+    // over the list being edited.
+    final appController = await controller();
+    await appController.setRemindersEnabled(true);
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
+    await tester.pumpAndSettle();
+
+    final add = find.byKey(const Key('reminder-add'));
+    await tester.ensureVisible(add);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('custom-reminder-dialog')), findsOneWidget);
+    // Nothing to add yet, so the confirm stays disabled rather than closing
+    // the dialog into a silent no-op.
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('custom-reminder-add')))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('custom-reminder-field')),
+      '90',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('custom-reminder-add')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.reminderOffsetsMinutes, contains(90));
+    expect(find.byKey(const Key('reminder-custom-90')), findsOneWidget);
+  });
+
   testWidgets('shows custom reminders as chips that can be removed', (
     tester,
   ) async {
@@ -1014,6 +1056,48 @@ void main() {
     expect(badgeGranted(tester, 'battery-access'), isFalse);
     expect(badgeGranted(tester, 'full-screen-access'), isTrue);
     expect(badgeGranted(tester, 'overlay-access-tile'), isFalse);
+  });
+
+  testWidgets('permissions collapse to a summary when nothing is missing', (
+    tester,
+  ) async {
+    // Four rows of "Granted" was a screenful saying nothing is wrong.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = true
+      ..fullScreenIntentAllowed = true
+      ..overlaysAllowed = true;
+    final appController = await controller(null, backgroundAccess);
+    // exactTiming is only populated by a refresh; without one it reads false
+    // and the summary would report a permission missing that is not.
+    await appController.refreshBackgroundAccess();
+    await appController.requestExactTiming();
+    await openNotificationSettings(tester, appController);
+
+    expect(badgeGranted(tester, 'permissions-summary'), isTrue);
+    expect(find.byKey(const Key('battery-access')), findsNothing);
+
+    // Still reachable: confirming a granted permission is what listing them
+    // all was for.
+    final summary = find.byKey(const Key('permissions-summary'));
+    await tester.ensureVisible(summary);
+    await tester.pumpAndSettle();
+    await tester.tap(summary);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('battery-access')), findsOneWidget);
+  });
+
+  testWidgets('permissions open themselves when one is missing', (
+    tester,
+  ) async {
+    // The state worth acting on must be the visible one, with no tap first.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false;
+    final appController = await controller(null, backgroundAccess);
+    await openNotificationSettings(tester, appController);
+
+    expect(badgeGranted(tester, 'permissions-summary'), isFalse);
+    expect(find.byKey(const Key('battery-access')), findsOneWidget);
   });
 
   testWidgets('the battery row explains first, then shows Android’s dialog', (

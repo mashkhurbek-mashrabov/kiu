@@ -151,6 +151,16 @@
   "off": "Ўчиқ",
   "granted": "Берилган",
   "notGranted": "Берилмаган",
+  "allPermissionsGranted": "Ҳаммаси берилган",
+  "permissionsMissing": "{count} та берилмаган",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Версия нусхаланди",
   "about": "Илова ҳақида",
   "markWatchedHint": "Видеони платформада кўрилган деб белгилайди.",
   "openLink": "Очиш",

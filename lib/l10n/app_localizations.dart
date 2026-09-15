@@ -791,6 +791,24 @@ abstract class AppLocalizations {
   /// **'Берилмаган'**
   String get notGranted;
 
+  /// No description provided for @allPermissionsGranted.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳаммаси берилган'**
+  String get allPermissionsGranted;
+
+  /// No description provided for @permissionsMissing.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'{count} та берилмаган'**
+  String permissionsMissing(int count);
+
+  /// No description provided for @versionCopied.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Версия нусхаланди'**
+  String get versionCopied;
+
   /// No description provided for @about.
   ///
   /// In uz_Cyrl, this message translates to:

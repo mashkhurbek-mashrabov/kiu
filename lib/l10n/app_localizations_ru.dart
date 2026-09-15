@@ -373,6 +373,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get notGranted => 'Не предоставлено';
 
   @override
+  String get allPermissionsGranted => 'Все предоставлены';
+
+  @override
+  String permissionsMissing(int count) {
+    return 'Не предоставлено: $count';
+  }
+
+  @override
+  String get versionCopied => 'Версия скопирована';
+
+  @override
   String get about => 'О приложении';
 
   @override

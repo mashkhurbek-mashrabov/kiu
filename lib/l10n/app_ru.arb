@@ -137,6 +137,16 @@
   "off": "Выкл.",
   "granted": "Предоставлено",
   "notGranted": "Не предоставлено",
+  "allPermissionsGranted": "Все предоставлены",
+  "permissionsMissing": "Не предоставлено: {count}",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Версия скопирована",
   "about": "О приложении",
   "markWatchedHint": "Помечает видео как просмотренное на платформе.",
   "openLink": "Открыть",

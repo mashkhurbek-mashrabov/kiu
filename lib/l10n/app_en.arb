@@ -137,6 +137,16 @@
   "off": "Off",
   "granted": "Granted",
   "notGranted": "Not granted",
+  "allPermissionsGranted": "All granted",
+  "permissionsMissing": "{count} not granted",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Version copied",
   "about": "About",
   "markWatchedHint": "Marks the video as viewed on the platform.",
   "openLink": "Open",

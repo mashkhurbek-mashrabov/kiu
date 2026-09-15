@@ -137,6 +137,16 @@
   "off": "O‘chiq",
   "granted": "Berilgan",
   "notGranted": "Berilmagan",
+  "allPermissionsGranted": "Hammasi berilgan",
+  "permissionsMissing": "{count} ta berilmagan",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Versiya nusxalandi",
   "about": "Ilova haqida",
   "markWatchedHint": "Videoni platformada ko‘rilgan deb belgilaydi.",
   "openLink": "Ochish",

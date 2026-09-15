@@ -374,6 +374,17 @@ class AppLocalizationsUz extends AppLocalizations {
   String get notGranted => 'Berilmagan';
 
   @override
+  String get allPermissionsGranted => 'Hammasi berilgan';
+
+  @override
+  String permissionsMissing(int count) {
+    return '$count ta berilmagan';
+  }
+
+  @override
+  String get versionCopied => 'Versiya nusxalandi';
+
+  @override
   String get about => 'Ilova haqida';
 
   @override
@@ -867,6 +878,17 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get notGranted => 'Берилмаган';
+
+  @override
+  String get allPermissionsGranted => 'Ҳаммаси берилган';
+
+  @override
+  String permissionsMissing(int count) {
+    return '$count та берилмаган';
+  }
+
+  @override
+  String get versionCopied => 'Версия нусхаланди';
 
   @override
   String get about => 'Илова ҳақида';
