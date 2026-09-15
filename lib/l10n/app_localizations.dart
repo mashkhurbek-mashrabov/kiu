@@ -1046,8 +1046,20 @@ abstract class AppLocalizations {
   /// No description provided for @additionalFunctionsHint.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Бу имкониятлар фақат фаоллаштириш калити билан очилади. Калитни олиш учун дастур муаллифига ёзинг.'**
+  /// **'Бу имкониятлар фақат фаоллаштириш калити билан очилади. Қуйидаги ID\'ни нусхалаб, дастур муаллифига юборинг — у шу ID учун калит яратади. Калит фақат шу қурилмада ишлайди.'**
   String get additionalFunctionsHint;
+
+  /// No description provided for @yourUserId.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Сизнинг ID\'ингиз'**
+  String get yourUserId;
+
+  /// No description provided for @userIdCopied.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'ID нусхаланди'**
+  String get userIdCopied;
 
   /// No description provided for @activationKey.
   ///

@@ -10,6 +10,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../app/app_controller.dart';
+import '../core/activation.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
 import '../domain/app_settings.dart';
@@ -2421,6 +2422,7 @@ class _BrowserPageState extends State<BrowserPage>
               builder: (context, setPageState) {
                 final activated =
                     widget.controller.settings.additionalFunctionsActivated;
+                final userId = widget.controller.userId;
                 return Scaffold(
                   key: const Key('activation-page'),
                   appBar: AppBar(title: Text(strings.additionalFunctions)),
@@ -2445,6 +2447,26 @@ class _BrowserPageState extends State<BrowserPage>
                                 : null,
                             enabled: activated,
                           ),
+                          // The ID the developer needs in order to mint a key.
+                          // Sits above the contact row because that is the
+                          // order the user acts in: copy the ID, then send it.
+                          //
+                          // Tapping anywhere on the row copies -- the opposite
+                          // of the version row, which stays silent to keep the
+                          // ten-tap gesture hidden. Here copying is the row's
+                          // only job, so it gets the whole hit area.
+                          if (userId != null)
+                            SettingsRow(
+                              key: const Key('activation-user-id'),
+                              icon: Icons.fingerprint_rounded,
+                              title: strings.yourUserId,
+                              value: formatUserId(userId),
+                              trailing: const Icon(
+                                Icons.copy_rounded,
+                                size: 20,
+                              ),
+                              onTap: () => _copyUserId(userId),
+                            ),
                           // Same destination and constants as the feedback row
                           // in the main sheet -- the handle and URL live in
                           // core/constants.dart so they cannot drift apart.
@@ -2513,6 +2535,18 @@ class _BrowserPageState extends State<BrowserPage>
           controller.dispose();
           _activationError = null;
         });
+  }
+
+  /// Copies the user ID for pasting into Telegram.
+  ///
+  /// The raw ID, not [formatUserId]'s grouped form: the dashes exist only to
+  /// make it readable on screen, and the developer pastes whatever arrives
+  /// straight into the generator.
+  Future<void> _copyUserId(String userId) async {
+    await Clipboard.setData(ClipboardData(text: userId));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(strings.userIdCopied)));
   }
 
   /// Validates [value] and unlocks on success, or shows the inline error.

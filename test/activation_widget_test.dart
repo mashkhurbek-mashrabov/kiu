@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiu/app/app.dart';
 import 'package:kiu/app/app_controller.dart';
@@ -16,7 +17,7 @@ import 'support/fakes.dart';
 
 class _VersionProvider implements AppVersionProvider {
   @override
-  Future<AppVersion> read() async => const AppVersion(name: '2.0.0', code: 33);
+  Future<AppVersion> read() async => const AppVersion(name: '2.1.0', code: 34);
 }
 
 Future<AppController> _controller() async {
@@ -61,6 +62,18 @@ Future<void> _tapVersion(WidgetTester tester, int times) async {
   await tester.pumpAndSettle();
 }
 
+/// Opens settings and walks in to the activation page.
+Future<void> _openActivationPage(WidgetTester tester) async {
+  await _openSettings(tester);
+  await _tapVersion(tester, 10);
+}
+
+Future<void> _submitKey(WidgetTester tester, String key) async {
+  await tester.enterText(find.byKey(const Key('activation-input')), key);
+  await tester.tap(find.byKey(const Key('activation-submit')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -82,85 +95,139 @@ void main() {
     expect(find.text('1.5×'), findsOneWidget);
   });
 
-  testWidgets('ten taps on the version row open the activation page', (
+  testWidgets('a user ID is minted on first launch and shown on the page', (
     tester,
   ) async {
     final controller = await _controller();
+    final id = controller.userId;
+    expect(id, isNotNull);
+    expect(id!.length, userIdLength);
+
     await tester.pumpWidget(
       KiuApp(controller: controller, homeRequests: ValueNotifier<int>(0)),
     );
-    await _openSettings(tester);
-    await _tapVersion(tester, 10);
+    await _openActivationPage(tester);
 
-    expect(find.byKey(const Key('activation-page')), findsOneWidget);
-    expect(find.byKey(const Key('activation-input')), findsOneWidget);
-    // The developer's handle is reachable from the page, so a user who lands
-    // here knows who to ask for a key.
+    expect(find.byKey(const Key('activation-user-id')), findsOneWidget);
+    // Shown in its grouped form, which is what the user reads out.
+    expect(find.text(formatUserId(id)), findsOneWidget);
     expect(find.byKey(const Key('activation-contact')), findsOneWidget);
   });
 
-  testWidgets('fewer than ten taps do not open the page', (tester) async {
-    final controller = await _controller();
-    await tester.pumpWidget(
-      KiuApp(controller: controller, homeRequests: ValueNotifier<int>(0)),
-    );
-    await _openSettings(tester);
-    await _tapVersion(tester, 9);
-
-    expect(find.byKey(const Key('activation-page')), findsNothing);
+  testWidgets('the user ID survives a restart', (tester) async {
+    final first = await _controller();
+    final id = first.userId;
+    // A second controller over the same preferences must not re-mint: a new ID
+    // would silently kill the key the user already has.
+    final second = await _controller();
+    expect(second.userId, id);
   });
 
-  testWidgets('an invalid key is rejected and leaves the feature locked', (
-    tester,
-  ) async {
+  testWidgets('tapping the user ID row copies the raw ID', (tester) async {
+    final controller = await _controller();
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      KiuApp(controller: controller, homeRequests: ValueNotifier<int>(0)),
+    );
+    await _openActivationPage(tester);
+    await tester.tap(find.byKey(const Key('activation-user-id')));
+    await tester.pumpAndSettle();
+
+    // The unformatted ID: the dashes are for reading, and the developer pastes
+    // whatever arrives straight into the generator.
+    expect(copied, controller.userId);
+    expect(copied, isNot(contains('-')));
+  });
+
+  testWidgets('a key issued for another install is rejected', (tester) async {
     final controller = await _controller();
     await tester.pumpWidget(
       KiuApp(controller: controller, homeRequests: ValueNotifier<int>(0)),
     );
-    await _openSettings(tester);
-    await _tapVersion(tester, 10);
+    await _openActivationPage(tester);
 
-    await tester.enterText(
-      find.byKey(const Key('activation-input')),
-      'KIU-7F3K-WRNG',
+    // The sharing case: a perfectly well-formed key, just not for this device.
+    final foreign = activationKeyFor(
+      controller.userId == 'A2B3C4' ? 'D5E6F7' : 'A2B3C4',
     );
-    await tester.tap(find.byKey(const Key('activation-submit')));
-    await tester.pumpAndSettle();
+    await _submitKey(tester, foreign);
 
     expect(controller.settings.additionalFunctionsActivated, isFalse);
     expect(find.byKey(const Key('activation-input')), findsOneWidget);
   });
 
-  testWidgets('a valid key unlocks the row and survives a reload', (
+  testWidgets('a key for this install unlocks the row and persists', (
     tester,
   ) async {
     final controller = await _controller();
     await tester.pumpWidget(
       KiuApp(controller: controller, homeRequests: ValueNotifier<int>(0)),
     );
-    await _openSettings(tester);
-    await _tapVersion(tester, 10);
-
-    await tester.enterText(
-      find.byKey(const Key('activation-input')),
-      activationTestVector,
-    );
-    await tester.tap(find.byKey(const Key('activation-submit')));
-    await tester.pumpAndSettle();
+    await _openActivationPage(tester);
+    await _submitKey(tester, activationKeyFor(controller.userId!));
 
     expect(controller.settings.additionalFunctionsActivated, isTrue);
 
-    // Back out of the activation page; the sheet reopens behind it. Tapped by
-    // type rather than via pageBack(), which looks for a Cupertino back button
-    // this Material AppBar does not have.
+    // Back out of the activation page; the sheet reopens behind it.
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('mark-watched-menu')), findsOneWidget);
 
-    // The flag is persisted, not just held in memory: a fresh repository over
-    // the same preferences still reports it.
     final reloaded = SettingsRepository(await SharedPreferences.getInstance())
         .loadSettings();
     expect(reloaded.additionalFunctionsActivated, isTrue);
+  });
+
+  group('pre-2.1.0 activation reset', () {
+    testWidgets('clears an activation granted by an unbound key', (
+      tester,
+    ) async {
+      // An install upgrading from 2.0.0: activated, but with no reset marker
+      // and no user ID.
+      SharedPreferences.setMockInitialValues({
+        'kiu.additionalFunctionsActivated': true,
+      });
+      final controller = await _controller();
+
+      expect(controller.settings.additionalFunctionsActivated, isFalse);
+      expect(controller.userId, isNotNull);
+    });
+
+    testWidgets('does not clear an activation earned after the reset', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'kiu.additionalFunctionsActivated': true,
+      });
+      final first = await _controller();
+      expect(first.settings.additionalFunctionsActivated, isFalse);
+
+      // Activate properly, then relaunch: the marker is set, so the reset must
+      // not fire a second time and undo it.
+      final unlocked = await first.activateAdditionalFunctions(
+        activationKeyFor(first.userId!),
+      );
+      expect(unlocked, isTrue);
+
+      final second = await _controller();
+      expect(second.settings.additionalFunctionsActivated, isTrue);
+      expect(second.userId, first.userId);
+    });
   });
 }

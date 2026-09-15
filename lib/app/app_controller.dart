@@ -164,6 +164,8 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    await _ensureUserId();
+    await _resetPreBindingActivation();
     try {
       appVersion = await _appVersionProvider.read();
     } on PlatformException {
@@ -197,16 +199,53 @@ class AppController extends ChangeNotifier {
     unawaited(checkForUpdate());
   }
 
-  /// Unlocks the extras if [key] is valid, and reports whether it was.
+  /// Mints this install's user ID on first launch.
+  ///
+  /// Deliberately here and not inside `loadSettings`, which also runs in the
+  /// WorkManager background isolate: a lazy generate-and-write there would let
+  /// two isolates mint different IDs and race to persist them, and the loser's
+  /// key would stop working. [initialize] only ever runs on the main isolate.
+  Future<void> _ensureUserId() async {
+    if (_repository.userId != null) return;
+    await _repository.saveUserId(generateUserId());
+  }
+
+  /// Clears activations granted by a pre-2.1.0, unbound key.
+  ///
+  /// Those keys were valid on any install, so they all had to go when keys
+  /// became install-bound. Guarded by a marker so it fires exactly once: on
+  /// every later launch -- and on a fresh install, which sets the marker
+  /// without clearing anything -- this is a single bool read.
+  Future<void> _resetPreBindingActivation() async {
+    if (_repository.activationResetDone) return;
+    if (settings.additionalFunctionsActivated) {
+      settings = settings.copyWith(additionalFunctionsActivated: false);
+      await _repository.saveSettings(settings);
+    }
+    await _repository.markActivationReset();
+  }
+
+  /// This install's user ID, shown on the activation page so the user can send
+  /// it to the developer. Null only before [initialize] has run.
+  String? get userId => _repository.userId;
+
+  /// Unlocks the extras if [key] was issued for this install, and reports
+  /// whether it was.
   ///
   /// Returns false rather than throwing so the activation page can render the
   /// error itself -- the controller stays out of UI state. Already-activated is
   /// idempotent: a second valid key is simply a no-op that still reports true.
   ///
+  /// A missing user ID fails closed instead of minting one here: generation
+  /// belongs to [initialize], on the main isolate, and a lazy write on this
+  /// path could race the background isolate.
+  ///
   /// [notifyListeners] is right here, unlike sync progress: the main tree
   /// renders this, since it decides whether the gated row exists at all.
   Future<bool> activateAdditionalFunctions(String key) async {
-    if (!isValidActivationKey(key)) return false;
+    final id = _repository.userId;
+    if (id == null) return false;
+    if (!isValidActivationKey(key, id)) return false;
     if (settings.additionalFunctionsActivated) return true;
     settings = settings.copyWith(additionalFunctionsActivated: true);
     await _repository.saveSettings(settings);
