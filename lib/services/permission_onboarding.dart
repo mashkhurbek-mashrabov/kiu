@@ -134,15 +134,18 @@ class PermissionOnboarding {
   ///
   /// Returns the state after the user acted, re-queried rather than assumed.
   ///
-  /// [alwaysOpen] skips the already-granted short-circuit, for the settings
-  /// rows: those carry a link-out icon and have always opened the Android
-  /// screen on tap, which is the only way back to revoke. Dropping that to
-  /// match the first-launch behaviour would make a granted row inert.
+  /// [alwaysOpen] keeps an already-granted permission actionable, for the
+  /// settings rows: those carry a link-out icon and have always opened the
+  /// Android screen on tap, which is the only way back to revoke.
+  ///
+  /// It does *not* re-explain. The explainer argues why KIU needs a permission
+  /// the user has already given, which reads as the app not knowing its own
+  /// state; a granted row goes straight to the Android screen instead.
   Future<bool> request({
     required PermissionKind permission,
     required PermissionExplainer explain,
     bool alwaysOpen = false,
-  }) {
+  }) async {
     final (isGranted, request, waitForResume) = switch (permission) {
       // Android's own dialog resolves in place, so there is no trip away from
       // the app to wait on. Its request doubles as the query: there is no
@@ -175,15 +178,25 @@ class PermissionOnboarding {
         true,
       ),
     };
+    if (alwaysOpen && await isGranted()) {
+      // Already granted: nothing to explain and nothing to ask for, so this is
+      // purely the trip to the Android screen that the row's link-out icon
+      // advertises. Re-query on return in case the user revoked it there.
+      //
+      // `reveal`, not `request`: a request is a no-op once the permission is
+      // held. requestBatteryExemption in particular returns early without
+      // launching anything when the app is already exempt, which would leave a
+      // granted row doing nothing at all on tap.
+      await _reveal(permission)();
+      await _resumeWaiter.waitForResume();
+      return isGranted();
+    }
     return _step(
       permission: permission,
       explain: explain,
-      isGranted: alwaysOpen ? () async => false : isGranted,
+      isGranted: isGranted,
       request: request,
       waitForResume: waitForResume,
-      // With the short-circuit off, the re-query still has to report the real
-      // state rather than the stub above.
-      confirm: isGranted,
     );
   }
 
@@ -201,32 +214,42 @@ class PermissionOnboarding {
   /// [request] returns `Object?` so the void settings-screen openers and the
   /// two that report a bool both fit. The value is not consulted: what the user
   /// did is re-queried either way.
-  /// [confirm] re-queries the real state when [isGranted] is a stub — the
-  /// settings rows pass one so they can skip the short-circuit and still
-  /// report the truth. Defaults to [isGranted].
+  /// The Android screen that *shows* a permission, for a row tapped while it
+  /// is already granted.
+  ///
+  /// Distinct from the request paths above because a request is a no-op once
+  /// the permission is held: battery's in particular returns without launching
+  /// anything, so the settings list is the only thing left that can display —
+  /// or let the user revoke — the exemption.
+  Future<Object?> Function() _reveal(
+    PermissionKind permission,
+  ) => switch (permission) {
+    PermissionKind.battery => _backgroundAccess.openBatteryOptimizationSettings,
+    PermissionKind.exactTiming => _notifications.requestExactAlarmPermission,
+    PermissionKind.overlay => _backgroundAccess.openOverlaySettings,
+    PermissionKind.fullScreen => _backgroundAccess.openFullScreenIntentSettings,
+    // Notifications never reach here: their isGranted is a stub that
+    // always reports false, so the request path owns them.
+    PermissionKind.notifications =>
+      _notifications.requestNotificationPermission,
+  };
+
   Future<bool> _step({
     required PermissionKind permission,
     required PermissionExplainer explain,
     required Future<bool> Function() isGranted,
     required Future<Object?> Function() request,
     bool waitForResume = true,
-    Future<bool> Function()? confirm,
   }) async {
-    final settled = confirm ?? isGranted;
     if (await isGranted()) return true;
-    // Declining reports the state as it stands. On first launch that is the
-    // `false` this always returned; from a settings row, where the
-    // short-circuit is off, it is whatever the permission actually is — so
-    // declining the explainer on an already-granted row cannot flip its badge
-    // to "not granted".
-    if (!await explain(permission)) return settled();
+    if (!await explain(permission)) return false;
     final requested = await request();
     if (!waitForResume) {
       // Nothing left the app, so the request's own answer is the outcome.
-      return requested is bool ? requested : settled();
+      return requested is bool ? requested : isGranted();
     }
     await _resumeWaiter.waitForResume();
-    return settled();
+    return isGranted();
   }
 }
 

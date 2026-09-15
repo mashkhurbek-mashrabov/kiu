@@ -1133,6 +1133,41 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('a granted row opens Android directly, without explaining', (
+    tester,
+  ) async {
+    // The explainer argues why KIU needs a permission the user has already
+    // given, which reads as the app not knowing its own state. A granted row
+    // is purely the link-out its icon advertises -- and it must open the
+    // settings screen, not re-request: requestBatteryExemption returns without
+    // launching anything once the app is already exempt, which would leave the
+    // row doing nothing at all.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = true;
+    final appController = await controller(null, backgroundAccess);
+    await appController.refreshBackgroundAccess();
+    await openNotificationSettings(tester, appController);
+
+    final summary = find.byKey(const Key('permissions-summary'));
+    await tester.ensureVisible(summary);
+    await tester.pumpAndSettle();
+    await tester.tap(summary);
+    await tester.pumpAndSettle();
+
+    final tile = find.byKey(const Key('battery-access'));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pump();
+
+    expect(find.byKey(const Key('permission-explainer')), findsNothing);
+    expect(backgroundAccess.batterySettingsOpened, 1);
+    expect(backgroundAccess.batteryDialogShown, 0);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('declining the explainer opens nothing', (tester) async {
     final backgroundAccess = FakeBackgroundAccessGateway()
       ..batteryOptimizationDisabled = false;
