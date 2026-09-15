@@ -81,6 +81,26 @@ ColorScheme _scheme(Brightness brightness) {
     // pill). Neutral grey keeps them legible without the accent.
     primaryContainer: dark ? const Color(0xFF2A2A2A) : const Color(0xFFEFEFEF),
     onPrimaryContainer: dark ? darkInk : lightInk,
+    // ChoiceChip and SegmentedButton paint their *selected* state from
+    // secondaryContainer, not primary — so leaving this seeded kept a green
+    // speed chip and a green theme segment sitting in an otherwise neutral
+    // sheet. Selection reads as a filled grey, the way the nav bar's capsule
+    // does.
+    secondary: dark ? darkInk : lightInk,
+    onSecondary: dark ? darkSurface : lightSurface,
+    secondaryContainer: dark
+        ? const Color(0xFF2A2A2A)
+        : const Color(0xFFE8E8E8),
+    onSecondaryContainer: dark ? darkInk : lightInk,
+    // fromSeed derives every surface tone from the seed, so each one carries a
+    // faint green wash. They are pinned as a set rather than individually —
+    // missing one shows up as a single off-colour panel (surfaceContainer is
+    // the nav bar's, surfaceTint is what M3 blends into elevated surfaces).
+    surfaceTint: Colors.transparent,
+    surfaceDim: dark ? darkSurface : const Color(0xFFEDEDED),
+    surfaceBright: dark ? const Color(0xFF232323) : lightSurface,
+    surfaceContainerLowest: dark ? Colors.black : lightSurface,
+    surfaceContainer: dark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
     surfaceContainerLow: dark ? darkElevated : lightSurface,
     surfaceContainerHigh: dark
         ? const Color(0xFF1C1C1C)
@@ -90,7 +110,12 @@ ColorScheme _scheme(Brightness brightness) {
         : const Color(0xFFF1F1F1),
     onSurface: dark ? const Color(0xFFF5F5F5) : const Color(0xFF0F0F0F),
     onSurfaceVariant: dark ? darkSecondaryText : lightSecondaryText,
+    outline: dark ? const Color(0xFF545454) : const Color(0xFF8E8E8E),
     outlineVariant: dark ? darkSeparator : lightSeparator,
+    // Snackbars and tooltips invert; the seeded pair tinted both green.
+    inverseSurface: dark ? const Color(0xFFF5F5F5) : const Color(0xFF1A1A1A),
+    onInverseSurface: dark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
+    inversePrimary: dark ? lightInk : darkInk,
     // fromSeed's tertiary lands on a blue-ish hue that fights the green; pin it
     // to the amber the native widget already uses for scheduled lessons.
     tertiary: dark ? const Color(0xFFE3B85F) : kiuAmber,

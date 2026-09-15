@@ -368,6 +368,50 @@ void main() {
     expect(colors.surface, const Color(0xFFFFFFFF));
   });
 
+  test('no scheme role still carries the seeded green', () {
+    // fromSeed derives every role from kiuGreen, so pinning them by hand is
+    // easy to do incompletely — the first pass missed secondaryContainer and
+    // the chips stayed green on device. This sweeps all of them instead:
+    // anything green-hued with real saturation is a leak.
+    bool greenish(Color c) {
+      final hsl = HSLColor.fromColor(c);
+      return hsl.hue > 80 &&
+          hsl.hue < 180 &&
+          hsl.saturation > 0.12 &&
+          hsl.lightness > 0.05 &&
+          hsl.lightness < 0.95;
+    }
+
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      final c = kiuTheme(brightness).colorScheme;
+      final roles = <String, Color>{
+        'primary': c.primary,
+        'primaryContainer': c.primaryContainer,
+        'secondary': c.secondary,
+        'secondaryContainer': c.secondaryContainer,
+        'surface': c.surface,
+        'surfaceContainer': c.surfaceContainer,
+        'surfaceContainerLow': c.surfaceContainerLow,
+        'surfaceContainerHigh': c.surfaceContainerHigh,
+        'surfaceContainerHighest': c.surfaceContainerHighest,
+        'surfaceDim': c.surfaceDim,
+        'surfaceBright': c.surfaceBright,
+        'onSurface': c.onSurface,
+        'onSurfaceVariant': c.onSurfaceVariant,
+        'outline': c.outline,
+        'outlineVariant': c.outlineVariant,
+        'inverseSurface': c.inverseSurface,
+        'inversePrimary': c.inversePrimary,
+        'surfaceTint': c.surfaceTint,
+      };
+      final leaks = roles.entries
+          .where((e) => greenish(e.value))
+          .map((e) => e.key)
+          .toList();
+      expect(leaks, isEmpty, reason: 'green left in $brightness roles: $leaks');
+    }
+  });
+
   testWidgets('keeps brand green available for lesson state', (tester) async {
     // Neutral chrome must not cost the one place green carries meaning: a
     // started lesson / armed call, which has to match the home-screen widget.
