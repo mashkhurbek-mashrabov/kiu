@@ -984,9 +984,7 @@ void main() {
     await tester.ensureVisible(tile);
     await tester.pumpAndSettle();
     await tester.tap(tile);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('permission-explainer-allow')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(backgroundAccess.batteryDialogShown, 1);
     expect(badgeGranted(tester, 'battery-access'), isFalse);
 
@@ -1028,14 +1026,9 @@ void main() {
     await tester.tap(tile);
     await tester.pumpAndSettle();
 
-    // Overlay has no Android dialog — only a settings screen — but it is still
-    // introduced by the explainer rather than appearing unannounced.
-    expect(find.byKey(const Key('permission-explainer')), findsOneWidget);
-    expect(backgroundAccess.overlaySettingsOpened, 0);
-
-    await tester.tap(find.byKey(const Key('permission-explainer-allow')));
-    await tester.pump();
-
+    // Straight to the Android screen. The row the user tapped already says
+    // what it is for, so a dialog in between is one more tap to nowhere.
+    expect(find.byKey(const Key('permission-explainer')), findsNothing);
     expect(backgroundAccess.overlaySettingsOpened, 1);
 
     // Settle the resume wait, as above.
@@ -1100,12 +1093,12 @@ void main() {
     expect(find.byKey(const Key('battery-access')), findsOneWidget);
   });
 
-  testWidgets('the battery row explains first, then shows Android’s dialog', (
+  testWidgets('a missing battery permission goes to Android’s dialog', (
     tester,
   ) async {
-    // Settings rows run the same sequence as the first launch: KIU's own
-    // explainer, then Android's one-tap exemption dialog — not the app list
-    // the row used to deep-link to, which made the user hunt for KIU in it.
+    // Android's one-tap exemption dialog, not the app list the row used to
+    // deep-link to, which made the user hunt for KIU in it -- and no explainer
+    // in front of either.
     final backgroundAccess = FakeBackgroundAccessGateway()
       ..batteryOptimizationDisabled = false;
     final appController = await controller(null, backgroundAccess);
@@ -1115,15 +1108,9 @@ void main() {
     await tester.ensureVisible(tile);
     await tester.pumpAndSettle();
     await tester.tap(tile);
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('permission-explainer')), findsOneWidget);
-    // Nothing reaches Android until the user agrees.
-    expect(backgroundAccess.batteryDialogShown, 0);
-
-    await tester.tap(find.byKey(const Key('permission-explainer-allow')));
     await tester.pump();
 
+    expect(find.byKey(const Key('permission-explainer')), findsNothing);
     expect(backgroundAccess.batteryDialogShown, 1);
     expect(backgroundAccess.batterySettingsOpened, 0);
 
@@ -1168,23 +1155,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('declining the explainer opens nothing', (tester) async {
-    final backgroundAccess = FakeBackgroundAccessGateway()
-      ..batteryOptimizationDisabled = false;
-    final appController = await controller(null, backgroundAccess);
-    await openNotificationSettings(tester, appController);
-
-    final tile = find.byKey(const Key('battery-access'));
-    await tester.ensureVisible(tile);
-    await tester.pumpAndSettle();
-    await tester.tap(tile);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('permission-explainer-decline')));
-    await tester.pumpAndSettle();
-
-    expect(backgroundAccess.batteryDialogShown, 0);
-    expect(backgroundAccess.batterySettingsOpened, 0);
-  });
+  // The first launch still explains before it asks: that is covered end to end
+  // in permission_explainer_widget_test.dart, which has the onboarding
+  // harness (immediate resume waiter, zero settle delay) this file lacks.
 
   testWidgets('scheduled lessons page can sync and shows the last sync', (
     tester,

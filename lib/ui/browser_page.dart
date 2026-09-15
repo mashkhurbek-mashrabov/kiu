@@ -1833,12 +1833,8 @@ class _BrowserPageState extends State<BrowserPage>
     );
   }
 
-  /// Runs one permission from a settings row exactly as the first launch does:
-  /// KIU's explainer, then Android's dialog where there is one, then a
-  /// re-query that refreshes the badge.
+  /// Opens Android for one permission and refreshes the badge on return.
   ///
-  /// Reuses [_explainPermission], so the dialog a row shows is the same one the
-  /// onboarding sequence shows for that permission.
   Future<void> _requestPermission(
     PermissionKind permission,
     StateSetter setSheetState,
@@ -1848,10 +1844,7 @@ class _BrowserPageState extends State<BrowserPage>
     // collapse the list in the same frame the user came back to see the
     // result -- the row they just fixed vanishing as its badge turns green.
     _permissionsExpanded = true;
-    await widget.controller.requestPermission(
-      permission,
-      explain: _explainPermission,
-    );
+    await widget.controller.requestPermission(permission);
     // The sheet outlives the trip to Android, but not always the user: a
     // dismissed sheet leaves this State mounted with no sheet to rebuild.
     if (!mounted) return;

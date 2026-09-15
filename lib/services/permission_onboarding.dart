@@ -73,14 +73,6 @@ class PermissionOnboarding {
     final notifications = await _step(
       permission: PermissionKind.notifications,
       explain: explain,
-      // Android owns the grant state and gives no "already asked" signal, so
-      // the request itself is the query: it returns the current answer and
-      // shows its dialog only the first time.
-      isGranted: () async => false,
-      request: _notifications.requestNotificationPermission,
-      // Its dialog resolves in place rather than sending the user to Settings,
-      // so there is no trip away from the app to wait on.
-      waitForResume: false,
     );
 
     await Future<void>.delayed(settleDelay);
@@ -88,8 +80,6 @@ class PermissionOnboarding {
     final exactAlarms = await _step(
       permission: PermissionKind.exactTiming,
       explain: explain,
-      isGranted: _notifications.canScheduleExactly,
-      request: _notifications.requestExactAlarmPermission,
     );
     // Battery is the one background permission with a real dialog, so it uses
     // that rather than the settings list: one tap in place, no app list to
@@ -98,20 +88,14 @@ class PermissionOnboarding {
     final battery = await _step(
       permission: PermissionKind.battery,
       explain: explain,
-      isGranted: _backgroundAccess.isBatteryOptimizationDisabled,
-      request: _backgroundAccess.requestBatteryExemption,
     );
     final overlay = await _step(
       permission: PermissionKind.overlay,
       explain: explain,
-      isGranted: _backgroundAccess.canDrawOverlays,
-      request: _backgroundAccess.openOverlaySettings,
     );
     final fullScreen = await _step(
       permission: PermissionKind.fullScreen,
       explain: explain,
-      isGranted: _backgroundAccess.canUseFullScreenIntent,
-      request: _backgroundAccess.openFullScreenIntentSettings,
     );
 
     return OnboardingResult(
@@ -123,82 +107,56 @@ class PermissionOnboarding {
     );
   }
 
-  /// Runs one permission through the same explain → request → re-query cycle
-  /// the first-launch sequence uses.
+  /// Takes one permission straight to Android, for a settings row.
   ///
-  /// This is what the settings rows call. They used to deep-link straight to
-  /// the Android screen, which skipped the explainer and — for battery —
-  /// dropped the user in the full app list instead of the one-tap dialog the
-  /// first launch offers. Routing both through here means a permission behaves
-  /// the same whenever it is asked for.
+  /// No explainer. The first-launch sequence explains because its screens
+  /// arrive unannounced, one after another, before the user has asked for
+  /// anything. A settings row is the opposite: the user tapped a row whose
+  /// label and ⓘ already say what it is for, so a dialog in between is one
+  /// more tap between the intent and the screen.
   ///
   /// Returns the state after the user acted, re-queried rather than assumed.
-  ///
-  /// [alwaysOpen] keeps an already-granted permission actionable, for the
-  /// settings rows: those carry a link-out icon and have always opened the
-  /// Android screen on tap, which is the only way back to revoke.
-  ///
-  /// It does *not* re-explain. The explainer argues why KIU needs a permission
-  /// the user has already given, which reads as the app not knowing its own
-  /// state; a granted row goes straight to the Android screen instead.
-  Future<bool> request({
-    required PermissionKind permission,
-    required PermissionExplainer explain,
-    bool alwaysOpen = false,
-  }) async {
-    final (isGranted, request, waitForResume) = switch (permission) {
-      // Android's own dialog resolves in place, so there is no trip away from
-      // the app to wait on. Its request doubles as the query: there is no
-      // "already asked" signal to check first.
-      PermissionKind.notifications => (
-        () async => false,
-        _notifications.requestNotificationPermission,
-        false,
-      ),
-      PermissionKind.exactTiming => (
-        _notifications.canScheduleExactly,
-        _notifications.requestExactAlarmPermission,
-        true,
-      ),
-      // The dialog, not the settings list — the gateway falls back to the list
-      // by itself when the dialog cannot launch.
-      PermissionKind.battery => (
-        _backgroundAccess.isBatteryOptimizationDisabled,
-        _backgroundAccess.requestBatteryExemption,
-        true,
-      ),
-      PermissionKind.overlay => (
-        _backgroundAccess.canDrawOverlays,
-        _backgroundAccess.openOverlaySettings,
-        true,
-      ),
-      PermissionKind.fullScreen => (
-        _backgroundAccess.canUseFullScreenIntent,
-        _backgroundAccess.openFullScreenIntentSettings,
-        true,
-      ),
-    };
-    if (alwaysOpen && await isGranted()) {
-      // Already granted: nothing to explain and nothing to ask for, so this is
-      // purely the trip to the Android screen that the row's link-out icon
-      // advertises. Re-query on return in case the user revoked it there.
-      //
-      // `reveal`, not `request`: a request is a no-op once the permission is
-      // held. requestBatteryExemption in particular returns early without
-      // launching anything when the app is already exempt, which would leave a
-      // granted row doing nothing at all on tap.
-      await _reveal(permission)();
+  Future<bool> request({required PermissionKind permission}) async {
+    final isGranted = _isGranted(permission);
+    // The request path when something is actually missing -- battery's gives
+    // Android's one-tap dialog rather than the app list -- and the plain
+    // settings screen when it is already held, since a request is a no-op
+    // then: requestBatteryExemption returns early without launching anything
+    // once the app is exempt, which would leave the row dead on tap.
+    final open = await isGranted() ? _reveal(permission) : _request(permission);
+    await open();
+    // Notifications resolve in place; everything else is a trip out to a
+    // settings screen that has to be waited on before re-querying.
+    if (permission != PermissionKind.notifications) {
       await _resumeWaiter.waitForResume();
-      return isGranted();
     }
-    return _step(
-      permission: permission,
-      explain: explain,
-      isGranted: isGranted,
-      request: request,
-      waitForResume: waitForResume,
-    );
+    return isGranted();
   }
+
+  Future<bool> Function() _isGranted(PermissionKind permission) =>
+      switch (permission) {
+        // Android owns the grant state and gives no "already asked" signal, so
+        // the request itself is the query.
+        PermissionKind.notifications => () async => false,
+        PermissionKind.exactTiming => _notifications.canScheduleExactly,
+        PermissionKind.battery =>
+          _backgroundAccess.isBatteryOptimizationDisabled,
+        PermissionKind.overlay => _backgroundAccess.canDrawOverlays,
+        PermissionKind.fullScreen => _backgroundAccess.canUseFullScreenIntent,
+      };
+
+  Future<Object?> Function() _request(
+    PermissionKind permission,
+  ) => switch (permission) {
+    PermissionKind.notifications =>
+      _notifications.requestNotificationPermission,
+    PermissionKind.exactTiming => _notifications.requestExactAlarmPermission,
+    // The dialog, not the settings list — the gateway falls back to the
+    // list by itself when the dialog cannot launch.
+    PermissionKind.battery => _backgroundAccess.requestBatteryExemption,
+    PermissionKind.overlay => _backgroundAccess.openOverlaySettings,
+    PermissionKind.fullScreen => _backgroundAccess.openFullScreenIntentSettings,
+  };
 
   /// Explains, then requests, then re-queries what the user actually did.
   ///
@@ -237,15 +195,15 @@ class PermissionOnboarding {
   Future<bool> _step({
     required PermissionKind permission,
     required PermissionExplainer explain,
-    required Future<bool> Function() isGranted,
-    required Future<Object?> Function() request,
-    bool waitForResume = true,
   }) async {
+    final isGranted = _isGranted(permission);
     if (await isGranted()) return true;
     if (!await explain(permission)) return false;
-    final requested = await request();
-    if (!waitForResume) {
-      // Nothing left the app, so the request's own answer is the outcome.
+    final requested = await _request(permission)();
+    // The notification dialog resolves in place rather than sending the user
+    // to Settings, so there is no trip away from the app to wait on and its
+    // own answer is the outcome.
+    if (permission == PermissionKind.notifications) {
       return requested is bool ? requested : isGranted();
     }
     await _resumeWaiter.waitForResume();
