@@ -62,6 +62,14 @@ class _BrowserPageState extends State<BrowserPage>
   bool _settingsOpen = false;
   bool _checking = false;
 
+  /// Whether the permissions list is expanded past its summary row.
+  ///
+  /// Lives on the State rather than inside the sheet builder so it survives the
+  /// trip to an Android settings screen: the sheet rebuilds on resume, and a
+  /// local flag would collapse the list exactly when the user came back to
+  /// check the result.
+  bool _permissionsExpanded = false;
+
   /// Drives the one-shot gestures the two non-destination actions play when
   /// tapped. Home and lessons mark themselves by moving the selection capsule;
   /// back and refresh have no such state, so the icon itself performs the
@@ -677,6 +685,9 @@ class _BrowserPageState extends State<BrowserPage>
         UpdateDownloadStage.downloading) {
       widget.updateDownloader?.reset();
     }
+    // Fresh visit, fresh summary: the list pins itself open while the user is
+    // fixing permissions, but that should not outlive the sheet.
+    _permissionsExpanded = false;
     _settingsOpen = true;
     await showModalBottomSheet<void>(
       context: context,
@@ -751,6 +762,11 @@ class _BrowserPageState extends State<BrowserPage>
                               ),
                             ],
                           ),
+                          // Sync sits here rather than inside Notifications:
+                          // reminders depend on it, which is why it used to
+                          // live there, but it syncs the lesson schedule and
+                          // the user looking for it opens this sheet first.
+                          _syncSection(settings, setSheetState),
                           SettingsSection(
                             title: strings.sectionAppearance,
                             icon: Icons.palette_rounded,
@@ -1019,7 +1035,11 @@ class _BrowserPageState extends State<BrowserPage>
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => StatefulBuilder(
+      // _MinuteTicker, not a StatefulBuilder plus a local Timer: the timer has
+      // to die with the sheet's element, and a local one only gets cancelled
+      // when showModalBottomSheet returns -- which never happens if the tree
+      // is torn down around it.
+      builder: (context) => _MinuteTicker(
         builder: (context, setSheetState) {
           final settings = widget.controller.settings;
           final colors = Theme.of(context).colorScheme;
@@ -1083,6 +1103,7 @@ class _BrowserPageState extends State<BrowserPage>
                               final callOn =
                                   lessonEntity != null &&
                                   settings.callEnabledFor(lessonEntity);
+                              final canJoin = _canJoinLesson(lesson);
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -1092,55 +1113,124 @@ class _BrowserPageState extends State<BrowserPage>
                                     ),
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
-                                    child: Card(
-                                      child: ListTile(
-                                        key: Key('scheduled-lesson-$index'),
-                                        contentPadding:
-                                            const EdgeInsets.fromLTRB(
-                                              12,
-                                              6,
-                                              6,
-                                              6,
-                                            ),
-                                        // A call that is armed gets a filled
-                                        // accent so the list scans for "which
-                                        // lessons will ring" at a glance.
-                                        leading: SettingsLeading(
-                                          Icons.play_lesson_rounded,
-                                          color: callOn
-                                              ? colors.primary
-                                              : colors.onSurfaceVariant,
-                                          active: callOn,
-                                        ),
-                                        title: Text(
-                                          lesson['title']! as String,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          lesson['displayStart']! as String,
-                                        ),
-                                        // Phone icon rather than a switch, matching
-                                        // the home-screen widget's per-row toggle.
-                                        trailing: lessonEntity == null
-                                            ? null
-                                            : _LessonCallToggle(
-                                                key: Key(
-                                                  'scheduled-lesson-call-$index',
-                                                ),
-                                                enabled: callOn,
-                                                tooltip:
-                                                    strings.callForThisLesson,
-                                                onPressed: () async {
-                                                  await widget.controller
-                                                      .setLessonCallEnabled(
-                                                        lessonEntity,
-                                                        !callOn,
-                                                      );
-                                                  setSheetState(() {});
-                                                },
+                                    // "Started" reaches a screen reader as a
+                                    // label rather than as the green the
+                                    // sighted row uses -- colour alone never
+                                    // carries state, and the row's own text
+                                    // says only a title and a time.
+                                    child: Semantics(
+                                      // Merged, or ListTile's own node keeps
+                                      // the label from reaching the row a
+                                      // screen reader actually announces.
+                                      container: canJoin,
+                                      label: canJoin
+                                          ? strings.lessonStarted
+                                          : null,
+                                      child: Card(
+                                        child: ListTile(
+                                          key: Key('scheduled-lesson-$index'),
+                                          contentPadding:
+                                              const EdgeInsets.fromLTRB(
+                                                12,
+                                                6,
+                                                6,
+                                                6,
                                               ),
+                                          // Tappable only once the lesson has
+                                          // started and has a usable link --
+                                          // the widget's rule, so a row behaves
+                                          // the same on both surfaces.
+                                          onTap: canJoin
+                                              ? () => _joinLesson(lesson)
+                                              : null,
+                                          // A call that is armed gets a filled
+                                          // accent so the list scans for "which
+                                          // lessons will ring" at a glance.
+                                          // Green, not the neutral ink: this is
+                                          // lesson state rather than chrome, and
+                                          // it has to match the phone icon the
+                                          // home-screen widget paints green for
+                                          // the same lesson.
+                                          leading: SettingsLeading(
+                                            canJoin
+                                                ? Icons.play_circle_fill_rounded
+                                                : Icons.play_lesson_rounded,
+                                            color: canJoin || callOn
+                                                ? brandGreen(
+                                                    Theme.of(context)
+                                                        .brightness,
+                                                  )
+                                                : colors.onSurfaceVariant,
+                                            active: canJoin || callOn,
+                                          ),
+                                          title: Text(
+                                            lesson['title']! as String,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          // Time and state share one line, and
+                                          // the date is what loses when they
+                                          // compete -- so a started lesson
+                                          // colours the time itself rather than
+                                          // appending a word beside it. Green
+                                          // already reads as "started" on the
+                                          // icon here and on the widget's rows.
+                                          subtitle: Text(
+                                            lesson['displayStart']! as String,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: canJoin
+                                                ? TextStyle(
+                                                    color: brandGreen(
+                                                      Theme.of(context)
+                                                          .brightness,
+                                                    ),
+                                                    fontWeight: FontWeight.w600,
+                                                  )
+                                                : null,
+                                          ),
+                                          // Join replaces the call toggle once a
+                                          // lesson has started, exactly as the
+                                          // widget row does: arming a call for a
+                                          // lesson already under way is pointless,
+                                          // and joining is the only thing left
+                                          // worth doing.
+                                          trailing: canJoin
+                                              ? IconButton(
+                                                  key: Key(
+                                                    'scheduled-lesson-join-$index',
+                                                  ),
+                                                  icon: const Icon(
+                                                    Icons.login_rounded,
+                                                  ),
+                                                  color: brandGreen(
+                                                    Theme.of(context)
+                                                        .brightness,
+                                                  ),
+                                                  tooltip: strings.joinLesson,
+                                                  onPressed: () =>
+                                                      _joinLesson(lesson),
+                                                )
+                                              : lessonEntity == null
+                                              ? null
+                                              : _LessonCallToggle(
+                                                  key: Key(
+                                                    'scheduled-lesson-call-$index',
+                                                  ),
+                                                  enabled: callOn,
+                                                  tooltip:
+                                                      strings.callForThisLesson,
+                                                  onPressed: () async {
+                                                    await widget.controller
+                                                        .setLessonCallEnabled(
+                                                          lessonEntity,
+                                                          !callOn,
+                                                        );
+                                                    setSheetState(() {});
+                                                  },
+                                                ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1157,6 +1247,58 @@ class _BrowserPageState extends State<BrowserPage>
       ),
     );
     if (returnToActions == true && mounted) _openActions();
+  }
+
+  /// Whether a lesson row can be joined: it has started and carries a usable
+  /// HTTPS link.
+  ///
+  /// Mirrors the widget's `canJoin` in KiuLessonWidgetService exactly, so a
+  /// lesson that is tappable on the home screen is tappable in the sheet and
+  /// vice versa. `start` is the epoch millis the shared payload already
+  /// carries, so no new data crosses the boundary.
+  ///
+  /// Evaluated at build time, so a lesson that starts while the sheet is open
+  /// only turns joinable on the next rebuild -- which the ticker in
+  /// [_openScheduledLessons] provides.
+  bool _canJoinLesson(Map<String, Object?> lesson) {
+    final start = lesson['start'];
+    if (start is! int) return false;
+    if (DateTime.now().millisecondsSinceEpoch < start) return false;
+    return _lessonJoinUri(lesson) != null;
+  }
+
+  /// The row's meeting link, or null when it is missing or not usable HTTPS.
+  ///
+  /// The same validity rule as the native `isValidHttps`: HTTPS, a real host,
+  /// and no embedded credentials -- a `user:pass@` link would otherwise hand
+  /// whatever it carries to whichever app claims the URL.
+  Uri? _lessonJoinUri(Map<String, Object?> lesson) {
+    final raw = lesson['meetingUrl'];
+    if (raw is! String || raw.isEmpty) return null;
+    final uri = Uri.tryParse(raw);
+    if (uri == null) return null;
+    if (uri.scheme.toLowerCase() != 'https') return null;
+    if (uri.host.isEmpty) return null;
+    if (uri.userInfo.isNotEmpty) return null;
+    return uri;
+  }
+
+  /// Opens a lesson link the way every other surface does.
+  ///
+  /// Routes exactly like the native [LessonLinkRouter] the widget and the call
+  /// screen share: an LMS link loads in the app's own WebView, where the
+  /// session already lives, and anything else goes to an external app. A link
+  /// that fails the HTTPS check opens nothing -- the caller only reaches this
+  /// for a row that passed [_canJoinLesson].
+  Future<void> _joinLesson(Map<String, Object?> lesson) async {
+    final uri = _lessonJoinUri(lesson);
+    if (uri == null) return;
+    if (isTrustedHttps(uri)) {
+      Navigator.pop(context);
+      await _webView.loadRequest(uri);
+      return;
+    }
+    await _launchExternal(uri.toString());
   }
 
   /// Last-sync line plus a manual trigger, above the lesson list.
@@ -1279,8 +1421,6 @@ class _BrowserPageState extends State<BrowserPage>
   }
 
   Future<void> _openNotificationSettings() async {
-    final customController = TextEditingController();
-    var customUnitHours = false;
     var backgroundAccessRefreshStarted = false;
     final returnToMainSettings = await showModalBottomSheet<bool>(
       context: context,
@@ -1376,15 +1516,10 @@ class _BrowserPageState extends State<BrowserPage>
                             offsets: offsets,
                             customOffsets: customOffsets,
                             toggleOffset: toggleOffset,
-                            customController: customController,
-                            customUnitHours: customUnitHours,
-                            onUnitChanged: (value) =>
-                                setSheetState(() => customUnitHours = value),
                             setSheetState: setSheetState,
                           ),
                           _callsSection(settings, setSheetState),
                           _permissionsSection(settings, setSheetState),
-                          _syncSection(settings, setSheetState),
                         ],
                       ),
                     ),
@@ -1396,7 +1531,6 @@ class _BrowserPageState extends State<BrowserPage>
         },
       ),
     );
-    customController.dispose();
     if (returnToMainSettings == true && mounted) {
       await _openActions();
     }
@@ -1414,9 +1548,6 @@ class _BrowserPageState extends State<BrowserPage>
     required Set<int> offsets,
     required List<int> customOffsets,
     required Future<void> Function(int, bool) toggleOffset,
-    required TextEditingController customController,
-    required bool customUnitHours,
-    required ValueChanged<bool> onUnitChanged,
     required StateSetter setSheetState,
   }) {
     final enabled = settings.remindersEnabled;
@@ -1462,103 +1593,145 @@ class _BrowserPageState extends State<BrowserPage>
             onTap: () => toggleOffset(value, false),
             onDelete: () => toggleOffset(value, false),
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Unit picker on its own line: "Minutes"/"Hours" translate to
-              // much wider words (Дақиқа, Минуты), which overflowed the row
-              // when it also held the field and the add button.
-              Row(
-                children: [
-                  Expanded(
-                    child: SegmentedButton<bool>(
-                      showSelectedIcon: false,
-                      style: const ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      segments: [
-                        ButtonSegment(
-                          value: false,
-                          label: Text(
-                            strings.minutes,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        ButtonSegment(
-                          value: true,
-                          label: Text(
-                            strings.hours,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                      selected: {customUnitHours},
-                      onSelectionChanged: enabled
-                          ? (values) => onUnitChanged(values.first)
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: customController,
-                      enabled: enabled,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        labelText: strings.customReminder,
-                        hintText: '1–168',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filledTonal(
-                    key: const Key('reminder-add'),
-                    tooltip: strings.add,
-                    onPressed: enabled
-                        ? () async {
-                            final amount = int.tryParse(customController.text);
-                            if (amount == null || amount < 1) return;
-                            final minutes = customUnitHours
-                                ? amount * 60
-                                : amount;
-                            if (minutes > 10080) return;
-                            offsets.add(minutes);
-                            await widget.controller.setReminderOffsets(
-                              offsets.toList(),
-                            );
-                            customController.clear();
-                            setSheetState(() {});
-                          }
-                        : null,
-                    icon: const Icon(Icons.add_rounded),
-                  ),
-                ],
-              ),
-              if (!enabled)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Text(
-                    strings.remindersTooltip,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+        // The unit picker, number field and add button used to sit inline here
+        // -- a form embedded in a settings list, and the widest thing in the
+        // sheet. As one row plus a dialog the section is about half as tall and
+        // the keyboard no longer opens over the list it is editing.
+        SettingsRow(
+          key: const Key('reminder-add'),
+          icon: Icons.add_alarm_rounded,
+          title: strings.addTime,
+          enabled: enabled,
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => _openCustomReminderDialog(offsets, setSheetState),
         ),
+        if (!enabled)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Text(
+              strings.remindersTooltip,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
       ],
     );
+  }
+
+  /// Adds a custom reminder offset.
+  ///
+  /// Mirrors [_openCallRingDurationDialog]: the same amount-plus-unit shape,
+  /// in the same kind of dialog, so the two custom values in settings are
+  /// entered the same way.
+  Future<void> _openCustomReminderDialog(
+    Set<int> offsets,
+    StateSetter setSheetState,
+  ) async {
+    final controller = TextEditingController();
+    var unitHours = false;
+    final minutes = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          int? parse() {
+            final amount = int.tryParse(controller.text);
+            if (amount == null || amount < 1) return null;
+            final value = unitHours ? amount * 60 : amount;
+            // One week, matching the 1–168 hours the field advertises.
+            return value > 10080 ? null : value;
+          }
+
+          return AlertDialog(
+            key: const Key('custom-reminder-dialog'),
+            icon: const Icon(Icons.add_alarm_rounded),
+            title: Text(strings.addTime),
+            // Scrollable: with the keyboard up on a 320dp screen the content
+            // is taller than what the dialog is given, and an AlertDialog does
+            // not scroll its content on its own.
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Unit on its own line: "Minutes"/"Hours" translate to much
+                  // wider words (Дақиқа, Минуты) that overflow a shared row.
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    segments: [
+                      ButtonSegment(
+                        value: false,
+                        label: Text(
+                          strings.minutes,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        label: Text(
+                          strings.hours,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    selected: {unitHours},
+                    onSelectionChanged: (values) =>
+                        setDialogState(() => unitHours = values.first),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: const Key('custom-reminder-field'),
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: strings.customReminder,
+                      hintText: unitHours ? '1–168' : '1–10080',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                    onSubmitted: (_) {
+                      final value = parse();
+                      if (value != null) Navigator.pop(context, value);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(strings.notNow),
+              ),
+              FilledButton(
+                key: const Key('custom-reminder-add'),
+                // Disabled until the field holds a value in range, so the
+                // dialog cannot be dismissed into a silent no-op.
+                onPressed: parse() == null
+                    ? null
+                    : () => Navigator.pop(context, parse()),
+                child: Text(strings.add),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    // Disposed a frame later: the dialog's exit animation still builds its
+    // TextField after showDialog's future completes, and a controller disposed
+    // synchronously here is "used after being disposed" on the way out.
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    if (minutes == null || !mounted) return;
+    offsets.add(minutes);
+    await widget.controller.setReminderOffsets(offsets.toList());
+    if (!mounted) return;
+    setSheetState(() {});
   }
 
   /// One reminder offset: on/off state plus, for custom offsets, a delete.
@@ -1676,60 +1849,125 @@ class _BrowserPageState extends State<BrowserPage>
   /// in place, so a working setup looked identical to a missing row.
   Widget _permissionsSection(AppSettings settings, StateSetter setSheetState) {
     final controller = widget.controller;
+    final rows =
+        <
+          ({
+            Key key,
+            IconData icon,
+            String title,
+            String hint,
+            bool granted,
+            PermissionKind kind,
+          })
+        >[
+          (
+            key: const Key('battery-access'),
+            icon: Icons.battery_saver_rounded,
+            title: strings.backgroundAccess,
+            hint: strings.backgroundAccessHelp,
+            granted: controller.batteryOptimizationDisabled,
+            kind: PermissionKind.battery,
+          ),
+          (
+            key: const Key('exact-timing'),
+            icon: Icons.alarm_on_rounded,
+            title: strings.exactTiming,
+            hint: strings.exactTimingHelp,
+            granted: controller.exactTiming,
+            kind: PermissionKind.exactTiming,
+          ),
+          if (settings.callsEnabled) ...[
+            (
+              key: const Key('full-screen-access'),
+              icon: Icons.fullscreen_rounded,
+              title: strings.fullScreenAccess,
+              hint: strings.fullScreenAccessHelp,
+              granted: controller.canUseFullScreenIntent,
+              kind: PermissionKind.fullScreen,
+            ),
+            (
+              key: const Key('overlay-access-tile'),
+              icon: Icons.picture_in_picture_alt_rounded,
+              title: strings.overlayAccess,
+              hint: strings.overlayAccessHelp,
+              granted: controller.canDrawOverlays,
+              kind: PermissionKind.overlay,
+            ),
+          ],
+        ];
+    final missing = rows.where((row) => !row.granted).length;
+    // Four rows of "Granted" was a screen of green saying nothing is wrong.
+    // The list collapses to a summary when everything is in place and opens
+    // itself when it is not, so the state worth acting on is the visible one.
+    // Expanding by hand still works either way -- a granted permission has to
+    // stay confirmable, which is what listing them all was for.
+    final expanded = _permissionsExpanded || missing > 0;
     return SettingsSection(
       title: strings.sectionPermissions,
       icon: Icons.shield_rounded,
       children: [
-        _permissionRow(
-          key: const Key('battery-access'),
-          icon: Icons.battery_saver_rounded,
-          title: strings.backgroundAccess,
-          hint: strings.backgroundAccessHelp,
-          granted: controller.batteryOptimizationDisabled,
-          onTap: () async {
-            await controller.openBatteryOptimizationSettings();
-            setSheetState(() {});
-          },
-        ),
-        _permissionRow(
-          key: const Key('exact-timing'),
-          icon: Icons.alarm_on_rounded,
-          title: strings.exactTiming,
-          hint: strings.exactTimingHelp,
-          granted: controller.exactTiming,
-          onTap: () async {
-            await controller.requestExactTiming();
-            setSheetState(() {});
-          },
-        ),
-        if (settings.callsEnabled) ...[
-          _permissionRow(
-            key: const Key('full-screen-access'),
-            icon: Icons.fullscreen_rounded,
-            title: strings.fullScreenAccess,
-            hint: strings.fullScreenAccessHelp,
-            granted: controller.canUseFullScreenIntent,
-            onTap: () async {
-              await controller.openFullScreenIntentSettings();
-              setSheetState(() {});
-            },
+        SettingsRow(
+          key: const Key('permissions-summary'),
+          icon: missing > 0
+              ? Icons.gpp_maybe_rounded
+              : Icons.verified_user_rounded,
+          title: strings.sectionPermissions,
+          valueWidget: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: PermissionBadge(
+                granted: missing == 0,
+                grantedLabel: strings.allPermissionsGranted,
+                deniedLabel: strings.permissionsMissing(missing),
+              ),
+            ),
           ),
-          // Android grants this one only from its own settings screen, so
-          // tapping deep-links there rather than toggling anything locally.
-          _permissionRow(
-            key: const Key('overlay-access-tile'),
-            icon: Icons.picture_in_picture_alt_rounded,
-            title: strings.overlayAccess,
-            hint: strings.overlayAccessHelp,
-            granted: controller.canDrawOverlays,
-            onTap: () async {
-              await controller.openOverlaySettings();
-              setSheetState(() {});
-            },
-          ),
-        ],
+          // No collapse affordance while something is missing: the rows are
+          // the point of the section in that state.
+          trailing: missing > 0
+              ? null
+              : AnimatedRotation(
+                  turns: expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: const Icon(Icons.expand_more_rounded),
+                ),
+          onTap: missing > 0
+              ? null
+              : () => setSheetState(
+                  () => _permissionsExpanded = !_permissionsExpanded,
+                ),
+        ),
+        if (expanded)
+          for (final row in rows)
+            _permissionRow(
+              key: row.key,
+              icon: row.icon,
+              title: row.title,
+              hint: row.hint,
+              granted: row.granted,
+              onTap: () => _requestPermission(row.kind, setSheetState),
+            ),
       ],
     );
+  }
+
+  /// Opens Android for one permission and refreshes the badge on return.
+  ///
+  Future<void> _requestPermission(
+    PermissionKind permission,
+    StateSetter setSheetState,
+  ) async {
+    // Pins the list open for the rest of the visit. Granting the last missing
+    // permission drops the missing count to zero, which would otherwise
+    // collapse the list in the same frame the user came back to see the
+    // result -- the row they just fixed vanishing as its badge turns green.
+    _permissionsExpanded = true;
+    await widget.controller.requestPermission(permission);
+    // The sheet outlives the trip to Android, but not always the user: a
+    // dismissed sheet leaves this State mounted with no sheet to rebuild.
+    if (!mounted) return;
+    setSheetState(() {});
   }
 
   /// One permission row: status badge plus a link out to the system screen
@@ -1748,9 +1986,8 @@ class _BrowserPageState extends State<BrowserPage>
       icon: icon,
       title: title,
       hint: hint,
-      // A missing permission is the row worth noticing, so only that state
-      // takes the warning tint.
-      iconColor: granted ? colors.primary : colors.error,
+      // Icon stays neutral like every other row's: the badge below carries the
+      // status, and tinting both made the row read as two separate signals.
       // The badge is the row's status, so it sits under the title rather than
       // beside it: as a trailing widget it squeezed long permission names into
       // a dozen wrapped lines.
@@ -1835,13 +2072,30 @@ class _BrowserPageState extends State<BrowserPage>
       title: texts.sectionAbout,
       icon: Icons.info_rounded,
       children: [
+        // Tap copies the version, the way every Android About screen does --
+        // it is the one string a user is ever asked to quote when reporting a
+        // problem, and retyping "1.7.5 (31)" by hand is the alternative.
         if (version != null)
           SettingsRow(
             key: const Key('app-version'),
             icon: Icons.badge_rounded,
             title: texts.version,
             value: '${version.name} (${version.code})',
+            onTap: () async {
+              await Clipboard.setData(
+                ClipboardData(text: '${version.name} (${version.code})'),
+              );
+              if (!mounted) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(texts.versionCopied)));
+            },
           ),
+        // Kept separate from the version row rather than merged into it: this
+        // row already carries four states -- idle, checking, update offered
+        // with its download button, and download progress -- and folding the
+        // version in leaves nowhere for them to render. Android's own About
+        // screen splits the two for the same reason.
+        //
         // Listens to the check notifier for the same reason the sync row does:
         // a check firing on resume repaints this row alone. Nested inside the
         // update notifier so the row that *announces* an update is also the
@@ -2856,6 +3110,47 @@ class _BrowserPageState extends State<BrowserPage>
   }
 }
 
+/// A [StatefulBuilder] that also rebuilds once a minute.
+///
+/// The scheduled-lessons sheet decides "has this lesson started?" at build
+/// time, so without a tick a lesson that begins while the sheet is open stays
+/// inert until something else repaints it. A minute matches the resolution the
+/// rows display; finer would repaint for nothing.
+///
+/// A widget rather than a timer held by the enclosing function because the
+/// timer must die with the sheet's element: a local one is only cancelled when
+/// `showModalBottomSheet` returns, which never happens if the tree is torn
+/// down around it -- and a periodic timer outliving its element fires forever.
+class _MinuteTicker extends StatefulWidget {
+  const _MinuteTicker({required this.builder});
+
+  final Widget Function(BuildContext, StateSetter) builder;
+
+  @override
+  State<_MinuteTicker> createState() => _MinuteTickerState();
+}
+
+class _MinuteTickerState extends State<_MinuteTicker> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, setState);
+}
+
 /// Per-lesson call toggle. Mirrors the home-screen widget's row icon: a filled
 /// phone when the call is on, the same phone struck through when it is off.
 class _LessonCallToggle extends StatelessWidget {
@@ -2872,10 +3167,13 @@ class _LessonCallToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return IconButton(
       icon: Icon(enabled ? Icons.call : Icons.phone_disabled),
-      color: enabled ? colors.primary : colors.onSurfaceVariant,
+      // Brand green for "call armed" — state, not chrome, so it keeps the
+      // color the widget uses for the same lesson.
+      color: enabled ? brandGreen(theme.brightness) : colors.onSurfaceVariant,
       tooltip: tooltip,
       onPressed: () => onPressed(),
     );

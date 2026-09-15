@@ -256,6 +256,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get callForThisLesson => 'Звонок для этого урока';
 
   @override
+  String get joinLesson => 'Присоединиться к уроку';
+
+  @override
+  String get lessonStarted => 'Начался';
+
+  @override
   String get appearance => 'Оформление';
 
   @override
@@ -371,6 +377,17 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get notGranted => 'Не предоставлено';
+
+  @override
+  String get allPermissionsGranted => 'Все предоставлены';
+
+  @override
+  String permissionsMissing(int count) {
+    return 'Не предоставлено: $count';
+  }
+
+  @override
+  String get versionCopied => 'Версия скопирована';
 
   @override
   String get about => 'О приложении';

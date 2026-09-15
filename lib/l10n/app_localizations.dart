@@ -569,6 +569,18 @@ abstract class AppLocalizations {
   /// **'Ушбу дарс учун қўнғироқ'**
   String get callForThisLesson;
 
+  /// No description provided for @joinLesson.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарсга қўшилиш'**
+  String get joinLesson;
+
+  /// No description provided for @lessonStarted.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бошланди'**
+  String get lessonStarted;
+
   /// No description provided for @appearance.
   ///
   /// In uz_Cyrl, this message translates to:
@@ -790,6 +802,24 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Берилмаган'**
   String get notGranted;
+
+  /// No description provided for @allPermissionsGranted.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳаммаси берилган'**
+  String get allPermissionsGranted;
+
+  /// No description provided for @permissionsMissing.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'{count} та берилмаган'**
+  String permissionsMissing(int count);
+
+  /// No description provided for @versionCopied.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Версия нусхаланди'**
+  String get versionCopied;
 
   /// No description provided for @about.
   ///

@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 /// Shared building blocks for the settings surfaces.
 ///
 /// The rule these encode: a row shows a short label and, at most, its current
 /// value. Anything longer — why a permission is needed, what Android will do —
 /// lives behind [InfoHint] instead of a wrapped subtitle, which is what used
 /// to make the sheets scroll for pages.
+
+/// Flat list (Instagram) vs the grouped rounded cards this sheet used before.
+///
+/// One flag rather than a deletion because the choice is reversible by
+/// request: flipping this back to `false` restores the cards without touching
+/// the neutral palette, which is a separate decision. Both branches are kept
+/// live here so the revert stays a one-line change instead of a rewrite —
+/// [SettingsSection] and [SettingsLeading] are the only two places that read
+/// it, so the call sites never care either way.
+const bool kFlatSettingsRows = false;
 
 /// A grouped block of settings rows with a small caption above it.
 ///
@@ -47,7 +59,7 @@ class SettingsSection extends StatelessWidget {
             child: Row(
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 16, color: colors.primary),
+                  Icon(icon, size: 16, color: colors.onSurfaceVariant),
                   const SizedBox(width: 8),
                 ],
                 // Expanded, not Flexible + Spacer: those two compete for the
@@ -60,7 +72,7 @@ class SettingsSection extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: colors.primary,
+                      color: colors.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
                     ),
@@ -73,28 +85,36 @@ class SettingsSection extends StatelessWidget {
           ),
           // Material rather than a plain DecoratedBox: rows paint their ink
           // splash on the nearest Material ancestor, so a bare colored box
-          // here would silently swallow every tap ripple. Clipped so the
-          // splash respects the rounded corners.
+          // here would silently swallow every tap ripple. That holds for the
+          // flat list too — losing the card must not cost the ripple.
           Material(
-            color: colors.surfaceContainerLow,
+            color: kFlatSettingsRows
+                ? colors.surface
+                : colors.surfaceContainerLow,
             clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: BorderSide(
-                color: colors.outlineVariant.withValues(alpha: 0.5),
-              ),
-            ),
+            shape: kFlatSettingsRows
+                ? const RoundedRectangleBorder()
+                : RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(
+                      color: colors.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
             child: Column(
               children: [
                 for (var i = 0; i < children.length; i++) ...[
                   // Hairline between rows only — never above the first or
-                  // below the last, where the container's own edge reads as
-                  // the boundary.
+                  // below the last. In the card that would double the
+                  // container edge; in the flat list the section caption and
+                  // its gap already mark the boundary.
                   if (i > 0)
                     Divider(
                       height: 1,
-                      indent: 56,
-                      endIndent: 12,
+                      // Flat rows start their text at the same x as the
+                      // caption, so the hairline is indented to the text
+                      // rather than to a leading square that no longer exists.
+                      indent: kFlatSettingsRows ? 16 : 56,
+                      endIndent: kFlatSettingsRows ? 0 : 12,
                       color: colors.outlineVariant.withValues(alpha: 0.5),
                     ),
                   children[i],
@@ -140,18 +160,39 @@ class InfoHint extends StatelessWidget {
   }
 }
 
-/// Rounded tinted square behind a row's icon. Gives every row the same optical
-/// left edge and lets state (on/off, warning) read at a glance.
+/// A row's leading icon.
+///
+/// Flat: the bare glyph, the way Instagram draws it — the tinted square was
+/// the single biggest carrier of green in the sheet. Card: the rounded tinted
+/// square, kept behind [kFlatSettingsRows] for the revert.
+///
+/// Both branches occupy the same 34dp box so the divider indent and every
+/// row's optical left edge hold either way.
 class SettingsLeading extends StatelessWidget {
   const SettingsLeading(this.icon, {super.key, this.color, this.active = true});
 
   final IconData icon;
+
+  /// Explicit tint for the rare row that means a color — otherwise the glyph
+  /// stays neutral rather than picking up an accent.
   final Color? color;
   final bool active;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final disabled = colors.onSurface.withValues(alpha: 0.38);
+    if (kFlatSettingsRows) {
+      return SizedBox(
+        width: 34,
+        height: 34,
+        child: Icon(
+          icon,
+          size: 24,
+          color: active ? (color ?? colors.onSurface) : disabled,
+        ),
+      );
+    }
     final tint = color ?? colors.primary;
     return Container(
       width: 34,
@@ -162,11 +203,7 @@ class SettingsLeading extends StatelessWidget {
             : colors.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(
-        icon,
-        size: 19,
-        color: active ? tint : colors.onSurface.withValues(alpha: 0.38),
-      ),
+      child: Icon(icon, size: 19, color: active ? tint : disabled),
     );
   }
 }
@@ -193,7 +230,15 @@ class PermissionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final foreground = granted ? colors.primary : colors.error;
+    // Green for granted, red for not: the one place in settings where colour
+    // still carries meaning, kept from the old design because "granted" is
+    // worth reading at a glance. Only the badge is tinted — the row's leading
+    // icon stays neutral like every other row's.
+    //
+    // brandGreen, not kiuGreen: the deep brand green fails to read on the
+    // near-black dark surface. The icon keeps the distinction for anyone who
+    // cannot separate the two hues.
+    final foreground = granted ? brandGreen(theme.brightness) : colors.error;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

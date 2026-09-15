@@ -100,6 +100,8 @@
   "overlayAccess": "Display over apps",
   "overlayAccessHelp": "Lets the call screen open while you are using the phone. Without it the call shows only as a notification banner.",
   "callForThisLesson": "Call for this lesson",
+  "joinLesson": "Join the lesson",
+  "lessonStarted": "Started",
   "appearance": "Appearance",
   "themeSystem": "System",
   "themeLight": "Light",
@@ -137,6 +139,16 @@
   "off": "Off",
   "granted": "Granted",
   "notGranted": "Not granted",
+  "allPermissionsGranted": "All granted",
+  "permissionsMissing": "{count} not granted",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Version copied",
   "about": "About",
   "markWatchedHint": "Marks the video as viewed on the platform.",
   "openLink": "Open",

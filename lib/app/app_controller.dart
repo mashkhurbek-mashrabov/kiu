@@ -320,6 +320,25 @@ class AppController extends ChangeNotifier {
     return result;
   }
 
+  /// Takes one permission straight to Android, for a settings row.
+  ///
+  /// No explainer -- the row the user tapped already says what it is for. The
+  /// first-launch sequence still explains, because its screens arrive
+  /// unannounced before the user has asked for anything.
+  ///
+  /// Battery still gets Android's one-tap dialog rather than the full app
+  /// list, and an already-granted permission opens the screen that displays
+  /// it, which is the only route back to revoking.
+  Future<void> requestPermission(PermissionKind permission) async {
+    await _onboarding.request(permission: permission);
+    // Same refresh the onboarding flow ends with: the badges, the cached
+    // reminders and the call alarms all key off what just changed.
+    await refreshBackgroundAccess();
+    exactTiming = await _notifications.canScheduleExactly();
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
   Future<bool> setCallsEnabled(bool enabled) async {
     if (enabled && !await _notifications.requestNotificationPermission()) {
       return false;

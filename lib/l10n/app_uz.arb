@@ -100,6 +100,8 @@
   "overlayAccess": "Ilovalar ustida ko‘rsatish",
   "overlayAccessHelp": "Telefondan foydalanayotganingizda qo‘ng‘iroq ekrani ochilishiga imkon beradi. Bo‘lmasa, qo‘ng‘iroq faqat bildirishnoma sifatida ko‘rinadi.",
   "callForThisLesson": "Ushbu dars uchun qo‘ng‘iroq",
+  "joinLesson": "Darsga qo‘shilish",
+  "lessonStarted": "Boshlandi",
   "appearance": "Ko‘rinish",
   "themeSystem": "Tizim bo‘yicha",
   "themeLight": "Yorug‘",
@@ -137,6 +139,16 @@
   "off": "O‘chiq",
   "granted": "Berilgan",
   "notGranted": "Berilmagan",
+  "allPermissionsGranted": "Hammasi berilgan",
+  "permissionsMissing": "{count} ta berilmagan",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Versiya nusxalandi",
   "about": "Ilova haqida",
   "markWatchedHint": "Videoni platformada ko‘rilgan deb belgilaydi.",
   "openLink": "Ochish",

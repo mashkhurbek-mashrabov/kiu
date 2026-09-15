@@ -33,6 +33,18 @@ class LessonCallActivity : Activity() {
     private var vibrator: Vibrator? = null
     private var countDownTimer: CountDownTimer? = null
     private var requestCode: Int = -1
+
+    /** Millis left on the ring window, so a re-ring keeps the deadline rather than extending it. */
+    private var remainingMillis: Long = 0
+
+    /** Set once the user answers or declines, so leaving afterwards does not re-ring. */
+    private var resolved = false
+
+    /** The call being shown, kept so [onUserLeaveHint] can hand it back to the receiver. */
+    private var callKey: String = ""
+    private var callTitle: String = ""
+    private var callDisplayStart: String = ""
+    private var callMeetingUrl: String? = null
     private var receiverRegistered = false
 
     /** Held so [onDestroy] can unschedule it; it re-posts itself while ringing. */
@@ -46,6 +58,8 @@ class LessonCallActivity : Activity() {
     private val finishReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.getIntExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, -1) == requestCode) {
+                // Something already stopped this call, so leaving now must not re-ring it.
+                resolved = true
                 finish()
             }
         }
@@ -56,12 +70,17 @@ class LessonCallActivity : Activity() {
         setUpWindow()
         setContentView(R.layout.kiu_lesson_call)
         applyWindowInsets()
+        hideAvatarIfCramped()
 
         requestCode = intent.getIntExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, -1)
         val key = intent.getStringExtra(LessonCallReceiver.EXTRA_KEY) ?: ""
         val title = intent.getStringExtra(LessonCallReceiver.EXTRA_TITLE) ?: ""
         val displayStart = intent.getStringExtra(LessonCallReceiver.EXTRA_DISPLAY_START) ?: ""
         val meetingUrl = intent.getStringExtra(LessonCallReceiver.EXTRA_MEETING_URL)
+        callKey = key
+        callTitle = title
+        callDisplayStart = displayStart
+        callMeetingUrl = meetingUrl
 
         // Answer tapped on the notification instead of this screen. Activities may start
         // activities, so opening the link here is what sidesteps the trampoline block.
@@ -87,6 +106,7 @@ class LessonCallActivity : Activity() {
             contentDescription = answerLabel
             addPressFeedback()
             setOnClickListener {
+                resolved = true
                 dismissKeyguard()
                 answer(key, title, displayStart, meetingUrl)
             }
@@ -100,6 +120,7 @@ class LessonCallActivity : Activity() {
                     dodge()
                     return@setOnClickListener
                 }
+                resolved = true
                 sendCallAction(LessonCallReceiver.ACTION_DECLINE, key, title, displayStart, meetingUrl)
                 finish()
             }
@@ -111,6 +132,35 @@ class LessonCallActivity : Activity() {
         registerFinishReceiver()
         startRinging(data)
         startCountdown(ringSeconds, data.getString("callSecondsLabel", null) ?: "s")
+    }
+
+    /**
+     * Re-rings the call when the user leaves the screen with it still live.
+     *
+     * Home destroys this activity outright -- `excludeFromRecents` plus an empty
+     * `taskAffinity` mean it is not kept around to come back to -- and the notification
+     * posted beside a visible call screen is deliberately silent, so the call would survive
+     * only as a mute status-bar icon for a lesson that is starting right now.
+     *
+     * [onUserLeaveHint] rather than [onPause] or [onStop]: it fires only for a deliberate
+     * departure (Home, Recents), not when the screen is covered by a dialog, the keyguard, or
+     * the activity finishing itself after Answer or Decline.
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (resolved || isFinishing || requestCode == -1) return
+        sendBroadcast(
+            Intent(this, LessonCallReceiver::class.java).apply {
+                action = LessonCallReceiver.ACTION_RERING
+                setPackage(packageName)
+                putExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, requestCode)
+                putExtra(LessonCallReceiver.EXTRA_KEY, callKey)
+                putExtra(LessonCallReceiver.EXTRA_TITLE, callTitle)
+                putExtra(LessonCallReceiver.EXTRA_DISPLAY_START, callDisplayStart)
+                putExtra(LessonCallReceiver.EXTRA_MEETING_URL, callMeetingUrl)
+                putExtra(LessonCallReceiver.EXTRA_REMAINING_MILLIS, remainingMillis)
+            },
+        )
     }
 
     private fun setUpWindow() {
@@ -183,6 +233,51 @@ class LessonCallActivity : Activity() {
             insets
         }
         root.requestApplyInsets()
+    }
+
+    /**
+     * Drops the avatar and its halo when the screen is too short to seat the text below it.
+     *
+     * The identity block is weighted, so a LinearLayout hands it whatever height is left over
+     * whether or not the content fits; the children then overflow their box rather than
+     * shrinking. On a 533dp-tall screen that painted the countdown chip over a half-clipped
+     * start-time pill. The avatar is the only decorative element here, so it is what yields --
+     * the lesson name, its start time and the buttons all carry information or actions.
+     *
+     * Measured rather than gated on a dp qualifier: the title wraps to one or two lines
+     * depending on its length, so the same device fits the avatar for one lesson and not for
+     * another. values-h700dp still picks the roomy metrics; this only removes what cannot fit
+     * after that choice is made.
+     */
+    private fun hideAvatarIfCramped() {
+        val root = findViewById<View>(R.id.call_root)
+        root.viewTreeObserver.addOnPreDrawListener(
+            object : android.view.ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    root.viewTreeObserver.removeOnPreDrawListener(this)
+                    val avatar = findViewById<View>(R.id.call_avatar_block)
+                    val start = findViewById<View>(R.id.call_start)
+                    val countdown = findViewById<View>(R.id.call_countdown)
+                    if (avatar.visibility != View.VISIBLE) return true
+                    // Overlap is the symptom that matters: the start-time pill running into
+                    // the countdown means the weighted block overflowed its box.
+                    //
+                    // Screen coordinates, not View.y: these two live in different parents
+                    // (the start pill inside the identity block, the countdown directly
+                    // under the root), so their y values are not comparable.
+                    val startPos = IntArray(2).also(start::getLocationOnScreen)
+                    val countdownPos = IntArray(2).also(countdown::getLocationOnScreen)
+                    // A gap, not merely "no overlap": the identity block clamps its content
+                    // to its own bottom edge, so a cramped screen ends up with the start
+                    // pill exactly touching the countdown, which reads as the two colliding.
+                    val gap = countdownPos[1] - (startPos[1] + start.height)
+                    if (gap < MIN_IDENTITY_GAP_DP * resources.displayMetrics.density) {
+                        avatar.visibility = View.GONE
+                    }
+                    return true
+                }
+            },
+        )
     }
 
     private fun dismissKeyguard() {
@@ -526,14 +621,20 @@ class LessonCallActivity : Activity() {
 
     private fun startCountdown(ringSeconds: Int, secondsLabel: String) {
         val countdownView = findViewById<TextView>(R.id.call_countdown)
+        remainingMillis = ringSeconds * 1000L
         countDownTimer = object : CountDownTimer(ringSeconds * 1000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
+                // Tracked so a re-ring can keep this deadline instead of restarting it.
+                remainingMillis = millisUntilFinished
                 // Unit suffix: a bare digit next to the start time read as part
                 // of it rather than as a countdown.
                 countdownView.text = "${millisUntilFinished / 1000L + 1} $secondsLabel"
             }
 
             override fun onFinish() {
+                // The timeout alarm cancels the notification itself; re-ringing on the way
+                // out would resurrect a call that just expired.
+                resolved = true
                 finish()
             }
         }.also { it.start() }
@@ -573,6 +674,15 @@ class LessonCallActivity : Activity() {
     }
 
     private companion object {
+        /**
+         * Clearance the start-time pill needs below it before the avatar is worth keeping.
+         *
+         * Not zero: the weighted identity block clamps its content to its own bottom edge, so
+         * a cramped screen leaves the pill exactly touching the countdown chip, which reads as
+         * the two colliding even though neither technically overflows.
+         */
+        const val MIN_IDENTITY_GAP_DP = 12
+
         /** Taps needed to actually decline; the first two only move the button. */
         const val DECLINE_TAPS_REQUIRED = 3
 

@@ -100,6 +100,8 @@
   "overlayAccess": "Иловалар устида кўрсатиш",
   "overlayAccessHelp": "Телефондан фойдаланаётганингизда қўнғироқ экрани очилишига имкон беради. Бўлмаса, қўнғироқ фақат билдиришнома сифатида кўринади.",
   "callForThisLesson": "Ушбу дарс учун қўнғироқ",
+  "joinLesson": "Дарсга қўшилиш",
+  "lessonStarted": "Бошланди",
   "appearance": "Кўриниш",
   "themeSystem": "Тизим бўйича",
   "themeLight": "Ёруғ",
@@ -151,6 +153,16 @@
   "off": "Ўчиқ",
   "granted": "Берилган",
   "notGranted": "Берилмаган",
+  "allPermissionsGranted": "Ҳаммаси берилган",
+  "permissionsMissing": "{count} та берилмаган",
+  "@permissionsMissing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versionCopied": "Версия нусхаланди",
   "about": "Илова ҳақида",
   "markWatchedHint": "Видеони платформада кўрилган деб белгилайди.",
   "openLink": "Очиш",

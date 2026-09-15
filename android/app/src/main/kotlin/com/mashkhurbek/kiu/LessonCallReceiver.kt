@@ -24,13 +24,18 @@ class LessonCallReceiver : BroadcastReceiver() {
         val key = intent.getStringExtra(EXTRA_KEY)
         if (requestCode == -1 || key.isNullOrBlank()) return
         when (intent.action) {
-            ACTION_RING -> ring(
+            ACTION_RING, ACTION_RERING -> ring(
                 context = context,
                 requestCode = requestCode,
                 key = key,
                 title = intent.getStringExtra(EXTRA_TITLE) ?: "",
                 displayStart = intent.getStringExtra(EXTRA_DISPLAY_START) ?: "",
                 meetingUrl = intent.getStringExtra(EXTRA_MEETING_URL),
+                // The call screen was just dismissed by the user, so it must not be
+                // relaunched from under them -- but the notification has to go loud, because
+                // it is now the only thing representing a call that is still ringing.
+                reRing = intent.action == ACTION_RERING,
+                remainingMillis = intent.getLongExtra(EXTRA_REMAINING_MILLIS, 0),
             )
             // No ACTION_ANSWER here on purpose: Android 12+ blocks a receiver reached from a
             // notification action from starting an activity ("notification trampoline"), so the
@@ -59,6 +64,9 @@ class LessonCallReceiver : BroadcastReceiver() {
         title: String,
         displayStart: String,
         meetingUrl: String?,
+        reRing: Boolean = false,
+        /** Millis left on the original ring window; 0 starts a fresh one. */
+        remainingMillis: Long = 0,
     ) {
         val prefs = HomeWidgetPlugin.getData(context)
         val ringSeconds = prefs.getString("callRingSeconds", "60")?.toIntOrNull() ?: 60
@@ -92,9 +100,16 @@ class LessonCallReceiver : BroadcastReceiver() {
         // This must be decided up front rather than from startActivity's result: a blocked
         // background activity start does NOT throw, it is silently dropped, so a
         // runCatching around it reports success either way and would leave the fallback mute.
-        val willShowCallScreen = canDrawOverlays(context) || screenIsOff(context)
+        //
+        // A re-ring is the exception: the user just dismissed the call screen, so there will
+        // be no screen to duplicate and the notification is the whole UI -- exactly the case
+        // the loud channel exists for.
+        val willShowCallScreen =
+            !reRing && (canDrawOverlays(context) || screenIsOff(context))
         val channelId = ensureChannel(context, ringtoneUri, silent = willShowCallScreen)
-        runCatching { context.startActivity(fullScreenIntent) }
+        // Never relaunched on a re-ring: the user left this screen deliberately, and throwing
+        // it back at them is what a call notification is supposed to replace.
+        if (!reRing) runCatching { context.startActivity(fullScreenIntent) }
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(context, channelId)
@@ -147,7 +162,14 @@ class LessonCallReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val fireAt = System.currentTimeMillis() + ringSeconds * 1000L
+        // A re-ring keeps the deadline the original ring set. Restarting the countdown here
+        // would mean leaving the call screen extends the call, so a user who pressed Home to
+        // get rid of it would be rung at for longer than if they had left it alone.
+        val fireAt = if (remainingMillis > 0) {
+            System.currentTimeMillis() + remainingMillis
+        } else {
+            System.currentTimeMillis() + ringSeconds * 1000L
+        }
         runCatching {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, timeoutPendingIntent)
         }.getOrElse {
@@ -241,6 +263,22 @@ class LessonCallReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_RING = "com.mashkhurbek.kiu.action.LESSON_CALL_RING"
+
+        /**
+         * Re-posts the call notification loudly after the user leaves the call screen while it
+         * is still ringing.
+         *
+         * The notification posted alongside a visible call screen is deliberately silent and
+         * low priority -- a heads-up banner over the screen that already shows both buttons is
+         * pure duplication. But pressing Home destroys that activity
+         * (`excludeFromRecents` + an empty `taskAffinity`), leaving only a mute status-bar
+         * icon for a call that is still live. This re-rings so the call reasserts itself the
+         * way any other incoming call would.
+         */
+        const val ACTION_RERING = "com.mashkhurbek.kiu.action.LESSON_CALL_RERING"
+
+        /** Millis left on the ring window, carried across a re-ring so it is not extended. */
+        const val EXTRA_REMAINING_MILLIS = "remainingMillis"
         const val ACTION_STOP = "com.mashkhurbek.kiu.action.LESSON_CALL_STOP"
         const val ACTION_DECLINE = "com.mashkhurbek.kiu.action.LESSON_CALL_DECLINE"
         const val ACTION_TIMEOUT = "com.mashkhurbek.kiu.action.LESSON_CALL_TIMEOUT"

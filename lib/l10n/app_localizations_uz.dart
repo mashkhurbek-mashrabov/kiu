@@ -256,6 +256,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get callForThisLesson => 'Ushbu dars uchun qo‘ng‘iroq';
 
   @override
+  String get joinLesson => 'Darsga qo‘shilish';
+
+  @override
+  String get lessonStarted => 'Boshlandi';
+
+  @override
   String get appearance => 'Ko‘rinish';
 
   @override
@@ -372,6 +378,17 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get notGranted => 'Berilmagan';
+
+  @override
+  String get allPermissionsGranted => 'Hammasi berilgan';
+
+  @override
+  String permissionsMissing(int count) {
+    return '$count ta berilmagan';
+  }
+
+  @override
+  String get versionCopied => 'Versiya nusxalandi';
 
   @override
   String get about => 'Ilova haqida';
@@ -751,6 +768,12 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   String get callForThisLesson => 'Ушбу дарс учун қўнғироқ';
 
   @override
+  String get joinLesson => 'Дарсга қўшилиш';
+
+  @override
+  String get lessonStarted => 'Бошланди';
+
+  @override
   String get appearance => 'Кўриниш';
 
   @override
@@ -867,6 +890,17 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get notGranted => 'Берилмаган';
+
+  @override
+  String get allPermissionsGranted => 'Ҳаммаси берилган';
+
+  @override
+  String permissionsMissing(int count) {
+    return '$count та берилмаган';
+  }
+
+  @override
+  String get versionCopied => 'Версия нусхаланди';
 
   @override
   String get about => 'Илова ҳақида';

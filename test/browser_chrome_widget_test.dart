@@ -42,6 +42,9 @@ Future<AppController> controller([
 /// Finds a [SettingsSection] caption, which renders upper-cased.
 Finder findCaption(String label) => find.text(label.toUpperCase());
 
+/// Zero-pads a date part for the `yyyy-MM-dd HH:mm` stamps the LMS emits.
+String _two(int value) => value.toString().padLeft(2, '0');
+
 void main() {
   setUp(() {
     WebViewPlatform.instance = FakeWebViewPlatform();
@@ -341,6 +344,85 @@ void main() {
         .colorScheme;
     expect(colors.brightness, Brightness.light);
     expect(colors.surface, lightSurface);
+  });
+
+  // The settings sheet and the nav bar have to read as one surface. Before the
+  // redesign the scheme was seeded straight from kiuGreen, so `primary` — which
+  // drives the switches, chips, slider and every section caption — came out
+  // green against the bar's neutral glass. These assert the roles rather than
+  // any one widget's paint, because that is where the green actually entered.
+  testWidgets('drives settings chrome from a neutral primary, not brand green', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.themeMode': 'light'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final colors = Theme.of(tester.element(find.byKey(const Key('nav-bar'))))
+        .colorScheme;
+    expect(colors.primary, isNot(kiuGreen));
+    expect(colors.primary, lightInk);
+    // The sheet paints on this; a tinted container brings the green wash back.
+    expect(colors.surfaceContainerLow, lightSurface);
+    expect(colors.surface, const Color(0xFFFFFFFF));
+  });
+
+  test('no scheme role still carries the seeded green', () {
+    // fromSeed derives every role from kiuGreen, so pinning them by hand is
+    // easy to do incompletely — the first pass missed secondaryContainer and
+    // the chips stayed green on device. This sweeps all of them instead:
+    // anything green-hued with real saturation is a leak.
+    bool greenish(Color c) {
+      final hsl = HSLColor.fromColor(c);
+      return hsl.hue > 80 &&
+          hsl.hue < 180 &&
+          hsl.saturation > 0.12 &&
+          hsl.lightness > 0.05 &&
+          hsl.lightness < 0.95;
+    }
+
+    for (final brightness in [Brightness.light, Brightness.dark]) {
+      final c = kiuTheme(brightness).colorScheme;
+      final roles = <String, Color>{
+        'primary': c.primary,
+        'primaryContainer': c.primaryContainer,
+        'secondary': c.secondary,
+        'secondaryContainer': c.secondaryContainer,
+        'surface': c.surface,
+        'surfaceContainer': c.surfaceContainer,
+        'surfaceContainerLow': c.surfaceContainerLow,
+        'surfaceContainerHigh': c.surfaceContainerHigh,
+        'surfaceContainerHighest': c.surfaceContainerHighest,
+        'surfaceDim': c.surfaceDim,
+        'surfaceBright': c.surfaceBright,
+        'onSurface': c.onSurface,
+        'onSurfaceVariant': c.onSurfaceVariant,
+        'outline': c.outline,
+        'outlineVariant': c.outlineVariant,
+        'inverseSurface': c.inverseSurface,
+        'inversePrimary': c.inversePrimary,
+        'surfaceTint': c.surfaceTint,
+      };
+      final leaks = roles.entries
+          .where((e) => greenish(e.value))
+          .map((e) => e.key)
+          .toList();
+      expect(leaks, isEmpty, reason: 'green left in $brightness roles: $leaks');
+    }
+  });
+
+  testWidgets('keeps brand green available for lesson state', (tester) async {
+    // Neutral chrome must not cost the one place green carries meaning: a
+    // started lesson / armed call, which has to match the home-screen widget.
+    expect(brandGreen(Brightness.light), kiuGreen);
+    expect(brandGreen(Brightness.dark), kiuGreenDark);
+    // The deep brand green is unreadable on the near-black dark surface, which
+    // is why dark mode gets the lightened variant rather than kiuGreen itself.
+    expect(brandGreen(Brightness.dark), isNot(kiuGreen));
   });
 
   testWidgets('switches appearance from More', (tester) async {
@@ -655,6 +737,107 @@ void main() {
   });
 
   testWidgets(
+    'a started lesson with a link offers Join instead of the call toggle',
+    (tester) async {
+      // Matches the widget's canJoin rule: started AND a usable HTTPS link.
+      final started = DateTime.now().subtract(const Duration(minutes: 5));
+      final stamp =
+          '${started.year}-${_two(started.month)}-${_two(started.day)} '
+          '${_two(started.hour)}:${_two(started.minute)}';
+      SharedPreferences.setMockInitialValues({
+        'kiu.lessonSnapshot':
+            '[{"title":"Aqidah","websiteStart":"$stamp",'
+            '"meetingUrl":"https://meet.google.com/abc-defg-hij"}]',
+      });
+      final appController = await controller();
+      await tester.pumpWidget(
+        KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+      );
+      await tester.tap(find.byKey(const Key('actions-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+      await tester.pumpAndSettle();
+
+      // Join takes the trailing slot; arming a call for a lesson already under
+      // way is pointless, so the toggle steps aside exactly as in the widget.
+      expect(find.byKey(const Key('scheduled-lesson-join-0')), findsOneWidget);
+      expect(find.byKey(const Key('scheduled-lesson-call-0')), findsNothing);
+      // "Started" reaches a screen reader as a label: the visible row shows it
+      // as the green on the time, and colour alone cannot carry state.
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('scheduled-lesson-0')),
+          matching: find.bySemanticsLabel('Бошланди'),
+        ),
+        findsOneWidget,
+      );
+
+      // The whole row is tappable, not just the icon.
+      final tile = tester.widget<ListTile>(
+        find.byKey(const Key('scheduled-lesson-0')),
+      );
+      expect(tile.onTap, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'a lesson that has not started keeps the call toggle and no Join',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'kiu.lessonSnapshot':
+            '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00",'
+            '"meetingUrl":"https://meet.google.com/abc-defg-hij"}]',
+      });
+      final appController = await controller();
+      await tester.pumpWidget(
+        KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+      );
+      await tester.tap(find.byKey(const Key('actions-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scheduled-lesson-join-0')), findsNothing);
+      expect(find.byKey(const Key('scheduled-lesson-call-0')), findsOneWidget);
+      // Inert until it starts, so a stray tap cannot open a lesson early.
+      final tile = tester.widget<ListTile>(
+        find.byKey(const Key('scheduled-lesson-0')),
+      );
+      expect(tile.onTap, isNull);
+    },
+  );
+
+  testWidgets('a started lesson without a usable link is not tappable', (
+    tester,
+  ) async {
+    // http, not https: the same rule the native isValidHttps applies, so a
+    // downgraded link cannot be handed to whichever app claims the URL.
+    final started = DateTime.now().subtract(const Duration(minutes: 5));
+    final stamp =
+        '${started.year}-${_two(started.month)}-${_two(started.day)} '
+        '${_two(started.hour)}:${_two(started.minute)}';
+    SharedPreferences.setMockInitialValues({
+      'kiu.lessonSnapshot':
+          '[{"title":"Aqidah","websiteStart":"$stamp",'
+          '"meetingUrl":"http://meet.google.com/abc-defg-hij"}]',
+    });
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scheduled-lesson-join-0')), findsNothing);
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('scheduled-lesson-0')),
+    );
+    expect(tile.onTap, isNull);
+  });
+
+  testWidgets(
     'toggles a lesson call from the phone icon in Scheduled lessons',
     (tester) async {
       SharedPreferences.setMockInitialValues({
@@ -696,6 +879,48 @@ void main() {
       expect(appController.settings.callEnabledFor(lesson), isTrue);
     },
   );
+
+  testWidgets('adds a custom reminder from the dialog', (tester) async {
+    // The amount field and unit picker moved out of the section into a dialog:
+    // inline they were the widest thing in the sheet, and the keyboard opened
+    // over the list being edited.
+    final appController = await controller();
+    await appController.setRemindersEnabled(true);
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('notification-settings-menu')));
+    await tester.pumpAndSettle();
+
+    final add = find.byKey(const Key('reminder-add'));
+    await tester.ensureVisible(add);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('custom-reminder-dialog')), findsOneWidget);
+    // Nothing to add yet, so the confirm stays disabled rather than closing
+    // the dialog into a silent no-op.
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('custom-reminder-add')))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('custom-reminder-field')),
+      '90',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('custom-reminder-add')));
+    await tester.pumpAndSettle();
+
+    expect(appController.settings.reminderOffsetsMinutes, contains(90));
+    expect(find.byKey(const Key('reminder-custom-90')), findsOneWidget);
+  });
 
   testWidgets('shows custom reminders as chips that can be removed', (
     tester,
@@ -857,14 +1082,14 @@ void main() {
     await openNotificationSettings(tester, appController);
     expect(badgeGranted(tester, 'battery-access'), isFalse);
 
-    // Tapping only starts the settings activity; the badge must not claim the
-    // exemption was granted just because the channel call returned.
+    // Tapping only asks Android; the badge must not claim the exemption was
+    // granted just because the channel call returned.
     final tile = find.byKey(const Key('battery-access'));
     await tester.ensureVisible(tile);
     await tester.pumpAndSettle();
     await tester.tap(tile);
-    await tester.pumpAndSettle();
-    expect(backgroundAccess.batterySettingsOpened, 1);
+    await tester.pump();
+    expect(backgroundAccess.batteryDialogShown, 1);
     expect(badgeGranted(tester, 'battery-access'), isFalse);
 
     // The user grants it in Android settings and comes back.
@@ -905,7 +1130,14 @@ void main() {
     await tester.tap(tile);
     await tester.pumpAndSettle();
 
+    // Straight to the Android screen. The row the user tapped already says
+    // what it is for, so a dialog in between is one more tap to nowhere.
+    expect(find.byKey(const Key('permission-explainer')), findsNothing);
     expect(backgroundAccess.overlaySettingsOpened, 1);
+
+    // Settle the resume wait, as above.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('every permission row shows its granted state', (tester) async {
@@ -923,7 +1155,54 @@ void main() {
     expect(badgeGranted(tester, 'overlay-access-tile'), isFalse);
   });
 
-  testWidgets('tapping the battery row opens Android settings', (tester) async {
+  testWidgets('permissions collapse to a summary when nothing is missing', (
+    tester,
+  ) async {
+    // Four rows of "Granted" was a screenful saying nothing is wrong.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = true
+      ..fullScreenIntentAllowed = true
+      ..overlaysAllowed = true;
+    final appController = await controller(null, backgroundAccess);
+    // exactTiming is only populated by a refresh; without one it reads false
+    // and the summary would report a permission missing that is not.
+    await appController.refreshBackgroundAccess();
+    await appController.requestExactTiming();
+    await openNotificationSettings(tester, appController);
+
+    expect(badgeGranted(tester, 'permissions-summary'), isTrue);
+    expect(find.byKey(const Key('battery-access')), findsNothing);
+
+    // Still reachable: confirming a granted permission is what listing them
+    // all was for.
+    final summary = find.byKey(const Key('permissions-summary'));
+    await tester.ensureVisible(summary);
+    await tester.pumpAndSettle();
+    await tester.tap(summary);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('battery-access')), findsOneWidget);
+  });
+
+  testWidgets('permissions open themselves when one is missing', (
+    tester,
+  ) async {
+    // The state worth acting on must be the visible one, with no tap first.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = false;
+    final appController = await controller(null, backgroundAccess);
+    await openNotificationSettings(tester, appController);
+
+    expect(badgeGranted(tester, 'permissions-summary'), isFalse);
+    expect(find.byKey(const Key('battery-access')), findsOneWidget);
+  });
+
+  testWidgets('a missing battery permission goes to Android’s dialog', (
+    tester,
+  ) async {
+    // Android's one-tap exemption dialog, not the app list the row used to
+    // deep-link to, which made the user hunt for KIU in it -- and no explainer
+    // in front of either.
     final backgroundAccess = FakeBackgroundAccessGateway()
       ..batteryOptimizationDisabled = false;
     final appController = await controller(null, backgroundAccess);
@@ -933,10 +1212,56 @@ void main() {
     await tester.ensureVisible(tile);
     await tester.pumpAndSettle();
     await tester.tap(tile);
+    await tester.pump();
+
+    expect(find.byKey(const Key('permission-explainer')), findsNothing);
+    expect(backgroundAccess.batteryDialogShown, 1);
+    expect(backgroundAccess.batterySettingsOpened, 0);
+
+    // The flow waits on the return from Android before re-querying; without a
+    // resume its timeout timer outlives the test.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a granted row opens Android directly, without explaining', (
+    tester,
+  ) async {
+    // The explainer argues why KIU needs a permission the user has already
+    // given, which reads as the app not knowing its own state. A granted row
+    // is purely the link-out its icon advertises -- and it must open the
+    // settings screen, not re-request: requestBatteryExemption returns without
+    // launching anything once the app is already exempt, which would leave the
+    // row doing nothing at all.
+    final backgroundAccess = FakeBackgroundAccessGateway()
+      ..batteryOptimizationDisabled = true;
+    final appController = await controller(null, backgroundAccess);
+    await appController.refreshBackgroundAccess();
+    await openNotificationSettings(tester, appController);
+
+    final summary = find.byKey(const Key('permissions-summary'));
+    await tester.ensureVisible(summary);
+    await tester.pumpAndSettle();
+    await tester.tap(summary);
     await tester.pumpAndSettle();
 
+    final tile = find.byKey(const Key('battery-access'));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pump();
+
+    expect(find.byKey(const Key('permission-explainer')), findsNothing);
     expect(backgroundAccess.batterySettingsOpened, 1);
+    expect(backgroundAccess.batteryDialogShown, 0);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
   });
+
+  // The first launch still explains before it asks: that is covered end to end
+  // in permission_explainer_widget_test.dart, which has the onboarding
+  // harness (immediate resume waiter, zero settle delay) this file lacks.
 
   testWidgets('scheduled lessons page can sync and shows the last sync', (
     tester,

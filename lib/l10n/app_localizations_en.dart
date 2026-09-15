@@ -256,6 +256,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get callForThisLesson => 'Call for this lesson';
 
   @override
+  String get joinLesson => 'Join the lesson';
+
+  @override
+  String get lessonStarted => 'Started';
+
+  @override
   String get appearance => 'Appearance';
 
   @override
@@ -371,6 +377,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notGranted => 'Not granted';
+
+  @override
+  String get allPermissionsGranted => 'All granted';
+
+  @override
+  String permissionsMissing(int count) {
+    return '$count not granted';
+  }
+
+  @override
+  String get versionCopied => 'Version copied';
 
   @override
   String get about => 'About';
