@@ -62,15 +62,29 @@
     </LinearLayout>
 
     <!-- Identity block. Weighted, so it is the only part that gives ground
-         when the screen is short. -->
+         when the screen is short.
+
+         Giving ground is not automatic: a weighted LinearLayout hands its
+         child the leftover height whether or not the content fits, and the
+         children then overflow their box instead of shrinking - which is how
+         the countdown ended up painted over a clipped start-time pill on a
+         533dp-tall screen. The avatar below therefore carries
+         layout_weight="1" of its own (it is decoration, so it is what should
+         yield) and the text keeps its intrinsic height. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
+        android:minHeight="0dp"
         android:orientation="vertical">
 
+        <!-- The halo keeps its design size and is the first thing dropped when
+             there is no room for it: LessonCallActivity hides it outright on a
+             screen too short to seat the text below, rather than letting a
+             half-clipped circle push the start time under the countdown. -->
         <FrameLayout
+            android:id="@+id/call_avatar_block"
             android:layout_width="@dimen/call_halo_size"
             android:layout_height="@dimen/call_halo_size">
 

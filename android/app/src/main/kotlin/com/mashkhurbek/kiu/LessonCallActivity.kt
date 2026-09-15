@@ -56,6 +56,7 @@ class LessonCallActivity : Activity() {
         setUpWindow()
         setContentView(R.layout.kiu_lesson_call)
         applyWindowInsets()
+        hideAvatarIfCramped()
 
         requestCode = intent.getIntExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, -1)
         val key = intent.getStringExtra(LessonCallReceiver.EXTRA_KEY) ?: ""
@@ -183,6 +184,51 @@ class LessonCallActivity : Activity() {
             insets
         }
         root.requestApplyInsets()
+    }
+
+    /**
+     * Drops the avatar and its halo when the screen is too short to seat the text below it.
+     *
+     * The identity block is weighted, so a LinearLayout hands it whatever height is left over
+     * whether or not the content fits; the children then overflow their box rather than
+     * shrinking. On a 533dp-tall screen that painted the countdown chip over a half-clipped
+     * start-time pill. The avatar is the only decorative element here, so it is what yields --
+     * the lesson name, its start time and the buttons all carry information or actions.
+     *
+     * Measured rather than gated on a dp qualifier: the title wraps to one or two lines
+     * depending on its length, so the same device fits the avatar for one lesson and not for
+     * another. values-h700dp still picks the roomy metrics; this only removes what cannot fit
+     * after that choice is made.
+     */
+    private fun hideAvatarIfCramped() {
+        val root = findViewById<View>(R.id.call_root)
+        root.viewTreeObserver.addOnPreDrawListener(
+            object : android.view.ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    root.viewTreeObserver.removeOnPreDrawListener(this)
+                    val avatar = findViewById<View>(R.id.call_avatar_block)
+                    val start = findViewById<View>(R.id.call_start)
+                    val countdown = findViewById<View>(R.id.call_countdown)
+                    if (avatar.visibility != View.VISIBLE) return true
+                    // Overlap is the symptom that matters: the start-time pill running into
+                    // the countdown means the weighted block overflowed its box.
+                    //
+                    // Screen coordinates, not View.y: these two live in different parents
+                    // (the start pill inside the identity block, the countdown directly
+                    // under the root), so their y values are not comparable.
+                    val startPos = IntArray(2).also(start::getLocationOnScreen)
+                    val countdownPos = IntArray(2).also(countdown::getLocationOnScreen)
+                    // A gap, not merely "no overlap": the identity block clamps its content
+                    // to its own bottom edge, so a cramped screen ends up with the start
+                    // pill exactly touching the countdown, which reads as the two colliding.
+                    val gap = countdownPos[1] - (startPos[1] + start.height)
+                    if (gap < MIN_IDENTITY_GAP_DP * resources.displayMetrics.density) {
+                        avatar.visibility = View.GONE
+                    }
+                    return true
+                }
+            },
+        )
     }
 
     private fun dismissKeyguard() {
@@ -573,6 +619,15 @@ class LessonCallActivity : Activity() {
     }
 
     private companion object {
+        /**
+         * Clearance the start-time pill needs below it before the avatar is worth keeping.
+         *
+         * Not zero: the weighted identity block clamps its content to its own bottom edge, so
+         * a cramped screen leaves the pill exactly touching the countdown chip, which reads as
+         * the two colliding even though neither technically overflows.
+         */
+        const val MIN_IDENTITY_GAP_DP = 12
+
         /** Taps needed to actually decline; the first two only move the button. */
         const val DECLINE_TAPS_REQUIRED = 3
 
