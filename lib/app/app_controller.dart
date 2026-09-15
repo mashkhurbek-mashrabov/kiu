@@ -320,6 +320,31 @@ class AppController extends ChangeNotifier {
     return result;
   }
 
+  /// Asks for one permission the way the first launch does: KIU's explainer
+  /// first, then Android's own dialog where one exists, then a re-query.
+  ///
+  /// The settings rows route through this instead of deep-linking, so battery
+  /// gets its one-tap dialog rather than the full app list, and every row
+  /// explains itself before a system screen appears unannounced.
+  Future<void> requestPermission(
+    PermissionKind permission, {
+    required PermissionExplainer explain,
+  }) async {
+    await _onboarding.request(
+      permission: permission,
+      explain: explain,
+      // A granted row still opens its Android screen — that link-out is the
+      // only route back to revoking.
+      alwaysOpen: true,
+    );
+    // Same refresh the onboarding flow ends with: the badges, the cached
+    // reminders and the call alarms all key off what just changed.
+    await refreshBackgroundAccess();
+    exactTiming = await _notifications.canScheduleExactly();
+    await _rescheduleCached();
+    notifyListeners();
+  }
+
   Future<bool> setCallsEnabled(bool enabled) async {
     if (enabled && !await _notifications.requestNotificationPermission()) {
       return false;

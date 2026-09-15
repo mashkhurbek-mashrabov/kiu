@@ -84,14 +84,15 @@ ColorScheme _scheme(Brightness brightness) {
     // ChoiceChip and SegmentedButton paint their *selected* state from
     // secondaryContainer, not primary — so leaving this seeded kept a green
     // speed chip and a green theme segment sitting in an otherwise neutral
-    // sheet. Selection reads as a filled grey, the way the nav bar's capsule
-    // does.
+    // sheet.
+    //
+    // Selection is a solid inverted block: black on light, white on dark, with
+    // the label flipped to match. A tinted grey fill read as "disabled" next
+    // to the white card rather than as the current choice.
     secondary: dark ? darkInk : lightInk,
     onSecondary: dark ? darkSurface : lightSurface,
-    secondaryContainer: dark
-        ? const Color(0xFF2A2A2A)
-        : const Color(0xFFE8E8E8),
-    onSecondaryContainer: dark ? darkInk : lightInk,
+    secondaryContainer: dark ? darkInk : lightInk,
+    onSecondaryContainer: dark ? darkSurface : lightSurface,
     // fromSeed derives every surface tone from the seed, so each one carries a
     // faint green wash. They are pinned as a set rather than individually —
     // missing one shows up as a single off-colour panel (surfaceContainer is
@@ -184,10 +185,19 @@ ThemeData kiuTheme(Brightness brightness) {
       space: 1,
       thickness: 1,
     ),
+    // ChoiceChip resolves its selected fill from secondarySelectedColor and its
+    // selected label from secondaryLabelStyle — not from the ColorScheme — so
+    // both are set here or the label keeps the unselected ink and a black chip
+    // ends up with near-black text on it.
     chipTheme: ChipThemeData(
       showCheckmark: false,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: BorderSide(color: colors.outlineVariant),
+      secondarySelectedColor: colors.secondaryContainer,
+      secondaryLabelStyle: TextStyle(
+        color: colors.onSecondaryContainer,
+        fontWeight: FontWeight.w600,
+      ),
     ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(

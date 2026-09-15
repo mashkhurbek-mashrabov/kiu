@@ -123,6 +123,70 @@ class PermissionOnboarding {
     );
   }
 
+  /// Runs one permission through the same explain → request → re-query cycle
+  /// the first-launch sequence uses.
+  ///
+  /// This is what the settings rows call. They used to deep-link straight to
+  /// the Android screen, which skipped the explainer and — for battery —
+  /// dropped the user in the full app list instead of the one-tap dialog the
+  /// first launch offers. Routing both through here means a permission behaves
+  /// the same whenever it is asked for.
+  ///
+  /// Returns the state after the user acted, re-queried rather than assumed.
+  ///
+  /// [alwaysOpen] skips the already-granted short-circuit, for the settings
+  /// rows: those carry a link-out icon and have always opened the Android
+  /// screen on tap, which is the only way back to revoke. Dropping that to
+  /// match the first-launch behaviour would make a granted row inert.
+  Future<bool> request({
+    required PermissionKind permission,
+    required PermissionExplainer explain,
+    bool alwaysOpen = false,
+  }) {
+    final (isGranted, request, waitForResume) = switch (permission) {
+      // Android's own dialog resolves in place, so there is no trip away from
+      // the app to wait on. Its request doubles as the query: there is no
+      // "already asked" signal to check first.
+      PermissionKind.notifications => (
+        () async => false,
+        _notifications.requestNotificationPermission,
+        false,
+      ),
+      PermissionKind.exactTiming => (
+        _notifications.canScheduleExactly,
+        _notifications.requestExactAlarmPermission,
+        true,
+      ),
+      // The dialog, not the settings list — the gateway falls back to the list
+      // by itself when the dialog cannot launch.
+      PermissionKind.battery => (
+        _backgroundAccess.isBatteryOptimizationDisabled,
+        _backgroundAccess.requestBatteryExemption,
+        true,
+      ),
+      PermissionKind.overlay => (
+        _backgroundAccess.canDrawOverlays,
+        _backgroundAccess.openOverlaySettings,
+        true,
+      ),
+      PermissionKind.fullScreen => (
+        _backgroundAccess.canUseFullScreenIntent,
+        _backgroundAccess.openFullScreenIntentSettings,
+        true,
+      ),
+    };
+    return _step(
+      permission: permission,
+      explain: explain,
+      isGranted: alwaysOpen ? () async => false : isGranted,
+      request: request,
+      waitForResume: waitForResume,
+      // With the short-circuit off, the re-query still has to report the real
+      // state rather than the stub above.
+      confirm: isGranted,
+    );
+  }
+
   /// Explains, then requests, then re-queries what the user actually did.
   ///
   /// Nothing happens for an already-granted permission: no dialog, no screen.
@@ -137,22 +201,32 @@ class PermissionOnboarding {
   /// [request] returns `Object?` so the void settings-screen openers and the
   /// two that report a bool both fit. The value is not consulted: what the user
   /// did is re-queried either way.
+  /// [confirm] re-queries the real state when [isGranted] is a stub — the
+  /// settings rows pass one so they can skip the short-circuit and still
+  /// report the truth. Defaults to [isGranted].
   Future<bool> _step({
     required PermissionKind permission,
     required PermissionExplainer explain,
     required Future<bool> Function() isGranted,
     required Future<Object?> Function() request,
     bool waitForResume = true,
+    Future<bool> Function()? confirm,
   }) async {
+    final settled = confirm ?? isGranted;
     if (await isGranted()) return true;
-    if (!await explain(permission)) return false;
+    // Declining reports the state as it stands. On first launch that is the
+    // `false` this always returned; from a settings row, where the
+    // short-circuit is off, it is whatever the permission actually is — so
+    // declining the explainer on an already-granted row cannot flip its badge
+    // to "not granted".
+    if (!await explain(permission)) return settled();
     final requested = await request();
     if (!waitForResume) {
       // Nothing left the app, so the request's own answer is the outcome.
-      return requested is bool ? requested : isGranted();
+      return requested is bool ? requested : settled();
     }
     await _resumeWaiter.waitForResume();
-    return isGranted();
+    return settled();
   }
 }
 

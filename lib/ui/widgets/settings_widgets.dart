@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 /// Shared building blocks for the settings surfaces.
 ///
 /// The rule these encode: a row shows a short label and, at most, its current
@@ -15,7 +17,7 @@ import 'package:flutter/material.dart';
 /// live here so the revert stays a one-line change instead of a rewrite —
 /// [SettingsSection] and [SettingsLeading] are the only two places that read
 /// it, so the call sites never care either way.
-const bool kFlatSettingsRows = true;
+const bool kFlatSettingsRows = false;
 
 /// A grouped block of settings rows with a small caption above it.
 ///
@@ -228,10 +230,15 @@ class PermissionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    // Granted is the unremarkable state, so it reads as plain secondary text;
-    // only "not granted" earns a color. The icon carries the distinction
-    // either way — status must never rest on color alone.
-    final foreground = granted ? colors.onSurfaceVariant : colors.error;
+    // Green for granted, red for not: the one place in settings where colour
+    // still carries meaning, kept from the old design because "granted" is
+    // worth reading at a glance. Only the badge is tinted — the row's leading
+    // icon stays neutral like every other row's.
+    //
+    // brandGreen, not kiuGreen: the deep brand green fails to read on the
+    // near-black dark surface. The icon keeps the distinction for anyone who
+    // cannot separate the two hues.
+    final foreground = granted ? brandGreen(theme.brightness) : colors.error;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(

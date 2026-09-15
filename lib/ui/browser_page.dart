@@ -1693,10 +1693,8 @@ class _BrowserPageState extends State<BrowserPage>
           title: strings.backgroundAccess,
           hint: strings.backgroundAccessHelp,
           granted: controller.batteryOptimizationDisabled,
-          onTap: () async {
-            await controller.openBatteryOptimizationSettings();
-            setSheetState(() {});
-          },
+          onTap: () =>
+              _requestPermission(PermissionKind.battery, setSheetState),
         ),
         _permissionRow(
           key: const Key('exact-timing'),
@@ -1704,10 +1702,8 @@ class _BrowserPageState extends State<BrowserPage>
           title: strings.exactTiming,
           hint: strings.exactTimingHelp,
           granted: controller.exactTiming,
-          onTap: () async {
-            await controller.requestExactTiming();
-            setSheetState(() {});
-          },
+          onTap: () =>
+              _requestPermission(PermissionKind.exactTiming, setSheetState),
         ),
         if (settings.callsEnabled) ...[
           _permissionRow(
@@ -1716,27 +1712,44 @@ class _BrowserPageState extends State<BrowserPage>
             title: strings.fullScreenAccess,
             hint: strings.fullScreenAccessHelp,
             granted: controller.canUseFullScreenIntent,
-            onTap: () async {
-              await controller.openFullScreenIntentSettings();
-              setSheetState(() {});
-            },
+            onTap: () =>
+                _requestPermission(PermissionKind.fullScreen, setSheetState),
           ),
-          // Android grants this one only from its own settings screen, so
-          // tapping deep-links there rather than toggling anything locally.
+          // Android grants this one only from its own settings screen, so the
+          // request resolves to a deep link — but it still goes through the
+          // explainer first, like every other row.
           _permissionRow(
             key: const Key('overlay-access-tile'),
             icon: Icons.picture_in_picture_alt_rounded,
             title: strings.overlayAccess,
             hint: strings.overlayAccessHelp,
             granted: controller.canDrawOverlays,
-            onTap: () async {
-              await controller.openOverlaySettings();
-              setSheetState(() {});
-            },
+            onTap: () =>
+                _requestPermission(PermissionKind.overlay, setSheetState),
           ),
         ],
       ],
     );
+  }
+
+  /// Runs one permission from a settings row exactly as the first launch does:
+  /// KIU's explainer, then Android's dialog where there is one, then a
+  /// re-query that refreshes the badge.
+  ///
+  /// Reuses [_explainPermission], so the dialog a row shows is the same one the
+  /// onboarding sequence shows for that permission.
+  Future<void> _requestPermission(
+    PermissionKind permission,
+    StateSetter setSheetState,
+  ) async {
+    await widget.controller.requestPermission(
+      permission,
+      explain: _explainPermission,
+    );
+    // The sheet outlives the trip to Android, but not always the user: a
+    // dismissed sheet leaves this State mounted with no sheet to rebuild.
+    if (!mounted) return;
+    setSheetState(() {});
   }
 
   /// One permission row: status badge plus a link out to the system screen
@@ -1755,9 +1768,8 @@ class _BrowserPageState extends State<BrowserPage>
       icon: icon,
       title: title,
       hint: hint,
-      // A missing permission is the row worth noticing, so only that state
-      // takes the warning tint.
-      iconColor: granted ? colors.primary : colors.error,
+      // Icon stays neutral like every other row's: the badge below carries the
+      // status, and tinting both made the row read as two separate signals.
       // The badge is the row's status, so it sits under the title rather than
       // beside it: as a trailing widget it squeezed long permission names into
       // a dozen wrapped lines.
