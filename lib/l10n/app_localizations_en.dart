@@ -376,8 +376,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get about => 'About';
 
   @override
-  String get markWatchedHint =>
-      'Marks the lesson you have open as watched in the LMS. Works even if the video was not played to the end.';
+  String get markWatchedHint => 'Marks the video as viewed on the platform.';
 
   @override
   String get openLink => 'Open';

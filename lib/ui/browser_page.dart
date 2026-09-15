@@ -717,7 +717,7 @@ class _BrowserPageState extends State<BrowserPage>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _playbackSection(selected, (rate) {
+                          _playbackSection(sheetContext, selected, (rate) {
                             selected = rate;
                             setSheetState(() {});
                           }),
@@ -725,19 +725,6 @@ class _BrowserPageState extends State<BrowserPage>
                             title: strings.sectionLessons,
                             icon: Icons.school_rounded,
                             children: [
-                              SettingsRow(
-                                key: const Key('mark-watched-menu'),
-                                icon: Icons.task_alt_rounded,
-                                title: _marking
-                                    ? strings.marking
-                                    : strings.markWatched,
-                                hint: strings.markWatchedHint,
-                                enabled: !_marking,
-                                onTap: () {
-                                  Navigator.pop(sheetContext);
-                                  _markWatched();
-                                },
-                              ),
                               SettingsRow(
                                 key: const Key('scheduled-lessons-menu'),
                                 icon: Icons.calendar_month_rounded,
@@ -846,7 +833,11 @@ class _BrowserPageState extends State<BrowserPage>
 
   /// Playback speed. Presets as chips plus a fine slider, kept at the top of
   /// the sheet because it is the one control reached while a lesson plays.
-  Widget _playbackSection(double selected, ValueChanged<double> onSelected) {
+  Widget _playbackSection(
+    BuildContext sheetContext,
+    double selected,
+    ValueChanged<double> onSelected,
+  ) {
     final theme = Theme.of(context);
     return SettingsSection(
       title: strings.sectionPlayback,
@@ -919,6 +910,20 @@ class _BrowserPageState extends State<BrowserPage>
               ),
             ],
           ),
+        ),
+        // Sits with the speed controls: both act on the lesson video that is
+        // playing right now, and this is the row reached straight after
+        // finishing one.
+        SettingsRow(
+          key: const Key('mark-watched-menu'),
+          icon: Icons.task_alt_rounded,
+          title: _marking ? strings.marking : strings.markWatched,
+          hint: strings.markWatchedHint,
+          enabled: !_marking,
+          onTap: () {
+            Navigator.pop(sheetContext);
+            _markWatched();
+          },
         ),
       ],
     );

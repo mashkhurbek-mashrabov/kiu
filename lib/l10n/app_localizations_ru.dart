@@ -377,7 +377,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get markWatchedHint =>
-      'Отмечает открытый урок как просмотренный в LMS. Работает, даже если видео не досмотрено до конца.';
+      'Помечает видео как просмотренное на платформе.';
 
   @override
   String get openLink => 'Открыть';

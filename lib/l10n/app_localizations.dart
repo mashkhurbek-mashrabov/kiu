@@ -800,7 +800,7 @@ abstract class AppLocalizations {
   /// No description provided for @markWatchedHint.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Очиқ турган дарсни LMS\'да кўрилган деб белгилайди. Видео охиригача ўйнатилмаган бўлса ҳам ишлайди.'**
+  /// **'Видеони платформада кўрилган деб белгилайди.'**
   String get markWatchedHint;
 
   /// No description provided for @openLink.
