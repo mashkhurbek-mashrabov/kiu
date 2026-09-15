@@ -229,3 +229,108 @@ class UpdateActionButton extends StatelessWidget {
 
   String _megabytes(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
 }
+
+/// The compact form of [UpdateActionButton], sized to sit in a settings row's
+/// trailing slot.
+///
+/// The gate can afford a full-width button and a progress bar; a row cannot.
+/// Here the button collapses to an icon once a download starts, and the bar
+/// moves to the row's subtitle — see [updateRowStatus].
+class UpdateRowButton extends StatelessWidget {
+  const UpdateRowButton({
+    super.key,
+    required this.update,
+    required this.downloader,
+  });
+
+  final AppUpdate update;
+  final UpdateDownloader downloader;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppLocalizations.of(context);
+    return ValueListenableBuilder<UpdateDownloadProgress>(
+      valueListenable: downloader.progress,
+      builder: (context, progress, _) => switch (progress.stage) {
+        // Nothing to press while bytes are moving: the subtitle is already
+        // reporting, and a live button invites a second download.
+        UpdateDownloadStage.downloading ||
+        UpdateDownloadStage.installing => const SizedBox.shrink(),
+        UpdateDownloadStage.failed => IconButton(
+          key: const Key('update-row-retry'),
+          icon: const Icon(Icons.refresh_rounded),
+          tooltip: strings.retry,
+          onPressed: () => downloader.download(update),
+        ),
+        UpdateDownloadStage.idle => FilledButton(
+          key: const Key('update-row-now'),
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+          onPressed: () => downloader.download(update),
+          child: Text(strings.updateNow),
+        ),
+      },
+    );
+  }
+}
+
+/// The row subtitle while an update is pending: the version, then the progress
+/// bar once a download starts.
+Widget updateRowStatus(
+  AppUpdate update,
+  UpdateDownloader downloader,
+  AppLocalizations strings,
+) {
+  return ValueListenableBuilder<UpdateDownloadProgress>(
+    valueListenable: downloader.progress,
+    builder: (context, progress, _) {
+      final theme = Theme.of(context);
+      final colors = theme.colorScheme;
+      final caption = theme.textTheme.bodySmall;
+      switch (progress.stage) {
+        case UpdateDownloadStage.downloading:
+        case UpdateDownloadStage.installing:
+          final downloading = progress.stage == UpdateDownloadStage.downloading;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: downloading && progress.total > 0
+                      ? progress.received / progress.total
+                      : null,
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                downloading
+                    ? strings.downloadingUpdate
+                    : strings.installingUpdate,
+                style: caption?.copyWith(color: colors.onSurfaceVariant),
+              ),
+            ],
+          );
+        case UpdateDownloadStage.failed:
+          return Text(
+            strings.updateFailed,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: caption?.copyWith(color: colors.error),
+          );
+        case UpdateDownloadStage.idle:
+          return Text(
+            strings.updateVersion(update.versionName),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: caption?.copyWith(color: colors.onSurfaceVariant),
+          );
+      }
+    },
+  );
+}
