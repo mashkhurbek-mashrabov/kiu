@@ -256,6 +256,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get callForThisLesson => 'Call for this lesson';
 
   @override
+  String get joinLesson => 'Join the lesson';
+
+  @override
+  String get lessonStarted => 'Started';
+
+  @override
   String get appearance => 'Appearance';
 
   @override

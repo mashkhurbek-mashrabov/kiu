@@ -1035,7 +1035,11 @@ class _BrowserPageState extends State<BrowserPage>
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => StatefulBuilder(
+      // _MinuteTicker, not a StatefulBuilder plus a local Timer: the timer has
+      // to die with the sheet's element, and a local one only gets cancelled
+      // when showModalBottomSheet returns -- which never happens if the tree
+      // is torn down around it.
+      builder: (context) => _MinuteTicker(
         builder: (context, setSheetState) {
           final settings = widget.controller.settings;
           final colors = Theme.of(context).colorScheme;
@@ -1099,6 +1103,7 @@ class _BrowserPageState extends State<BrowserPage>
                               final callOn =
                                   lessonEntity != null &&
                                   settings.callEnabledFor(lessonEntity);
+                              final canJoin = _canJoinLesson(lesson);
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -1108,62 +1113,124 @@ class _BrowserPageState extends State<BrowserPage>
                                     ),
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
-                                    child: Card(
-                                      child: ListTile(
-                                        key: Key('scheduled-lesson-$index'),
-                                        contentPadding:
-                                            const EdgeInsets.fromLTRB(
-                                              12,
-                                              6,
-                                              6,
-                                              6,
-                                            ),
-                                        // A call that is armed gets a filled
-                                        // accent so the list scans for "which
-                                        // lessons will ring" at a glance.
-                                        // Green, not the neutral ink: this is
-                                        // lesson state rather than chrome, and
-                                        // it has to match the phone icon the
-                                        // home-screen widget paints green for
-                                        // the same lesson.
-                                        leading: SettingsLeading(
-                                          Icons.play_lesson_rounded,
-                                          color: callOn
-                                              ? brandGreen(
-                                                  Theme.of(context).brightness,
-                                                )
-                                              : colors.onSurfaceVariant,
-                                          active: callOn,
-                                        ),
-                                        title: Text(
-                                          lesson['title']! as String,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          lesson['displayStart']! as String,
-                                        ),
-                                        // Phone icon rather than a switch, matching
-                                        // the home-screen widget's per-row toggle.
-                                        trailing: lessonEntity == null
-                                            ? null
-                                            : _LessonCallToggle(
-                                                key: Key(
-                                                  'scheduled-lesson-call-$index',
-                                                ),
-                                                enabled: callOn,
-                                                tooltip:
-                                                    strings.callForThisLesson,
-                                                onPressed: () async {
-                                                  await widget.controller
-                                                      .setLessonCallEnabled(
-                                                        lessonEntity,
-                                                        !callOn,
-                                                      );
-                                                  setSheetState(() {});
-                                                },
+                                    // "Started" reaches a screen reader as a
+                                    // label rather than as the green the
+                                    // sighted row uses -- colour alone never
+                                    // carries state, and the row's own text
+                                    // says only a title and a time.
+                                    child: Semantics(
+                                      // Merged, or ListTile's own node keeps
+                                      // the label from reaching the row a
+                                      // screen reader actually announces.
+                                      container: canJoin,
+                                      label: canJoin
+                                          ? strings.lessonStarted
+                                          : null,
+                                      child: Card(
+                                        child: ListTile(
+                                          key: Key('scheduled-lesson-$index'),
+                                          contentPadding:
+                                              const EdgeInsets.fromLTRB(
+                                                12,
+                                                6,
+                                                6,
+                                                6,
                                               ),
+                                          // Tappable only once the lesson has
+                                          // started and has a usable link --
+                                          // the widget's rule, so a row behaves
+                                          // the same on both surfaces.
+                                          onTap: canJoin
+                                              ? () => _joinLesson(lesson)
+                                              : null,
+                                          // A call that is armed gets a filled
+                                          // accent so the list scans for "which
+                                          // lessons will ring" at a glance.
+                                          // Green, not the neutral ink: this is
+                                          // lesson state rather than chrome, and
+                                          // it has to match the phone icon the
+                                          // home-screen widget paints green for
+                                          // the same lesson.
+                                          leading: SettingsLeading(
+                                            canJoin
+                                                ? Icons.play_circle_fill_rounded
+                                                : Icons.play_lesson_rounded,
+                                            color: canJoin || callOn
+                                                ? brandGreen(
+                                                    Theme.of(context)
+                                                        .brightness,
+                                                  )
+                                                : colors.onSurfaceVariant,
+                                            active: canJoin || callOn,
+                                          ),
+                                          title: Text(
+                                            lesson['title']! as String,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          // Time and state share one line, and
+                                          // the date is what loses when they
+                                          // compete -- so a started lesson
+                                          // colours the time itself rather than
+                                          // appending a word beside it. Green
+                                          // already reads as "started" on the
+                                          // icon here and on the widget's rows.
+                                          subtitle: Text(
+                                            lesson['displayStart']! as String,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: canJoin
+                                                ? TextStyle(
+                                                    color: brandGreen(
+                                                      Theme.of(context)
+                                                          .brightness,
+                                                    ),
+                                                    fontWeight: FontWeight.w600,
+                                                  )
+                                                : null,
+                                          ),
+                                          // Join replaces the call toggle once a
+                                          // lesson has started, exactly as the
+                                          // widget row does: arming a call for a
+                                          // lesson already under way is pointless,
+                                          // and joining is the only thing left
+                                          // worth doing.
+                                          trailing: canJoin
+                                              ? IconButton(
+                                                  key: Key(
+                                                    'scheduled-lesson-join-$index',
+                                                  ),
+                                                  icon: const Icon(
+                                                    Icons.login_rounded,
+                                                  ),
+                                                  color: brandGreen(
+                                                    Theme.of(context)
+                                                        .brightness,
+                                                  ),
+                                                  tooltip: strings.joinLesson,
+                                                  onPressed: () =>
+                                                      _joinLesson(lesson),
+                                                )
+                                              : lessonEntity == null
+                                              ? null
+                                              : _LessonCallToggle(
+                                                  key: Key(
+                                                    'scheduled-lesson-call-$index',
+                                                  ),
+                                                  enabled: callOn,
+                                                  tooltip:
+                                                      strings.callForThisLesson,
+                                                  onPressed: () async {
+                                                    await widget.controller
+                                                        .setLessonCallEnabled(
+                                                          lessonEntity,
+                                                          !callOn,
+                                                        );
+                                                    setSheetState(() {});
+                                                  },
+                                                ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1180,6 +1247,58 @@ class _BrowserPageState extends State<BrowserPage>
       ),
     );
     if (returnToActions == true && mounted) _openActions();
+  }
+
+  /// Whether a lesson row can be joined: it has started and carries a usable
+  /// HTTPS link.
+  ///
+  /// Mirrors the widget's `canJoin` in KiuLessonWidgetService exactly, so a
+  /// lesson that is tappable on the home screen is tappable in the sheet and
+  /// vice versa. `start` is the epoch millis the shared payload already
+  /// carries, so no new data crosses the boundary.
+  ///
+  /// Evaluated at build time, so a lesson that starts while the sheet is open
+  /// only turns joinable on the next rebuild -- which the ticker in
+  /// [_openScheduledLessons] provides.
+  bool _canJoinLesson(Map<String, Object?> lesson) {
+    final start = lesson['start'];
+    if (start is! int) return false;
+    if (DateTime.now().millisecondsSinceEpoch < start) return false;
+    return _lessonJoinUri(lesson) != null;
+  }
+
+  /// The row's meeting link, or null when it is missing or not usable HTTPS.
+  ///
+  /// The same validity rule as the native `isValidHttps`: HTTPS, a real host,
+  /// and no embedded credentials -- a `user:pass@` link would otherwise hand
+  /// whatever it carries to whichever app claims the URL.
+  Uri? _lessonJoinUri(Map<String, Object?> lesson) {
+    final raw = lesson['meetingUrl'];
+    if (raw is! String || raw.isEmpty) return null;
+    final uri = Uri.tryParse(raw);
+    if (uri == null) return null;
+    if (uri.scheme.toLowerCase() != 'https') return null;
+    if (uri.host.isEmpty) return null;
+    if (uri.userInfo.isNotEmpty) return null;
+    return uri;
+  }
+
+  /// Opens a lesson link the way every other surface does.
+  ///
+  /// Routes exactly like the native [LessonLinkRouter] the widget and the call
+  /// screen share: an LMS link loads in the app's own WebView, where the
+  /// session already lives, and anything else goes to an external app. A link
+  /// that fails the HTTPS check opens nothing -- the caller only reaches this
+  /// for a row that passed [_canJoinLesson].
+  Future<void> _joinLesson(Map<String, Object?> lesson) async {
+    final uri = _lessonJoinUri(lesson);
+    if (uri == null) return;
+    if (isTrustedHttps(uri)) {
+      Navigator.pop(context);
+      await _webView.loadRequest(uri);
+      return;
+    }
+    await _launchExternal(uri.toString());
   }
 
   /// Last-sync line plus a manual trigger, above the lesson list.
@@ -2989,6 +3108,47 @@ class _BrowserPageState extends State<BrowserPage>
       ),
     );
   }
+}
+
+/// A [StatefulBuilder] that also rebuilds once a minute.
+///
+/// The scheduled-lessons sheet decides "has this lesson started?" at build
+/// time, so without a tick a lesson that begins while the sheet is open stays
+/// inert until something else repaints it. A minute matches the resolution the
+/// rows display; finer would repaint for nothing.
+///
+/// A widget rather than a timer held by the enclosing function because the
+/// timer must die with the sheet's element: a local one is only cancelled when
+/// `showModalBottomSheet` returns, which never happens if the tree is torn
+/// down around it -- and a periodic timer outliving its element fires forever.
+class _MinuteTicker extends StatefulWidget {
+  const _MinuteTicker({required this.builder});
+
+  final Widget Function(BuildContext, StateSetter) builder;
+
+  @override
+  State<_MinuteTicker> createState() => _MinuteTickerState();
+}
+
+class _MinuteTickerState extends State<_MinuteTicker> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, setState);
 }
 
 /// Per-lesson call toggle. Mirrors the home-screen widget's row icon: a filled

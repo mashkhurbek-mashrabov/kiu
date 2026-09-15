@@ -256,6 +256,12 @@ class AppLocalizationsUz extends AppLocalizations {
   String get callForThisLesson => 'Ushbu dars uchun qo‘ng‘iroq';
 
   @override
+  String get joinLesson => 'Darsga qo‘shilish';
+
+  @override
+  String get lessonStarted => 'Boshlandi';
+
+  @override
   String get appearance => 'Ko‘rinish';
 
   @override
@@ -760,6 +766,12 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get callForThisLesson => 'Ушбу дарс учун қўнғироқ';
+
+  @override
+  String get joinLesson => 'Дарсга қўшилиш';
+
+  @override
+  String get lessonStarted => 'Бошланди';
 
   @override
   String get appearance => 'Кўриниш';

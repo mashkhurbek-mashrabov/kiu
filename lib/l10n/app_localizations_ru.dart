@@ -256,6 +256,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get callForThisLesson => 'Звонок для этого урока';
 
   @override
+  String get joinLesson => 'Присоединиться к уроку';
+
+  @override
+  String get lessonStarted => 'Начался';
+
+  @override
   String get appearance => 'Оформление';
 
   @override

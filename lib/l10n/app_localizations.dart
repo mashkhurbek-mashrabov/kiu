@@ -569,6 +569,18 @@ abstract class AppLocalizations {
   /// **'Ушбу дарс учун қўнғироқ'**
   String get callForThisLesson;
 
+  /// No description provided for @joinLesson.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарсга қўшилиш'**
+  String get joinLesson;
+
+  /// No description provided for @lessonStarted.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бошланди'**
+  String get lessonStarted;
+
   /// No description provided for @appearance.
   ///
   /// In uz_Cyrl, this message translates to:

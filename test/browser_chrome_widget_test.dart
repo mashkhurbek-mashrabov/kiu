@@ -42,6 +42,9 @@ Future<AppController> controller([
 /// Finds a [SettingsSection] caption, which renders upper-cased.
 Finder findCaption(String label) => find.text(label.toUpperCase());
 
+/// Zero-pads a date part for the `yyyy-MM-dd HH:mm` stamps the LMS emits.
+String _two(int value) => value.toString().padLeft(2, '0');
+
 void main() {
   setUp(() {
     WebViewPlatform.instance = FakeWebViewPlatform();
@@ -731,6 +734,107 @@ void main() {
       loadedUrls.last,
       'https://drive.google.com/file/d/1lKshAbXGkmOPuojCpaVz_z5XlAoZTKNw/preview',
     );
+  });
+
+  testWidgets(
+    'a started lesson with a link offers Join instead of the call toggle',
+    (tester) async {
+      // Matches the widget's canJoin rule: started AND a usable HTTPS link.
+      final started = DateTime.now().subtract(const Duration(minutes: 5));
+      final stamp =
+          '${started.year}-${_two(started.month)}-${_two(started.day)} '
+          '${_two(started.hour)}:${_two(started.minute)}';
+      SharedPreferences.setMockInitialValues({
+        'kiu.lessonSnapshot':
+            '[{"title":"Aqidah","websiteStart":"$stamp",'
+            '"meetingUrl":"https://meet.google.com/abc-defg-hij"}]',
+      });
+      final appController = await controller();
+      await tester.pumpWidget(
+        KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+      );
+      await tester.tap(find.byKey(const Key('actions-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+      await tester.pumpAndSettle();
+
+      // Join takes the trailing slot; arming a call for a lesson already under
+      // way is pointless, so the toggle steps aside exactly as in the widget.
+      expect(find.byKey(const Key('scheduled-lesson-join-0')), findsOneWidget);
+      expect(find.byKey(const Key('scheduled-lesson-call-0')), findsNothing);
+      // "Started" reaches a screen reader as a label: the visible row shows it
+      // as the green on the time, and colour alone cannot carry state.
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('scheduled-lesson-0')),
+          matching: find.bySemanticsLabel('Бошланди'),
+        ),
+        findsOneWidget,
+      );
+
+      // The whole row is tappable, not just the icon.
+      final tile = tester.widget<ListTile>(
+        find.byKey(const Key('scheduled-lesson-0')),
+      );
+      expect(tile.onTap, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'a lesson that has not started keeps the call toggle and no Join',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'kiu.lessonSnapshot':
+            '[{"title":"Aqidah","websiteStart":"2027-09-09 19:00",'
+            '"meetingUrl":"https://meet.google.com/abc-defg-hij"}]',
+      });
+      final appController = await controller();
+      await tester.pumpWidget(
+        KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+      );
+      await tester.tap(find.byKey(const Key('actions-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scheduled-lesson-join-0')), findsNothing);
+      expect(find.byKey(const Key('scheduled-lesson-call-0')), findsOneWidget);
+      // Inert until it starts, so a stray tap cannot open a lesson early.
+      final tile = tester.widget<ListTile>(
+        find.byKey(const Key('scheduled-lesson-0')),
+      );
+      expect(tile.onTap, isNull);
+    },
+  );
+
+  testWidgets('a started lesson without a usable link is not tappable', (
+    tester,
+  ) async {
+    // http, not https: the same rule the native isValidHttps applies, so a
+    // downgraded link cannot be handed to whichever app claims the URL.
+    final started = DateTime.now().subtract(const Duration(minutes: 5));
+    final stamp =
+        '${started.year}-${_two(started.month)}-${_two(started.day)} '
+        '${_two(started.hour)}:${_two(started.minute)}';
+    SharedPreferences.setMockInitialValues({
+      'kiu.lessonSnapshot':
+          '[{"title":"Aqidah","websiteStart":"$stamp",'
+          '"meetingUrl":"http://meet.google.com/abc-defg-hij"}]',
+    });
+    final appController = await controller();
+    await tester.pumpWidget(
+      KiuApp(controller: appController, homeRequests: ValueNotifier<int>(0)),
+    );
+    await tester.tap(find.byKey(const Key('actions-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scheduled-lessons-menu')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scheduled-lesson-join-0')), findsNothing);
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('scheduled-lesson-0')),
+    );
+    expect(tile.onTap, isNull);
   });
 
   testWidgets(

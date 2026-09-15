@@ -100,6 +100,8 @@
   "overlayAccess": "Display over apps",
   "overlayAccessHelp": "Lets the call screen open while you are using the phone. Without it the call shows only as a notification banner.",
   "callForThisLesson": "Call for this lesson",
+  "joinLesson": "Join the lesson",
+  "lessonStarted": "Started",
   "appearance": "Appearance",
   "themeSystem": "System",
   "themeLight": "Light",
