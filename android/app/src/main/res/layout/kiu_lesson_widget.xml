@@ -70,7 +70,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:indeterminate="true"
-                android:indeterminateTint="@color/kiu_green"
+                android:indeterminateTint="@color/widget_sync_glyph"
                 android:padding="7dp"
                 android:visibility="gone" />
         </FrameLayout>

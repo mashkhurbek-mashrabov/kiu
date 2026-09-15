@@ -1105,10 +1105,17 @@ class _BrowserPageState extends State<BrowserPage>
                                         // A call that is armed gets a filled
                                         // accent so the list scans for "which
                                         // lessons will ring" at a glance.
+                                        // Green, not the neutral ink: this is
+                                        // lesson state rather than chrome, and
+                                        // it has to match the phone icon the
+                                        // home-screen widget paints green for
+                                        // the same lesson.
                                         leading: SettingsLeading(
                                           Icons.play_lesson_rounded,
                                           color: callOn
-                                              ? colors.primary
+                                              ? brandGreen(
+                                                  Theme.of(context).brightness,
+                                                )
                                               : colors.onSurfaceVariant,
                                           active: callOn,
                                         ),
@@ -2872,10 +2879,13 @@ class _LessonCallToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return IconButton(
       icon: Icon(enabled ? Icons.call : Icons.phone_disabled),
-      color: enabled ? colors.primary : colors.onSurfaceVariant,
+      // Brand green for "call armed" — state, not chrome, so it keeps the
+      // color the widget uses for the same lesson.
+      color: enabled ? brandGreen(theme.brightness) : colors.onSurfaceVariant,
       tooltip: tooltip,
       onPressed: () => onPressed(),
     );

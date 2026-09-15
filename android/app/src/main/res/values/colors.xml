@@ -12,29 +12,44 @@
     <color name="kiu_green_bright">#1DA05F</color>
     <color name="kiu_amber">#9A6B00</color>
 
-    <!-- Widget, light -->
-    <color name="widget_surface">#FBFDFA</color>
-    <color name="widget_on_surface">#1A1C1A</color>
-    <color name="widget_on_surface_variant">#5C6660</color>
-    <color name="widget_outline">#DCE5DE</color>
-    <color name="widget_item">#EDF5EF</color>
-    <color name="widget_item_other">#FFFFFF</color>
-    <color name="widget_time_pill">#E1EDE5</color>
-    <color name="widget_sync_idle">#E7F3EA</color>
-    <color name="widget_sync_pressed">#D2E8DA</color>
+    <!--
+      Widget, light. Neutral greys mirroring lib/core/theme.dart's Instagram
+      palette: the widget sits next to the app's own white settings, so a
+      green-tinted surface here reads as a different product. Green survives
+      only in the wordmark and in lesson state (see WidgetTheme).
+    -->
+    <color name="widget_surface">#FFFFFF</color>
+    <color name="widget_on_surface">#0F0F0F</color>
+    <color name="widget_on_surface_variant">#737373</color>
+    <color name="widget_outline">#DBDBDB</color>
+    <!-- Items are white on white, so the stroke is what separates them. -->
+    <color name="widget_item">#FFFFFF</color>
+    <color name="widget_item_other">#FAFAFA</color>
+    <color name="widget_time_pill">#F1F1F1</color>
+    <color name="widget_sync_idle">#F1F1F1</color>
+    <color name="widget_sync_pressed">#DBDBDB</color>
     <color name="widget_amber_text">#7A5500</color>
     <color name="widget_amber_time">#8A6500</color>
 
+    <!--
+      Sync glyph. One value for both modes on purpose: it is a static vector
+      and the widget follows the in-app Appearance setting, not the -night
+      qualifier, so the resource system cannot pick a variant here (the same
+      reason WidgetTheme resolves ints in Kotlin). Mid-grey is the one tone
+      that reads on both the #F1F1F1 and #1C1C1C sync button.
+    -->
+    <color name="widget_sync_glyph">#8E8E8E</color>
+
     <!-- Widget, dark -->
-    <color name="widget_surface_dark">#1B211E</color>
-    <color name="widget_on_surface_dark">#E3E6E3</color>
-    <color name="widget_on_surface_variant_dark">#A8B4AC</color>
-    <color name="widget_outline_dark">#3A423D</color>
-    <color name="widget_item_dark">#252D28</color>
-    <color name="widget_item_other_dark">#202723</color>
-    <color name="widget_time_pill_dark">#333C36</color>
-    <color name="widget_sync_idle_dark">#252D28</color>
-    <color name="widget_sync_pressed_dark">#33403A</color>
+    <color name="widget_surface_dark">#000000</color>
+    <color name="widget_on_surface_dark">#F5F5F5</color>
+    <color name="widget_on_surface_variant_dark">#A8A8A8</color>
+    <color name="widget_outline_dark">#262626</color>
+    <color name="widget_item_dark">#121212</color>
+    <color name="widget_item_other_dark">#0A0A0A</color>
+    <color name="widget_time_pill_dark">#262626</color>
+    <color name="widget_sync_idle_dark">#1C1C1C</color>
+    <color name="widget_sync_pressed_dark">#2A2A2A</color>
     <color name="widget_green_dark">#6FD3A0</color>
     <color name="widget_amber_dark">#E3B85F</color>
 

@@ -33,17 +33,24 @@ internal object WidgetTheme {
      * its mode from the in-app setting rather than the -night qualifier, so the
      * resource system cannot pick the variant for us. Keep the two in step.
      */
+    /** Brand green. Unchanged: the wordmark and "started" state still carry it. */
     fun brand(dark: Boolean): Int = if (dark) Color.rgb(111, 211, 160) else Color.rgb(23, 107, 69)
 
-    fun muted(dark: Boolean): Int = if (dark) Color.rgb(168, 180, 172) else Color.rgb(92, 102, 96)
+    /** Primary text. #F5F5F5 / #0F0F0F — widget_on_surface{_dark}. */
+    fun strong(dark: Boolean): Int = if (dark) Color.rgb(245, 245, 245) else Color.rgb(15, 15, 15)
 
-    fun rule(dark: Boolean): Int = if (dark) Color.rgb(58, 66, 61) else Color.rgb(220, 229, 222)
+    /** #A8A8A8 / #737373 — widget_on_surface_variant{_dark}. */
+    fun muted(dark: Boolean): Int = if (dark) Color.rgb(168, 168, 168) else Color.rgb(115, 115, 115)
+
+    /** #262626 / #DBDBDB — widget_outline{_dark}. */
+    fun rule(dark: Boolean): Int = if (dark) Color.rgb(38, 38, 38) else Color.rgb(219, 219, 219)
 
     fun lessonTitle(dark: Boolean, started: Boolean, today: Boolean): Int = when {
+        // started/today stay colored: those encode lesson state, which is the
+        // one thing the neutral repaint must not flatten away.
         started -> brand(dark)
         today -> if (dark) Color.rgb(227, 184, 95) else Color.rgb(122, 85, 0)
-        dark -> Color.rgb(227, 230, 227)
-        else -> Color.rgb(26, 28, 26)
+        else -> strong(dark)
     }
 
     fun lessonTimeText(dark: Boolean, started: Boolean, today: Boolean): Int = when {

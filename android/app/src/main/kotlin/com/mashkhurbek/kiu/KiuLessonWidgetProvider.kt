@@ -33,7 +33,10 @@ class KiuLessonWidgetProvider : HomeWidgetProvider() {
                 // Subtitle is secondary now that it sits under the brand rather
                 // than beside it; brand green on both made the header shout.
                 setTextColor(R.id.widget_subtitle, WidgetTheme.muted(dark))
-                setTextColor(R.id.widget_status, WidgetTheme.brand(dark))
+                // Status is a transient sync line, not brand: green here made
+                // the header read as two competing accents next to the
+                // wordmark. Emphasis comes from the bold weight in the layout.
+                setTextColor(R.id.widget_status, WidgetTheme.strong(dark))
                 setTextColor(R.id.widget_last_sync, WidgetTheme.muted(dark))
                 setTextColor(R.id.lesson_empty, WidgetTheme.muted(dark))
                 setRemoteAdapter(R.id.lesson_list, serviceIntent)

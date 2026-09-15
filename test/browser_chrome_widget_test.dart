@@ -343,6 +343,41 @@ void main() {
     expect(colors.surface, lightSurface);
   });
 
+  // The settings sheet and the nav bar have to read as one surface. Before the
+  // redesign the scheme was seeded straight from kiuGreen, so `primary` — which
+  // drives the switches, chips, slider and every section caption — came out
+  // green against the bar's neutral glass. These assert the roles rather than
+  // any one widget's paint, because that is where the green actually entered.
+  testWidgets('drives settings chrome from a neutral primary, not brand green', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.themeMode': 'light'});
+    await tester.pumpWidget(
+      KiuApp(
+        controller: await controller(),
+        homeRequests: ValueNotifier<int>(0),
+      ),
+    );
+
+    final colors = Theme.of(tester.element(find.byKey(const Key('nav-bar'))))
+        .colorScheme;
+    expect(colors.primary, isNot(kiuGreen));
+    expect(colors.primary, lightInk);
+    // The sheet paints on this; a tinted container brings the green wash back.
+    expect(colors.surfaceContainerLow, lightSurface);
+    expect(colors.surface, const Color(0xFFFFFFFF));
+  });
+
+  testWidgets('keeps brand green available for lesson state', (tester) async {
+    // Neutral chrome must not cost the one place green carries meaning: a
+    // started lesson / armed call, which has to match the home-screen widget.
+    expect(brandGreen(Brightness.light), kiuGreen);
+    expect(brandGreen(Brightness.dark), kiuGreenDark);
+    // The deep brand green is unreadable on the near-black dark surface, which
+    // is why dark mode gets the lightened variant rather than kiuGreen itself.
+    expect(brandGreen(Brightness.dark), isNot(kiuGreen));
+  });
+
   testWidgets('switches appearance from More', (tester) async {
     final appController = await controller();
     await tester.pumpWidget(
