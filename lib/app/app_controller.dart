@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../core/activation.dart';
 import '../core/constants.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
@@ -194,6 +195,23 @@ class AppController extends ChangeNotifier {
     // Unawaited on purpose: a slow or hanging GitHub request must never hold
     // up cold start. The gate appears when the answer arrives.
     unawaited(checkForUpdate());
+  }
+
+  /// Unlocks the extras if [key] is valid, and reports whether it was.
+  ///
+  /// Returns false rather than throwing so the activation page can render the
+  /// error itself -- the controller stays out of UI state. Already-activated is
+  /// idempotent: a second valid key is simply a no-op that still reports true.
+  ///
+  /// [notifyListeners] is right here, unlike sync progress: the main tree
+  /// renders this, since it decides whether the gated row exists at all.
+  Future<bool> activateAdditionalFunctions(String key) async {
+    if (!isValidActivationKey(key)) return false;
+    if (settings.additionalFunctionsActivated) return true;
+    settings = settings.copyWith(additionalFunctionsActivated: true);
+    await _repository.saveSettings(settings);
+    notifyListeners();
+    return true;
   }
 
   Future<void> setPlaybackRate(double value) async {

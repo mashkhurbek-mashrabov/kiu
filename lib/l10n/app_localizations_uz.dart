@@ -515,6 +515,34 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get permissionNotificationsHelp =>
       'Barcha eslatmalar va dars qo‘ng‘iroqlari bildirishnoma sifatida keladi. Bu ruxsatsiz KIU sizga hech qanday xabar yubora olmaydi.';
+
+  @override
+  String get additionalFunctions => 'Qo‘shimcha imkoniyatlar';
+
+  @override
+  String get additionalFunctionsHint =>
+      'Bu imkoniyatlar faqat faollashtirish kaliti bilan ochiladi. Kalitni olish uchun dastur muallifiga yozing.';
+
+  @override
+  String get activationKey => 'Faollashtirish kaliti';
+
+  @override
+  String get activationKeyHint => 'Masalan: KIU-XXXX-XXXX';
+
+  @override
+  String get activate => 'Faollashtirish';
+
+  @override
+  String get activated => 'Faollashtirilgan';
+
+  @override
+  String get activationFailed => 'Kalit noto‘g‘ri';
+
+  @override
+  String get activationSuccess => 'Qo‘shimcha imkoniyatlar ochildi';
+
+  @override
+  String get contactForKey => 'Kalit olish uchun yozing';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -1027,4 +1055,32 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
   @override
   String get permissionNotificationsHelp =>
       'Барча эслатмалар ва дарс қўнғироқлари билдиришнома сифатида келади. Бу рухсатсиз KIU сизга ҳеч қандай хабар юбора олмайди.';
+
+  @override
+  String get additionalFunctions => 'Қўшимча имкониятлар';
+
+  @override
+  String get additionalFunctionsHint =>
+      'Бу имкониятлар фақат фаоллаштириш калити билан очилади. Калитни олиш учун дастур муаллифига ёзинг.';
+
+  @override
+  String get activationKey => 'Фаоллаштириш калити';
+
+  @override
+  String get activationKeyHint => 'Масалан: KIU-XXXX-XXXX';
+
+  @override
+  String get activate => 'Фаоллаштириш';
+
+  @override
+  String get activated => 'Фаоллаштирилган';
+
+  @override
+  String get activationFailed => 'Калит нотўғри';
+
+  @override
+  String get activationSuccess => 'Қўшимча имкониятлар очилди';
+
+  @override
+  String get contactForKey => 'Калит олиш учун ёзинг';
 }

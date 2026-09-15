@@ -20,6 +20,7 @@ class AppSettings {
     this.callRingtoneUri,
     this.callRingtoneName,
     this.callOverrides = const {},
+    this.additionalFunctionsActivated = false,
   });
 
   final double playbackRate;
@@ -38,6 +39,10 @@ class AppSettings {
   final String? callRingtoneUri;
   final String? callRingtoneName;
   final Map<String, bool> callOverrides;
+
+  /// Whether the extras unlocked by an activation key are available. Off until
+  /// the user enters a valid key; see `lib/core/activation.dart`.
+  final bool additionalFunctionsActivated;
 
   Locale get locale {
     final parts = localeTag.split('_');
@@ -77,6 +82,7 @@ class AppSettings {
     Object? callRingtoneUri = _unset,
     Object? callRingtoneName = _unset,
     Map<String, bool>? callOverrides,
+    bool? additionalFunctionsActivated,
   }) => AppSettings(
     playbackRate: playbackRate ?? this.playbackRate,
     themeMode: themeMode ?? this.themeMode,
@@ -97,5 +103,7 @@ class AppSettings {
     callRingtoneUri: _resolve(callRingtoneUri, this.callRingtoneUri),
     callRingtoneName: _resolve(callRingtoneName, this.callRingtoneName),
     callOverrides: callOverrides ?? this.callOverrides,
+    additionalFunctionsActivated:
+        additionalFunctionsActivated ?? this.additionalFunctionsActivated,
   );
 }

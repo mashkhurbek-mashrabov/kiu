@@ -514,4 +514,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get permissionNotificationsHelp =>
       'Every reminder and lesson call arrives as a notification. Without this permission KIU cannot alert you about anything, even while the app is open.';
+
+  @override
+  String get additionalFunctions => 'Additional functions';
+
+  @override
+  String get additionalFunctionsHint =>
+      'These functions open only with an activation key. Contact the developer to get one.';
+
+  @override
+  String get activationKey => 'Activation key';
+
+  @override
+  String get activationKeyHint => 'For example: KIU-XXXX-XXXX';
+
+  @override
+  String get activate => 'Activate';
+
+  @override
+  String get activated => 'Activated';
+
+  @override
+  String get activationFailed => 'Invalid key';
+
+  @override
+  String get activationSuccess => 'Additional functions unlocked';
+
+  @override
+  String get contactForKey => 'Message to get a key';
 }

@@ -515,4 +515,32 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get permissionNotificationsHelp =>
       'Все напоминания и звонки на занятия приходят как уведомления. Без этого разрешения KIU не сможет сообщить вам ни о чём.';
+
+  @override
+  String get additionalFunctions => 'Дополнительные функции';
+
+  @override
+  String get additionalFunctionsHint =>
+      'Эти функции открываются только по ключу активации. Напишите разработчику, чтобы получить его.';
+
+  @override
+  String get activationKey => 'Ключ активации';
+
+  @override
+  String get activationKeyHint => 'Например: KIU-XXXX-XXXX';
+
+  @override
+  String get activate => 'Активировать';
+
+  @override
+  String get activated => 'Активировано';
+
+  @override
+  String get activationFailed => 'Неверный ключ';
+
+  @override
+  String get activationSuccess => 'Дополнительные функции открыты';
+
+  @override
+  String get contactForKey => 'Написать за ключом';
 }

@@ -185,5 +185,14 @@
   "permissionWhyOverlay": "So a lesson call can open while you are using your phone.",
   "permissionWhyFullScreen": "So a lesson call can appear over the lock screen.",
   "permissionWhyNotifications": "So KIU can tell you before a lesson starts.",
-  "permissionNotificationsHelp": "Every reminder and lesson call arrives as a notification. Without this permission KIU cannot alert you about anything, even while the app is open."
+  "permissionNotificationsHelp": "Every reminder and lesson call arrives as a notification. Without this permission KIU cannot alert you about anything, even while the app is open.",
+  "additionalFunctions": "Additional functions",
+  "additionalFunctionsHint": "These functions open only with an activation key. Contact the developer to get one.",
+  "activationKey": "Activation key",
+  "activationKeyHint": "For example: KIU-XXXX-XXXX",
+  "activate": "Activate",
+  "activated": "Activated",
+  "activationFailed": "Invalid key",
+  "activationSuccess": "Additional functions unlocked",
+  "contactForKey": "Message to get a key"
 }

@@ -90,6 +90,19 @@ class _BrowserPageState extends State<BrowserPage>
   String? _checkResult;
   double _pullDistance = 0;
   Timer? _pullWatchdog;
+
+  /// Consecutive taps on the version row, which is how the activation page is
+  /// reached. Reset by [_versionTapReset] after a short idle gap so taps spread
+  /// over a minute -- someone copying the version a few times -- can never
+  /// accumulate into an accidental unlock.
+  int _versionTaps = 0;
+  Timer? _versionTapReset;
+  static const int _versionTapsToUnlock = 10;
+
+  /// Inline error under the activation field, or null when there is none.
+  /// Lives on the State rather than in the page builder so it survives the
+  /// rebuild that follows a failed submit.
+  String? _activationError;
   Completer<Map<String, dynamic>>? _markCompleter;
   String? _markRequestId;
 
@@ -614,6 +627,11 @@ class _BrowserPageState extends State<BrowserPage>
   }
 
   Future<void> _markWatched() async {
+    // The row is hidden while locked, but the gate lives here too: this is the
+    // function that actually writes to the LMS, and the row is not the only way
+    // to reach it -- a sheet left open across an activation change, or a future
+    // caller, would otherwise walk straight past the check.
+    if (!widget.controller.settings.additionalFunctionsActivated) return;
     if (_marking || !isLessonUri(_currentUri)) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(strings.onlyLesson)));
@@ -832,7 +850,7 @@ class _BrowserPageState extends State<BrowserPage>
                               ),
                             ],
                           ),
-                          _aboutSection(setSheetState),
+                          _aboutSection(sheetContext, setSheetState),
                         ],
                       ),
                     ),
@@ -930,17 +948,23 @@ class _BrowserPageState extends State<BrowserPage>
         // Sits with the speed controls: both act on the lesson video that is
         // playing right now, and this is the row reached straight after
         // finishing one.
-        SettingsRow(
-          key: const Key('mark-watched-menu'),
-          icon: Icons.task_alt_rounded,
-          title: _marking ? strings.marking : strings.markWatched,
-          hint: strings.markWatchedHint,
-          enabled: !_marking,
-          onTap: () {
-            Navigator.pop(sheetContext);
-            _markWatched();
-          },
-        ),
+        //
+        // Unlike the speed controls above, this one is gated behind an
+        // activation key -- it writes a completion back to the LMS, so it is
+        // not offered until the user has been given a key. The section itself
+        // always renders; only this row comes and goes.
+        if (widget.controller.settings.additionalFunctionsActivated)
+          SettingsRow(
+            key: const Key('mark-watched-menu'),
+            icon: Icons.task_alt_rounded,
+            title: _marking ? strings.marking : strings.markWatched,
+            hint: strings.markWatchedHint,
+            enabled: !_marking,
+            onTap: () {
+              Navigator.pop(sheetContext);
+              _markWatched();
+            },
+          ),
       ],
     );
   }
@@ -2061,7 +2085,7 @@ class _BrowserPageState extends State<BrowserPage>
   /// The version used to be a bare centered `Text` under the last section;
   /// promoting it to a real section gives the update check somewhere to live
   /// that matches every other row in the sheet.
-  Widget _aboutSection(StateSetter setSheetState) {
+  Widget _aboutSection(BuildContext sheetContext, StateSetter setSheetState) {
     final version = widget.controller.appVersion;
     // Resolved once here rather than inside the builder below. The notifier
     // can fire while this sheet is being popped for the update gate, and a
@@ -2082,6 +2106,10 @@ class _BrowserPageState extends State<BrowserPage>
             title: texts.version,
             value: '${version.name} (${version.code})',
             onTap: () async {
+              // Copying stays the row's visible job; the tap count rides along
+              // silently on top of it, so the way in to the activation page is
+              // not advertised to a user who is only reporting a problem.
+              _countVersionTap(sheetContext);
               await Clipboard.setData(
                 ClipboardData(text: '${version.name} (${version.code})'),
               );
@@ -2364,6 +2392,150 @@ class _BrowserPageState extends State<BrowserPage>
   Future<void> _openUsefulLinks() async {
     await _pushUsefulLinks();
     if (mounted) await _openActions();
+  }
+
+  /// Counts a tap on the version row and opens the activation page on the
+  /// [_versionTapsToUnlock]th in a row.
+  ///
+  /// The idle timer is the whole reason this is not a bare counter: without it
+  /// a user who copies the version once a week would eventually trip the
+  /// threshold and be dropped on a page they never asked for.
+  void _countVersionTap(BuildContext sheetContext) {
+    _versionTapReset?.cancel();
+    _versionTaps++;
+    if (_versionTaps < _versionTapsToUnlock) {
+      _versionTapReset = Timer(
+        const Duration(seconds: 2),
+        () => _versionTaps = 0,
+      );
+      return;
+    }
+    _versionTaps = 0;
+    Navigator.pop(sheetContext);
+    unawaited(_openAdditionalFunctions());
+  }
+
+  /// Same return-to-settings contract as [_openUsefulLinks]: the sheet is gone
+  /// by the time this page is pushed, so it is reopened on the way back.
+  Future<void> _openAdditionalFunctions() async {
+    await _pushAdditionalFunctions();
+    if (mounted) await _openActions();
+  }
+
+  Future<void> _pushAdditionalFunctions() {
+    final controller = TextEditingController();
+    return Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (pageContext) => StatefulBuilder(
+              builder: (context, setPageState) {
+                final activated =
+                    widget.controller.settings.additionalFunctionsActivated;
+                return Scaffold(
+                  key: const Key('activation-page'),
+                  appBar: AppBar(title: Text(strings.additionalFunctions)),
+                  body: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    children: [
+                      SettingsSection(
+                        title: strings.additionalFunctions,
+                        icon: Icons.lock_open_rounded,
+                        // The long explanation goes behind the ⓘ rather than
+                        // wrapping under a row, per the settings rule.
+                        hint: strings.additionalFunctionsHint,
+                        children: [
+                          SettingsRow(
+                            icon: activated
+                                ? Icons.check_circle_rounded
+                                : Icons.task_alt_rounded,
+                            title: strings.markWatched,
+                            value: activated ? strings.activated : null,
+                            iconColor: activated
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                            enabled: activated,
+                          ),
+                          // Same destination and constants as the feedback row
+                          // in the main sheet -- the handle and URL live in
+                          // core/constants.dart so they cannot drift apart.
+                          SettingsRow(
+                            key: const Key('activation-contact'),
+                            icon: Icons.telegram_rounded,
+                            title: strings.contactForKey,
+                            value: contactHandle,
+                            trailing: const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 20,
+                            ),
+                            onTap: () => _launchExternal(contactUrl),
+                          ),
+                        ],
+                      ),
+                      if (!activated) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 20, 12, 0),
+                          child: TextField(
+                            key: const Key('activation-input'),
+                            controller: controller,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: InputDecoration(
+                              labelText: strings.activationKey,
+                              hintText: strings.activationKeyHint,
+                              errorText: _activationError,
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.key_rounded),
+                            ),
+                            onChanged: (_) {
+                              // Clears the error as soon as the user starts
+                              // fixing the key, rather than leaving "invalid"
+                              // under a value they have already changed.
+                              if (_activationError != null) {
+                                setPageState(() => _activationError = null);
+                              }
+                            },
+                            onSubmitted: (value) =>
+                                _submitActivation(value, setPageState),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                          child: FilledButton.icon(
+                            key: const Key('activation-submit'),
+                            icon: const Icon(Icons.lock_open_rounded, size: 18),
+                            label: Text(strings.activate),
+                            onPressed: () => _submitActivation(
+                              controller.text,
+                              setPageState,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        )
+        .whenComplete(() {
+          controller.dispose();
+          _activationError = null;
+        });
+  }
+
+  /// Validates [value] and unlocks on success, or shows the inline error.
+  Future<void> _submitActivation(String value, StateSetter setPageState) async {
+    final unlocked = await widget.controller.activateAdditionalFunctions(value);
+    if (!mounted) return;
+    if (!unlocked) {
+      setPageState(() => _activationError = strings.activationFailed);
+      return;
+    }
+    setPageState(() => _activationError = null);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(strings.activationSuccess)));
   }
 
   Future<void> _pushUsefulLinks() => Navigator.of(context).push(
@@ -2739,6 +2911,7 @@ class _BrowserPageState extends State<BrowserPage>
     widget.controller.availableUpdate.removeListener(_offerOptionalUpdate);
     _foregroundTimer?.cancel();
     _pullWatchdog?.cancel();
+    _versionTapReset?.cancel();
     _refreshSpin.dispose();
     _backNudge.dispose();
     super.dispose();
