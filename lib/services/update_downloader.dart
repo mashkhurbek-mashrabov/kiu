@@ -26,6 +26,16 @@ abstract interface class ApkInstaller {
   Future<bool> canInstallPackages();
   Future<void> openInstallPermissionSettings();
   Future<void> installApk(String path);
+
+  /// Fires when the system installer finishes, with whether it succeeded.
+  ///
+  /// [installApk] returns as soon as the session is committed, which is long
+  /// before the user has answered Android's confirmation prompt — so without
+  /// this the gate had no way to learn the prompt was declined and sat on
+  /// "installing" forever, with no button and, being mandatory, no way back
+  /// into the app. A success is reported too, though the process is normally
+  /// replaced by the new APK before anything can render it.
+  Stream<bool> get installResults;
 }
 
 /// Streams a release APK to the cache directory and hands it to the system
@@ -56,6 +66,10 @@ class UpdateDownloader {
   /// connection is legitimate and must not be cut off, but a connection that
   /// stops delivering has to fail so Retry is offered.
   static const _idleTimeout = Duration(seconds: 60);
+
+  /// How long to wait for the system installer's verdict before offering Retry.
+  /// Covers a user reading Android's confirmation prompt, so it is minutes.
+  static const _installTimeout = Duration(minutes: 5);
 
   final ApkInstaller _installer;
   final HttpClient _client;
@@ -204,8 +218,27 @@ class UpdateDownloader {
       received: received,
       total: update.apkSize,
     );
+    // Listened to *before* the install is started: the session can report back
+    // while `installApk` is still awaiting, and a result that arrives first
+    // would otherwise be missed and leave the gate stuck on "installing".
+    // Bounded, and treated as a failure on expiry: a status the platform never
+    // delivers -- an OEM that drops the callback, a killed installer -- would
+    // otherwise reproduce the very freeze this reports. Generous, because the
+    // clock covers the user reading Android's prompt, not a machine.
+    final result = _installer.installResults.first
+        .timeout(_installTimeout)
+        .catchError((Object _) => false);
     await _installer.installApk(file.path);
-    return true;
+    if (await result) return true;
+    // Declined or failed at the system prompt. Surfacing this as `failed` is
+    // what puts Retry back on a mandatory gate; leaving it on `installing`
+    // is the freeze this exists to prevent.
+    progress.value = (
+      stage: UpdateDownloadStage.failed,
+      received: received,
+      total: update.apkSize,
+    );
+    return false;
   }
 
   void reset() =>
