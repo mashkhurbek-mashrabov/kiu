@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 import 'update_downloader.dart';
@@ -55,6 +57,29 @@ class AndroidAppVersionProvider implements AppVersionProvider {
 
 /// Drives the system package installer over the shared [platformChannel].
 class AndroidApkInstaller implements ApkInstaller {
+  AndroidApkInstaller() {
+    // The native side calls back here once the install session reaches a
+    // terminal status -- most often because the user declined Android's
+    // confirmation prompt, which is the case that used to strand the update
+    // gate on "installing" with no way forward.
+    platformChannel.setMethodCallHandler((call) async {
+      if (call.method != 'installResult') return null;
+      final arguments = call.arguments;
+      final success = arguments is Map && arguments['success'] == true;
+      if (!_results.isClosed) _results.add(success);
+      return null;
+    });
+  }
+
+  /// Broadcast so a listener that arrives late does not throw, and so the
+  /// downloader can subscribe once per install attempt.
+  final StreamController<bool> _results = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> get installResults => _results.stream;
+
+  void dispose() => _results.close();
+
   @override
   Future<String?> cacheDirectory() =>
       platformChannel.invokeMethod<String>('getUpdateCacheDir');

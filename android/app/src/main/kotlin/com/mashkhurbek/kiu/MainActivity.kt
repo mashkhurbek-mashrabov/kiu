@@ -24,6 +24,12 @@ class MainActivity : FlutterActivity() {
 
     private var pendingSoundResult: MethodChannel.Result? = null
 
+    /// Held so an install result arriving in [onNewIntent] can be pushed to
+    /// Dart, which is the only thing that can clear the gate's "installing"
+    /// state. Cleared in [cleanUpFlutterEngine] so a destroyed engine is never
+    /// called into.
+    private var platformChannel: MethodChannel? = null
+
     @Deprecated("Deprecated in Android API; required by FlutterActivity's picker flow")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -77,6 +83,11 @@ class MainActivity : FlutterActivity() {
     // STATUS_PENDING_USER_ACTION carries the system's own confirmation prompt,
     // which has to be launched explicitly -- without this the commit succeeds
     // but the user is never asked anything and nothing installs.
+    //
+    // Every *other* status is terminal, and must be forwarded to Dart. The user
+    // declining or dismissing that prompt is the common case, and it used to be
+    // dropped here: the gate stayed on "installing" with no button and, being
+    // mandatory, no way back into the app until the process was force-stopped.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action != INSTALL_RESULT_ACTION) return
@@ -91,8 +102,30 @@ class MainActivity : FlutterActivity() {
                 @Suppress("DEPRECATION")
                 intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
             }
-            confirm?.let { runCatching { startActivity(it) } }
+            // A prompt that cannot be launched is itself a dead end, so it is
+            // reported rather than left to hang the gate.
+            val launched = confirm?.let {
+                runCatching { startActivity(it) }.isSuccess
+            } ?: false
+            if (!launched) notifyInstallResult(false)
+            return
         }
+        // STATUS_SUCCESS needs no message: the process is replaced by the new
+        // APK before anything could render it. Reporting it anyway is harmless
+        // and keeps the contract "every terminal status is forwarded".
+        notifyInstallResult(status == PackageInstaller.STATUS_SUCCESS)
+    }
+
+    /**
+     * Tells Dart the install finished, so the gate can leave its "installing"
+     * state. Safe to call when the engine is gone -- the channel is null until
+     * [configureFlutterEngine] runs and after the engine is destroyed.
+     */
+    private fun notifyInstallResult(success: Boolean) {
+        platformChannel?.invokeMethod(
+            "installResult",
+            mapOf("success" to success),
+        )
     }
 
     /**
@@ -175,10 +208,12 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(
+        val channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "com.mashkhurbek.kiu/platform",
-        ).setMethodCallHandler { call, result ->
+        )
+        platformChannel = channel
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getAppVersion" -> {
                     val packageInfo = packageManager.getPackageInfo(packageName, 0)
@@ -304,5 +339,10 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        platformChannel = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 }

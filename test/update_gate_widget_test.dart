@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -59,8 +60,20 @@ class _FakeInstaller implements ApkInstaller {
   @override
   Future<void> openInstallPermissionSettings() async => permissionPrompts++;
 
+  /// What the system installer reports back. False stands in for the user
+  /// declining Android's confirmation prompt.
+  bool installSucceeds = true;
+
+  final StreamController<bool> _results = StreamController<bool>.broadcast();
+
   @override
-  Future<void> installApk(String path) async => installed.add(path);
+  Stream<bool> get installResults => _results.stream;
+
+  @override
+  Future<void> installApk(String path) async {
+    installed.add(path);
+    scheduleMicrotask(() => _results.add(installSucceeds));
+  }
 }
 
 AppUpdate _update({bool mandatory = true, int build = 19}) => AppUpdate(
@@ -215,6 +228,38 @@ void main() {
     // Later is a decision, not a postponement: the build is recorded so the
     // next check does not prompt for it again.
     expect(controller.availableUpdate.value, isNull);
+  });
+
+  testWidgets('a failed update always leaves the gate actionable', (
+    tester,
+  ) async {
+    // The reported freeze was the gate stranded mid-update with no button on
+    // a mandatory gate. Whatever goes wrong -- a dead socket here, a declined
+    // system prompt in the wild -- the user must end up with something to tap.
+    // The declined-installer path itself is driven end to end in
+    // update_end_to_end_test.dart, which can run a real download.
+    final checker = _FakeChecker(UpdateCheckResult.answered(_update()));
+    final controller = await _controller(checker);
+    await controller.initialize();
+    await tester.pumpWidget(
+      KiuApp(
+        controller: controller,
+        homeRequests: ValueNotifier<int>(0),
+        updateDownloader: UpdateDownloader(installer: _FakeInstaller()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('update-now')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('update-now')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('update-retry')),
+      findsOneWidget,
+      reason: 'a mandatory gate must always offer a way forward',
+    );
+    expect(find.byKey(const Key('update-now')), findsNothing);
   });
 
   testWidgets('an optional update is downloadable from the check row', (

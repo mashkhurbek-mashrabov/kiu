@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -31,8 +32,22 @@ class _RecordingInstaller implements ApkInstaller {
   @override
   Future<void> openInstallPermissionSettings() async => permissionPrompts++;
 
+  /// What the system installer reports back. Defaults to a successful
+  /// install; a test sets it false to stand in for the user declining
+  /// Android's confirmation prompt.
+  bool installSucceeds = true;
+
+  final StreamController<bool> _results = StreamController<bool>.broadcast();
+
   @override
-  Future<void> installApk(String path) async => installed.add(path);
+  Stream<bool> get installResults => _results.stream;
+
+  @override
+  Future<void> installApk(String path) async {
+    installed.add(path);
+    // The real session reports asynchronously, after the commit returns.
+    scheduleMicrotask(() => _results.add(installSucceeds));
+  }
 }
 
 void main() {
@@ -367,6 +382,62 @@ void main() {
 
     expect(ok, isFalse);
     expect(installer.installed, isEmpty);
+    downloader.dispose();
+  });
+
+  test('declining the system installer leaves a retryable failure', () async {
+    // The freeze this covers: the APK downloaded, the system prompt appeared,
+    // the user dismissed it -- and the gate sat on "installing" with no button
+    // and, being mandatory, no way back into the app until a force-stop.
+    final installer = _RecordingInstaller()..installSucceeds = false;
+    final downloader = UpdateDownloader(
+      installer: installer,
+      cacheDirectory: cache,
+      isAllowedHost: allowLoopback,
+    );
+
+    final ok = await downloader.download(
+      AppUpdate(
+        versionName: '1.5.0',
+        buildNumber: 19,
+        mandatory: true,
+        notes: '',
+        apkUrl: localApk('x86_64'),
+        apkSize: apkBytes.length,
+      ),
+    );
+
+    expect(ok, isFalse);
+    expect(installer.installed, hasLength(1), reason: 'the install was tried');
+    expect(
+      downloader.progress.value.stage,
+      UpdateDownloadStage.failed,
+      reason: 'anything but `installing`, which offers the user no way out',
+    );
+    downloader.dispose();
+  });
+
+  test('a successful install is not reported as a failure', () async {
+    final installer = _RecordingInstaller()..installSucceeds = true;
+    final downloader = UpdateDownloader(
+      installer: installer,
+      cacheDirectory: cache,
+      isAllowedHost: allowLoopback,
+    );
+
+    final ok = await downloader.download(
+      AppUpdate(
+        versionName: '1.5.0',
+        buildNumber: 19,
+        mandatory: true,
+        notes: '',
+        apkUrl: localApk('x86_64'),
+        apkSize: apkBytes.length,
+      ),
+    );
+
+    expect(ok, isTrue);
+    expect(downloader.progress.value.stage, UpdateDownloadStage.installing);
     downloader.dispose();
   });
 }
