@@ -233,6 +233,17 @@ class _BrowserPageState extends State<BrowserPage>
     if (uri != null && uri.scheme == 'https') {
       return NavigationDecision.navigate;
     }
+    // Google Meet (and every other Firebase Dynamic Link) hands off to its app
+    // by redirecting the WebView to `intent://...#Intent;...;end`, which has no
+    // https scheme and so used to die here with "link blocked" -- the one thing
+    // a student taps a lesson row to do. The intent URL names its own web
+    // destination in `S.browser_fallback_url`, so that is what gets opened,
+    // externally and still over https. Anything else stays blocked.
+    final fallback = uri == null ? null : intentFallbackUrl(uri);
+    if (fallback != null) {
+      unawaited(_launchExternal(fallback.toString()));
+      return NavigationDecision.prevent;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ScaffoldMessenger.of(context)

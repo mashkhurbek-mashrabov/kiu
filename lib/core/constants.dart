@@ -31,6 +31,45 @@ bool isGitHubReleaseAsset(Uri uri) =>
       'release-assets.githubusercontent.com',
     }.contains(uri.host.toLowerCase());
 
+/// The https destination an `intent://` URL is really asking for.
+///
+/// Google Meet — and every other Firebase Dynamic Link — hands a lesson link
+/// off to its app by redirecting the WebView to `intent://...#Intent;...;end`.
+/// That has no https scheme, so the shell used to block it and show "link
+/// blocked", which is the one thing tapping a lesson is for.
+///
+/// Two candidates are read, in this order:
+///
+///  * `link=`, the wrapped destination — for Meet this is the meeting itself
+///    (`https://meet.google.com/<code>`). Android hands that to the Meet app
+///    when it is installed and to the browser when it is not, so it works in
+///    both cases and joins the lesson directly.
+///  * `S.browser_fallback_url`, the intent's own declared web fallback, used
+///    only when there is no `link=`. For Meet this is the Play Store listing,
+///    which installs the app but does not join anything — hence second.
+///
+/// Both are read off the raw string rather than through [Uri.queryParameters]:
+/// the fallback sits percent-encoded inside the `#Intent;...;end` fragment,
+/// which is not a query, so the query parsers never see it. Whichever matches
+/// is re-checked rather than trusted — this is page content, and a
+/// `javascript:`, `file:` or `user:pass@` target must never reach another app.
+Uri? intentFallbackUrl(Uri uri) {
+  if (uri.scheme.toLowerCase() != 'intent') return null;
+  final raw = uri.toString();
+  for (final pattern in [
+    RegExp(r'[?&]link=([^&;#]+)'),
+    RegExp(r'S\.browser_fallback_url=([^;]+)'),
+  ]) {
+    final match = pattern.firstMatch(raw);
+    if (match == null) continue;
+    final decoded = Uri.tryParse(Uri.decodeComponent(match.group(1)!));
+    if (decoded == null || decoded.scheme != 'https') continue;
+    if (decoded.host.isEmpty || decoded.userInfo.isNotEmpty) continue;
+    return decoded;
+  }
+  return null;
+}
+
 /// Path prefixes the sites accept as a language. Both servers happily set a
 /// `lang` cookie for *any* two-letter prefix (`/en/` included) without
 /// validating it, so the app clamps to this set rather than trusting them.
