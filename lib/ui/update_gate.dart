@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/update_downloader.dart';
 import '../services/update_service.dart';
+import 'widgets/release_notes.dart';
 import 'widgets/settings_widgets.dart';
 
 /// Full-screen block shown while a mandatory update is pending.
@@ -105,9 +106,9 @@ class _UpdateGateState extends State<UpdateGate> {
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxHeight: 220),
                             child: SingleChildScrollView(
-                              child: Text(
-                                widget.update.notes,
-                                style: theme.textTheme.bodySmall,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: ReleaseNotes(widget.update.notes),
                               ),
                             ),
                           ),
