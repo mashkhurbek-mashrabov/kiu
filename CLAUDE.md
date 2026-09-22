@@ -172,6 +172,16 @@ One markdown file per version in `.release-notes/` (e.g. `.release-notes/1.2.2.m
 
 During development the file is an append-only running log — one bullet per change, however granular. **When the GitHub release is published, summarize that version's file** into the shipped notes: merge bullets that describe the same user-visible feature (a feature plus its later fixes is one bullet), drop churn that never reached the user (work reverted or superseded inside the same version), and order by what the user notices first — new features, then changes, then fixes. Keep it factual and user-facing; no commit hashes, file paths, or internal refactor notes. Publish the summarized text as the GitHub release body and overwrite the version's file with it, so the file matches what shipped.
 
+**The published release body is written in Uzbek Cyrillic.** The notes are read
+by students inside the app — the update gate shows the GitHub body verbatim
+under "Нима янгиланди" — and the app's default locale is `uz_Cyrl`. English
+notes reach the developer, not the user. Write the running log in whatever
+language is convenient, but the body that ships must be Uzbek Cyrillic, and it
+must name each thing the way the app's own strings do (quote the message the
+user actually saw, e.g. «Бу ҳавола хавфсизлик сабабли очилмади»), so the entry
+is recognisable. The trailing `<!-- kiu-update: ... -->` marker stays exactly as
+specified — it is parsed, not read.
+
 ## Branching & versions
 
 Branch per feature, tag per version — no version branches, no `develop`. Work on `feat/<slug>` or `fix/<slug>` off `main`, merge back, then bump `version:` in `pubspec.yaml` in its own `chore(release): <version>` commit and tag `v<version>`. Build release APKs from the tag. Bump the build number (`+N`) on every release and never reuse one — Android rejects a duplicate on upgrade. Create a `release/<x.y>.x` branch only if a shipped version actually needs a patch after `main` has moved on.

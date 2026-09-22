@@ -97,6 +97,15 @@ Summarize `.release-notes/<version>.md` per the project convention: merge
 bullets describing one feature, drop churn that never reached a user, order
 features → changes → fixes. Keep it user-facing — no file paths or commit refs.
 
+**Write the body in Uzbek Cyrillic.** The update gate renders this text
+verbatim inside the app under "Нима янгиланди", and the default locale is
+`uz_Cyrl` — English notes reach the developer, not the student. Name each item
+the way the app's own strings do, quoting the message the user actually saw
+(«Бу ҳавола хавфсизлик сабабли очилмади»), so the entry is recognisable. The
+running log in `.release-notes/` may stay in any language; only the shipped
+body must be translated. Headings, `-` bullets and `**bold**` are the only
+markup the in-app renderer supports — anything else shows as plain text.
+
 End the body with the marker, which must be a **trailing HTML comment**:
 
 ```
