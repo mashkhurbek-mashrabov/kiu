@@ -193,8 +193,18 @@ exist.
 - **The app under test is the one doing the installing.** A fix to the install
   path only takes effect from the release that *contains* it, so upgrading
   *into* that version still uses the old code.
-- **Every APK is currently debug-signed.** `android/key.properties` does not
-  exist, so Gradle falls back to the shared Flutter debug key. The user has
-  been informed and has declined a release keystore — do not re-raise it
-  unprompted. If a keystore is ever added, every existing user must uninstall
-  once, because Android rejects an in-place upgrade across a key change.
+- **A missing keystore silently produces a debug-signed APK.** Release APKs
+  are signed with the real keystore via `android/key.properties` (gitignored).
+  If that file is missing, Gradle falls back to the shared Flutter debug key
+  without any error. Never publish that build: anyone with the SDK could sign
+  an upgrade Android would accept. Before uploading, check that the signer
+  matches the previous release (`CN=Mashkhurbek Mashrabov, OU=KIU`):
+
+  ```bash
+  /home/dev/Android/build-tools/<latest>/apksigner verify --print-certs \
+    dist/KIU-<version>+<build>-x86_64.apk | grep -m1 SHA-256
+  ```
+
+  The SHA-256 must equal the previous release APK's. A different key also makes
+  Android reject the in-place upgrade, so every existing user would have to
+  uninstall first.
