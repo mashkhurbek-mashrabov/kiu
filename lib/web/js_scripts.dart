@@ -179,6 +179,122 @@ String courseLevelScript() => '''
 })();
 ''';
 
+/// Reports the playing lesson video's position so it can be resumed later.
+///
+/// Native players: `timeupdate`/`pause`/`ended` do not bubble, but a
+/// *capturing* listener on `document` still sees them, which also covers a
+/// `<video>` mounted after load without needing an observer.
+///
+/// The Russian course plays in a cross-origin Rutube iframe that exposes no
+/// `<video>`; its player posts `player:currentTime` to this window instead,
+/// and `player:changeState` stands in for the pause event. Only messages whose origin is exactly `https://rutube.ru` are read.
+///
+/// Only the position crosses the bridge -- Dart pairs it with its own idea of
+/// the current URL. Throttled to one report per 5 s of movement, plus one on
+/// pause; `ended` reports 0 so a finished video restarts from the beginning.
+String videoProgressScript() => '''
+(() => {
+  if (window.__kiuVideoProgressBound) return 'present';
+  window.__kiuVideoProgressBound = true;
+  let lastSent = null;
+  let rutubeTime = null;
+  const send = (seconds, force) => {
+    if (typeof seconds !== 'number' || !isFinite(seconds) || seconds < 0) return;
+    if (!force && lastSent !== null && Math.abs(seconds - lastSent) < 5) return;
+    lastSent = seconds;
+    KiuBridge.postMessage(JSON.stringify({type: 'videoProgress', seconds}));
+  };
+  const onMedia = (event) => {
+    if (!(event.target instanceof HTMLMediaElement)) return;
+    if (event.type === 'ended') return send(0, true);
+    send(event.target.currentTime, event.type === 'pause');
+  };
+  ['timeupdate', 'pause', 'ended'].forEach((name) =>
+    document.addEventListener(name, onMedia, true));
+  window.addEventListener('message', (event) => {
+    if (event.origin !== 'https://rutube.ru') return;
+    let message = event.data;
+    try {
+      if (typeof message === 'string') message = JSON.parse(message);
+    } catch (error) {
+      return;
+    }
+    if (!message || !message.data) return;
+    if (message.type === 'player:currentTime') {
+      rutubeTime = message.data.time ?? message.data.currentTime;
+      send(rutubeTime, false);
+    } else if (message.type === 'player:changeState' &&
+        message.data.state === 'paused') {
+      send(rutubeTime, true);
+    }
+  });
+  return 'bound';
+})();
+''';
+
+/// Seeks the lesson video to [seconds] and starts it.
+///
+/// Polls because neither player is ready at `onPageFinished`: the native one
+/// needs metadata (`readyState >= 1`) before a seek sticks, and the Rutube
+/// iframe drops commands sent before its player loads, so those are resent
+/// every tick until the player itself reports both a position near the target
+/// and a `playing` state. The seek alone is not enough: Rutube can accept it
+/// and still drop a `play` that arrived too early, leaving the lesson paused.
+/// Gives up after ~30 s.
+String resumeVideoScript(double seconds) {
+  final encodedSeconds = jsonEncode(seconds);
+  return '''
+(() => {
+  const target = $encodedSeconds;
+  let ticks = 0;
+  let timer = null;
+  let seeked = false;
+  let playing = false;
+  const command = (frame, type, data) => frame.contentWindow?.postMessage(
+    JSON.stringify({type, data}), '*');
+  const onMessage = (event) => {
+    if (event.origin !== 'https://rutube.ru') return;
+    let message = event.data;
+    try {
+      if (typeof message === 'string') message = JSON.parse(message);
+    } catch (error) {
+      return;
+    }
+    if (!message || !message.data) return;
+    if (message.type === 'player:currentTime') {
+      const time = message.data.time ?? message.data.currentTime;
+      if (typeof time === 'number' && time >= target - 5) seeked = true;
+    } else if (message.type === 'player:changeState') {
+      playing = message.data.state === 'playing';
+    }
+    if (seeked && playing) stop();
+  };
+  const stop = () => {
+    clearInterval(timer);
+    window.removeEventListener('message', onMessage);
+  };
+  window.addEventListener('message', onMessage);
+  timer = setInterval(() => {
+    if (++ticks > 60) return stop();
+    const video = document.querySelector('#video_player, video');
+    if (video) {
+      // Without preload the metadata never arrives on its own; play() fetches
+      // it, and the seek lands on the next tick.
+      if (video.readyState < 1) return void video.play().catch(() => {});
+      video.currentTime = target;
+      video.play().catch(() => {});
+      return stop();
+    }
+    const frame = document.querySelector('iframe[src*="rutube.ru"]');
+    if (!frame) return;
+    if (!seeked) command(frame, 'player:setCurrentTime', {time: target});
+    command(frame, 'player:play', {});
+  }, 500);
+  return 'polling';
+})();
+''';
+}
+
 String markWatchedScript(String requestId) {
   final encodedRequestId = jsonEncode(requestId);
   return '''

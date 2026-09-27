@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/activation.dart';
+import '../core/constants.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../services/update_service.dart';
@@ -44,6 +45,7 @@ class SettingsRepository {
   static const _activated = 'kiu.additionalFunctionsActivated';
   static const _userId = 'kiu.userId';
   static const _activationReset = 'kiu.activationResetV2';
+  static const _lastVideo = 'kiu.lastVideo';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -304,6 +306,36 @@ class SettingsRepository {
 
   Future<void> saveUserId(String value) =>
       _preferences.setString(_userId, value);
+
+  /// The lesson video last played and how far in, or null when none is saved.
+  ///
+  /// Derived state like [courseLevel], so it stays out of [AppSettings]. Read
+  /// tolerantly for the same reason: anything unreadable -- wrong type, bad
+  /// JSON, a URL that is no longer a trusted video page, a non-finite or
+  /// negative position -- degrades to "nothing to resume".
+  ({Uri url, double seconds})? get lastVideo {
+    final raw = _preferences.get(_lastVideo);
+    if (raw is! String) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map) return null;
+    final url = decoded['url'];
+    final seconds = decoded['seconds'];
+    if (url is! String || seconds is! num) return null;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !isVideoLessonUri(uri)) return null;
+    if (!seconds.isFinite || seconds < 0) return null;
+    return (url: uri, seconds: seconds.toDouble());
+  }
+
+  Future<void> saveLastVideo(Uri url, double seconds) => _preferences.setString(
+    _lastVideo,
+    jsonEncode({'url': url.toString(), 'seconds': seconds}),
+  );
 
   /// Whether the one-shot clearing of pre-2.1.0 activations has already run.
   ///

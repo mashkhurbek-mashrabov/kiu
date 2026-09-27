@@ -150,6 +150,7 @@
   },
   "about": "Ilova haqida",
   "markWatchedHint": "Videoni platformada ko‘rilgan deb belgilaydi.",
+  "resumeLastVideo": "Oxirgi videoni davom ettirish",
   "openLink": "Ochish",
   "searchHint": "Qidirish",
   "reset": "Tiklash",
