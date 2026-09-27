@@ -827,6 +827,12 @@ abstract class AppLocalizations {
   /// **'Видеони платформада кўрилган деб белгилайди.'**
   String get markWatchedHint;
 
+  /// No description provided for @resumeLastVideo.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Охирги видеони давом эттириш'**
+  String get resumeLastVideo;
+
   /// No description provided for @openLink.
   ///
   /// In uz_Cyrl, this message translates to:

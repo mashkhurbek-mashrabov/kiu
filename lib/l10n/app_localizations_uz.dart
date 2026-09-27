@@ -394,6 +394,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get markWatchedHint => 'Videoni platformada ko‘rilgan deb belgilaydi.';
 
   @override
+  String get resumeLastVideo => 'Oxirgi videoni davom ettirish';
+
+  @override
   String get openLink => 'Ochish';
 
   @override
@@ -935,6 +938,9 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get markWatchedHint => 'Видеони платформада кўрилган деб белгилайди.';
+
+  @override
+  String get resumeLastVideo => 'Охирги видеони давом эттириш';
 
   @override
   String get openLink => 'Очиш';

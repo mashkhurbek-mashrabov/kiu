@@ -163,6 +163,17 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The lesson video last played and its position, or null if none is saved.
+  ({Uri url, double seconds})? get lastVideo => _repository.lastVideo;
+
+  /// Saves the playing video's position.
+  ///
+  /// Deliberately no [notifyListeners]: this fires every few seconds during
+  /// playback, and a rebuild would re-render the WebView under the lesson.
+  /// The settings sheet reads [lastVideo] when it opens, which is enough.
+  Future<void> recordVideoProgress(Uri url, double seconds) =>
+      _repository.saveLastVideo(url, seconds);
+
   Future<void> initialize() async {
     await _ensureUserId();
     await _resetPreBindingActivation();

@@ -107,6 +107,11 @@ class _BrowserPageState extends State<BrowserPage>
   Completer<Map<String, dynamic>>? _markCompleter;
   String? _markRequestId;
 
+  /// Position to seek to once the page loaded by [_resumeLastVideo] finishes.
+  /// Consumed by the very next trusted page load, video page or not, so an
+  /// auth redirect in between can never seek some later, unrelated video.
+  double? _pendingResumeSeconds;
+
   AppLocalizations get strings => AppLocalizations.of(context);
 
   String get _homeUrl => homeUrlFor(widget.controller.settings.localeTag);
@@ -279,6 +284,14 @@ class _BrowserPageState extends State<BrowserPage>
       if (isRussianCourseVideoUri(uri)) {
         await _webView.runJavaScript(videoIframeFixScript());
       }
+      if (isVideoLessonUri(uri)) {
+        await _webView.runJavaScript(videoProgressScript());
+      }
+      final resumeAt = _pendingResumeSeconds;
+      _pendingResumeSeconds = null;
+      if (resumeAt != null && isVideoLessonUri(uri)) {
+        await _webView.runJavaScript(resumeVideoScript(resumeAt));
+      }
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
         // Onboarding first, and the explainer only when it did not run: both
@@ -372,6 +385,18 @@ class _BrowserPageState extends State<BrowserPage>
     // Home's target and highlight both read the level, so the bar has to
     // re-render once the first scrape lands.
     if (mounted) setState(() {});
+  }
+
+  /// Reopens the last played lesson video; [_pageFinished] seeks it once the
+  /// page loads. The language prefix is refreshed, since the app's language
+  /// may have changed since the position was saved.
+  Future<void> _resumeLastVideo() async {
+    final last = widget.controller.lastVideo;
+    if (last == null) return;
+    _pendingResumeSeconds = last.seconds;
+    await _webView.loadRequest(
+      withSiteLanguage(last.url, widget.controller.settings.localeTag),
+    );
   }
 
   Future<void> _goToRequestedPage() async {
@@ -586,6 +611,23 @@ class _BrowserPageState extends State<BrowserPage>
       if (decoded['type'] == 'courseLevel') {
         final level = decoded['level'];
         if (level is int && level > 0) unawaited(_recordCourseLevel(level));
+        return;
+      }
+      if (decoded['type'] == 'videoProgress') {
+        // The URL is Dart's own, never the payload's: the bridge is also
+        // reachable from the cross-origin Rutube frame.
+        final seconds = decoded['seconds'];
+        if (seconds is num &&
+            seconds.isFinite &&
+            seconds >= 0 &&
+            isVideoLessonUri(_currentUri)) {
+          unawaited(
+            widget.controller.recordVideoProgress(
+              _currentUri,
+              seconds.toDouble(),
+            ),
+          );
+        }
         return;
       }
       if (decoded['type'] != 'markWatchedResult' ||
@@ -957,6 +999,17 @@ class _BrowserPageState extends State<BrowserPage>
             ],
           ),
         ),
+        if (widget.controller.lastVideo case final last?)
+          SettingsRow(
+            key: const Key('resume-last-video-menu'),
+            icon: Icons.history_rounded,
+            title: strings.resumeLastVideo,
+            value: _formatPosition(last.seconds),
+            onTap: () {
+              Navigator.pop(sheetContext);
+              _resumeLastVideo();
+            },
+          ),
         // Sits with the speed controls: both act on the lesson video that is
         // playing right now, and this is the row reached straight after
         // finishing one.
@@ -979,6 +1032,17 @@ class _BrowserPageState extends State<BrowserPage>
           ),
       ],
     );
+  }
+
+  /// `m:ss`, or `h:mm:ss` from an hour up.
+  static String _formatPosition(double seconds) {
+    final total = seconds.floor();
+    final ss = (total % 60).toString().padLeft(2, '0');
+    final minutes = total ~/ 60 % 60;
+    final hours = total ~/ 3600;
+    return hours > 0
+        ? '$hours:${minutes.toString().padLeft(2, '0')}:$ss'
+        : '$minutes:$ss';
   }
 
   /// Theme as three icon segments rather than a dialog: the choice is small,

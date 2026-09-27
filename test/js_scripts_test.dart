@@ -47,4 +47,24 @@ void main() {
     expect(script, contains('playback_token'));
     expect(script, contains('request-1'));
   });
+
+  test('video progress script reads native and rutube players only', () {
+    final script = videoProgressScript();
+    expect(script, contains('__kiuVideoProgressBound'));
+    expect(script, contains("type: 'videoProgress'"));
+    expect(script, contains("event.origin !== 'https://rutube.ru'"));
+    expect(script, contains('player:currentTime'));
+    // Capturing, because media events do not bubble to `document`.
+    expect(script, contains('document.addEventListener(name, onMedia, true)'));
+  });
+
+  test('resume script seeks both players and only trusts rutube', () {
+    final script = resumeVideoScript(303.5);
+    expect(script, contains('const target = 303.5'));
+    expect(script, contains('player:setCurrentTime'));
+    expect(script, contains("event.origin !== 'https://rutube.ru'"));
+    expect(script, contains('readyState < 1'));
+    // A reported seek alone is not done: Rutube may have dropped the play.
+    expect(script, contains('if (seeked && playing) stop();'));
+  });
 }

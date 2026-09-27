@@ -150,6 +150,7 @@
   },
   "about": "About",
   "markWatchedHint": "Marks the video as viewed on the platform.",
+  "resumeLastVideo": "Resume last video",
   "openLink": "Open",
   "searchHint": "Search",
   "reset": "Reset",

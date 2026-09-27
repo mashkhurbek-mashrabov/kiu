@@ -394,6 +394,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'Помечает видео как просмотренное на платформе.';
 
   @override
+  String get resumeLastVideo => 'Продолжить последнее видео';
+
+  @override
   String get openLink => 'Открыть';
 
   @override

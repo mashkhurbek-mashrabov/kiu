@@ -393,6 +393,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get markWatchedHint => 'Marks the video as viewed on the platform.';
 
   @override
+  String get resumeLastVideo => 'Resume last video';
+
+  @override
   String get openLink => 'Open';
 
   @override

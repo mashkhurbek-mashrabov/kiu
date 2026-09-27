@@ -166,3 +166,22 @@ bool isRussianCourseVideoUri(Uri uri) {
       segments[2] == _russianCourseId &&
       segments[4].toLowerCase() == 'video-iframe';
 }
+
+/// Whether [uri] is a lesson video page of any course —
+/// `<lang>/my-course/<course>/<lesson>/(video|video-iframe)`.
+///
+/// Strict like [isRussianCourseVideoUri]: it decides which page's playback
+/// position is saved and which saved URL is trusted enough to reopen.
+bool isVideoLessonUri(Uri uri) {
+  if (!isTrustedHttps(uri)) return false;
+  final segments = uri.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  if (segments.length != 5) return false;
+  final positive = RegExp(r'^[1-9]\d*$');
+  return supportedSiteLanguages.contains(segments[0]) &&
+      segments[1] == 'my-course' &&
+      positive.hasMatch(segments[2]) &&
+      positive.hasMatch(segments[3]) &&
+      const {'video', 'video-iframe'}.contains(segments[4].toLowerCase());
+}
