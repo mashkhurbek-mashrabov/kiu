@@ -196,5 +196,10 @@
   "activated": "Activated",
   "activationFailed": "Invalid key",
   "activationSuccess": "Additional functions unlocked",
-  "contactForKey": "Message to get a key"
+  "contactForKey": "Message to get a key",
+  "mediaChannelName": "Lesson video",
+  "mediaPlay": "Play",
+  "mediaPause": "Pause",
+  "mediaRewind": "Back 10 s",
+  "mediaForward": "Forward 10 s"
 }

@@ -196,5 +196,10 @@
   "activated": "Faollashtirilgan",
   "activationFailed": "Kalit noto‘g‘ri",
   "activationSuccess": "Qo‘shimcha imkoniyatlar ochildi",
-  "contactForKey": "Kalit olish uchun yozing"
+  "contactForKey": "Kalit olish uchun yozing",
+  "mediaChannelName": "Dars videosi",
+  "mediaPlay": "Ijro etish",
+  "mediaPause": "Pauza",
+  "mediaRewind": "10 soniya orqaga",
+  "mediaForward": "10 soniya oldinga"
 }

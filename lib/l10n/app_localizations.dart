@@ -1108,6 +1108,36 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Калит олиш учун ёзинг'**
   String get contactForKey;
+
+  /// No description provided for @mediaChannelName.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Дарс видеоси'**
+  String get mediaChannelName;
+
+  /// No description provided for @mediaPlay.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ижро этиш'**
+  String get mediaPlay;
+
+  /// No description provided for @mediaPause.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Пауза'**
+  String get mediaPause;
+
+  /// No description provided for @mediaRewind.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'10 сония орқага'**
+  String get mediaRewind;
+
+  /// No description provided for @mediaForward.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'10 сония олдинга'**
+  String get mediaForward;
 }
 
 class _AppLocalizationsDelegate

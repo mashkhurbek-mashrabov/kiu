@@ -148,6 +148,25 @@ brick every install at once, with no way in to fix it.
 `AppLocalizations.delegate` directly (no `BuildContext` in the background
 isolate). Add strings to all four `.arb` files, never inline them.
 
+**Lesson-video media controls ride their own channel.**
+`com.mashkhurbek.kiu/media`, not the shared platform channel:
+`AndroidApkInstaller` owns that channel's only `setMethodCallHandler`, and a
+second one silently replaces it. One framework `MediaSession` in
+`LessonPlaybackService` feeds the notification, lockscreen, Bluetooth/car keys
+*and* the PiP window's play/pause — add no `RemoteAction`s. The service stays
+foreground while *paused* and is only started for a playing video (app
+visible): starting an FGS from the background is blocked on Android 12+, so a
+car "play" must reach an already-running service. Chromium suspends a
+WebView's media once its *window* is not visible (screen off, PiP swiped
+away; PiP itself is fine). A JS `play()` does not fix it — the video reports
+"playing" but its position never moves — so while a lesson plays
+`MainActivity` re-dispatches window VISIBLE to the WebView from a 0×0
+sentinel view. `ViewTreeObserver.addOnWindowVisibilityChangeListener` is
+hidden API and crashes on API 33. Simulate a car with
+`adb shell cmd media_session dispatch play|pause|fast-forward|next`;
+`input keyevent KEYCODE_MEDIA_*` with the screen asleep goes to the focused
+app instead and never reaches the session. Verified on the API-33 emulator.
+
 ## Testing
 
 Add focused tests per behavior change. Parser tests: malformed + duplicate LMS cards. Timezone tests: Asia/Tashkent source + DST-aware destinations. Widget/UI changes need widget tests; reminder changes need reconciliation tests. Run analyze + full test suite before building APK. Native widget and call changes: install on API-33 emulator, verify click/sync manually. Fake-trigger a call without waiting for a real lesson start — `LessonCallActivity`/`LessonCallReceiver` are `exported="true"` in `android/app/src/debug/AndroidManifest.xml` only, `false` in release:

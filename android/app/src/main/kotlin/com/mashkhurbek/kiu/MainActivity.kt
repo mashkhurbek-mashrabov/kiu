@@ -2,6 +2,13 @@ package com.mashkhurbek.kiu
 
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
+import android.os.Bundle
+import android.util.Rational
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
 import android.content.pm.PackageInstaller
 import android.os.Build
 import android.os.PowerManager
@@ -13,6 +20,7 @@ import android.net.Uri
 import java.io.File
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -29,6 +37,13 @@ class MainActivity : FlutterActivity() {
     /// state. Cleared in [cleanUpFlutterEngine] so a destroyed engine is never
     /// called into.
     private var platformChannel: MethodChannel? = null
+
+    /// Media session + PiP, on its own channel because the Dart side of
+    /// [platformChannel] already has its one handler. Nulled with the engine.
+    private var mediaChannel: MethodChannel? = null
+
+    /// Whether the page's lesson video is playing; gates PiP entry.
+    private var videoPlaying = false
 
     @Deprecated("Deprecated in Android API; required by FlutterActivity's picker flow")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -206,8 +221,159 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    /**
+     * Mirrors a `videoState` from the page into [LessonPlaybackService].
+     *
+     * The service is only *started* for a playing video, which only happens
+     * while the app is visible -- a background FGS start is blocked on Android
+     * 12+. Later updates (a pause from the car, say) reach the running
+     * instance directly instead of starting it again.
+     */
+    private fun updatePlayback(call: MethodCall) {
+        val playing = call.argument<Boolean>("playing") == true
+        videoPlaying = playing
+        LessonPlaybackService.state = LessonPlaybackService.State(
+            playing = playing,
+            title = call.argument<String>("title").orEmpty(),
+            positionMs = ((call.argument<Double>("position") ?: 0.0) * 1000).toLong(),
+            durationMs = ((call.argument<Double>("duration") ?: 0.0) * 1000).toLong(),
+            speed = (call.argument<Double>("speed") ?: 1.0).toFloat(),
+            labels = LessonPlaybackService.Labels(
+                channelName = call.argument<String>("channelName") ?: "Lesson video",
+                play = call.argument<String>("playLabel") ?: "Play",
+                pause = call.argument<String>("pauseLabel") ?: "Pause",
+                rewind = call.argument<String>("rewindLabel") ?: "-10 s",
+                forward = call.argument<String>("forwardLabel") ?: "+10 s",
+                close = call.argument<String>("closeLabel") ?: "Close",
+            ),
+        )
+        // A car "play" while the screen is off: the WebView was already told
+        // it is hidden, which would leave the video stuck.
+        if (playing && window.decorView.windowVisibility != View.VISIBLE) {
+            keepWebViewsVisible()
+        }
+        val running = LessonPlaybackService.instance
+        if (running != null) {
+            running.render()
+        } else if (playing) {
+            val intent = Intent(this, LessonPlaybackService::class.java)
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+            }
+        }
+        updatePipParams()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // A 0x0 sentinel, because the window-visibility callback is only
+        // public on a View (the ViewTreeObserver listener is hidden API and
+        // crashes on API 33). Posted, so it runs after the system's GONE has
+        // reached every view, the WebView included.
+        addContentView(
+            object : View(this) {
+                override fun onWindowVisibilityChanged(visibility: Int) {
+                    super.onWindowVisibilityChanged(visibility)
+                    if (visibility != VISIBLE && videoPlaying) post { keepWebViewsVisible() }
+                }
+            }.apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
+            ViewGroup.LayoutParams(0, 0),
+        )
+    }
+
+    /**
+     * Tells every WebView its window is still visible.
+     *
+     * Chromium suspends a WebView's media once its *window* stops being
+     * visible (screen off, PiP swiped away). A JS `play()` does not help:
+     * verified on the API-33 emulator, the video then reports "playing" while
+     * its position never moves. Window visibility is the one signal the WebView
+     * gates media on, so while a lesson plays it is re-asserted here; the real
+     * VISIBLE arrives on its own when the window comes back.
+     *
+     * ponytail: the WebView keeps ticking animation frames while hidden; add a
+     * JS rAF throttle if battery use with the screen off ever shows up.
+     */
+    private fun keepWebViewsVisible(view: View = window.decorView) {
+        when (view) {
+            is WebView -> view.dispatchWindowVisibilityChanged(View.VISIBLE)
+            is ViewGroup -> for (i in 0 until view.childCount) {
+                keepWebViewsVisible(view.getChildAt(i))
+            }
+        }
+    }
+
+    private fun stopPlayback() {
+        videoPlaying = false
+        LessonPlaybackService.state = null
+        stopService(Intent(this, LessonPlaybackService::class.java))
+        updatePipParams()
+    }
+
+    private fun pipParams(): PictureInPictureParams? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        val builder = PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9))
+        // Android 12+ enters PiP by itself on Home/gesture while this is set,
+        // which animates far better than entering from onUserLeaveHint.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(videoPlaying)
+        }
+        return builder.build()
+    }
+
+    private fun updatePipParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        runCatching { setPictureInPictureParams(pipParams()!!) }
+    }
+
+    // Android 8-11 have no auto-enter; leaving the app is the cue instead.
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (!videoPlaying) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+        ) {
+            runCatching { enterPictureInPictureMode(pipParams()!!) }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration,
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        mediaChannel?.invokeMethod("pipChanged", isInPictureInPictureMode)
+    }
+
+    // The WebView playing the audio dies with the activity, so the
+    // notification and session must not outlive it.
+    override fun onDestroy() {
+        stopPlayback()
+        super.onDestroy()
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val media = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.mashkhurbek.kiu/media",
+        )
+        mediaChannel = media
+        LessonPlaybackService.commandSink = { action ->
+            mediaChannel?.invokeMethod("command", action)
+        }
+        media.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "update" -> updatePlayback(call)
+                "clear" -> stopPlayback()
+                else -> return@setMethodCallHandler result.notImplemented()
+            }
+            result.success(null)
+        }
         val channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "com.mashkhurbek.kiu/platform",
@@ -343,6 +509,8 @@ class MainActivity : FlutterActivity() {
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         platformChannel = null
+        mediaChannel = null
+        LessonPlaybackService.commandSink = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 }

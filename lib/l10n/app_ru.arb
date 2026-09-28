@@ -196,5 +196,10 @@
   "activated": "Активировано",
   "activationFailed": "Неверный ключ",
   "activationSuccess": "Дополнительные функции открыты",
-  "contactForKey": "Написать за ключом"
+  "contactForKey": "Написать за ключом",
+  "mediaChannelName": "Видео урока",
+  "mediaPlay": "Воспроизвести",
+  "mediaPause": "Пауза",
+  "mediaRewind": "Назад на 10 с",
+  "mediaForward": "Вперёд на 10 с"
 }
