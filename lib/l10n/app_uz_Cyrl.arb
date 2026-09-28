@@ -224,5 +224,10 @@
   "activated": "Фаоллаштирилган",
   "activationFailed": "Калит нотўғри",
   "activationSuccess": "Қўшимча имкониятлар очилди",
-  "contactForKey": "Калит олиш учун ёзинг"
+  "contactForKey": "Калит олиш учун ёзинг",
+  "mediaChannelName": "Дарс видеоси",
+  "mediaPlay": "Ижро этиш",
+  "mediaPause": "Пауза",
+  "mediaRewind": "10 сония орқага",
+  "mediaForward": "10 сония олдинга"
 }

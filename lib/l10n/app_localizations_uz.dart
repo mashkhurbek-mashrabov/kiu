@@ -549,6 +549,21 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get contactForKey => 'Kalit olish uchun yozing';
+
+  @override
+  String get mediaChannelName => 'Dars videosi';
+
+  @override
+  String get mediaPlay => 'Ijro etish';
+
+  @override
+  String get mediaPause => 'Pauza';
+
+  @override
+  String get mediaRewind => '10 soniya orqaga';
+
+  @override
+  String get mediaForward => '10 soniya oldinga';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -1095,4 +1110,19 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get contactForKey => 'Калит олиш учун ёзинг';
+
+  @override
+  String get mediaChannelName => 'Дарс видеоси';
+
+  @override
+  String get mediaPlay => 'Ижро этиш';
+
+  @override
+  String get mediaPause => 'Пауза';
+
+  @override
+  String get mediaRewind => '10 сония орқага';
+
+  @override
+  String get mediaForward => '10 сония олдинга';
 }

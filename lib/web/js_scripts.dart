@@ -192,24 +192,45 @@ String courseLevelScript() => '''
 /// Only the position crosses the bridge -- Dart pairs it with its own idea of
 /// the current URL. Throttled to one report per 5 s of movement, plus one on
 /// pause; `ended` reports 0 so a finished video restarts from the beginning.
+///
+/// The same listeners also send an unthrottled `videoState` on every play
+/// state change or seek, which drives the system media session (notification,
+/// lockscreen, Bluetooth/car and the PiP window's controls).
 String videoProgressScript() => '''
 (() => {
   if (window.__kiuVideoProgressBound) return 'present';
   window.__kiuVideoProgressBound = true;
   let lastSent = null;
   let rutubeTime = null;
+  let rutubeDuration = null;
+  let rutubePlaying = false;
   const send = (seconds, force) => {
     if (typeof seconds !== 'number' || !isFinite(seconds) || seconds < 0) return;
     if (!force && lastSent !== null && Math.abs(seconds - lastSent) < 5) return;
     lastSent = seconds;
     KiuBridge.postMessage(JSON.stringify({type: 'videoProgress', seconds}));
   };
-  const onMedia = (event) => {
-    if (!(event.target instanceof HTMLMediaElement)) return;
-    if (event.type === 'ended') return send(0, true);
-    send(event.target.currentTime, event.type === 'pause');
+  const sendState = (playing, seconds, duration, rate) => {
+    if (typeof seconds !== 'number' || !isFinite(seconds) || seconds < 0) seconds = 0;
+    KiuBridge.postMessage(JSON.stringify({
+      type: 'videoState', playing, seconds,
+      duration: typeof duration === 'number' && isFinite(duration) ? duration : 0,
+      rate: typeof rate === 'number' && isFinite(rate) ? rate : 1,
+    }));
   };
-  ['timeupdate', 'pause', 'ended'].forEach((name) =>
+  const onMedia = (event) => {
+    const video = event.target;
+    if (!(video instanceof HTMLMediaElement)) return;
+    if (event.type !== 'timeupdate') {
+      sendState(!video.paused && !video.ended, video.currentTime,
+        video.duration, video.playbackRate);
+    }
+    if (event.type === 'ended') return send(0, true);
+    if (event.type === 'timeupdate' || event.type === 'pause') {
+      send(video.currentTime, event.type === 'pause');
+    }
+  };
+  ['timeupdate', 'pause', 'ended', 'play', 'playing', 'seeked'].forEach((name) =>
     document.addEventListener(name, onMedia, true));
   window.addEventListener('message', (event) => {
     if (event.origin !== 'https://rutube.ru') return;
@@ -223,14 +244,81 @@ String videoProgressScript() => '''
     if (message.type === 'player:currentTime') {
       rutubeTime = message.data.time ?? message.data.currentTime;
       send(rutubeTime, false);
-    } else if (message.type === 'player:changeState' &&
-        message.data.state === 'paused') {
-      send(rutubeTime, true);
+    } else if (message.type === 'player:durationChange') {
+      rutubeDuration = message.data.duration;
+      sendState(rutubePlaying, rutubeTime, rutubeDuration, 1);
+    } else if (message.type === 'player:changeState') {
+      rutubePlaying = message.data.state === 'playing';
+      sendState(rutubePlaying, rutubeTime, rutubeDuration, 1);
+      if (message.data.state === 'paused') send(rutubeTime, true);
     }
   });
   return 'bound';
 })();
 ''';
+
+/// Runs a system media-session command (notification, lockscreen, car, PiP)
+/// on the lesson video: `play`, `pause`, `rewind` or `forward` (10 s).
+///
+/// Only those four actions exist; anything else is a no-op here, and Dart
+/// never forwards anything else in the first place.
+String mediaCommandScript(String action) {
+  final encodedAction = jsonEncode(action);
+  return '''
+(() => {
+  const action = $encodedAction;
+  const step = action === 'forward' ? 10 : action === 'rewind' ? -10 : 0;
+  const video = document.querySelector('#video_player, video');
+  if (video) {
+    if (action === 'play') video.play().catch(() => {});
+    else if (action === 'pause') video.pause();
+    else if (step) video.currentTime = Math.max(0, video.currentTime + step);
+    return action;
+  }
+  const frame = document.querySelector('iframe[src*="rutube.ru"]');
+  if (!frame) return 'missing';
+  const command = (type, data) => frame.contentWindow?.postMessage(
+    JSON.stringify({type, data}), '*');
+  if (action === 'play') command('player:play', {});
+  else if (action === 'pause') command('player:pause', {});
+  else if (step) command('player:relativelySeek', {time: step});
+  return action;
+})();
+''';
+}
+
+/// Makes the lesson video fill the page while the app is in picture-in-picture,
+/// so the tiny window shows the video rather than a corner of the lesson page.
+///
+/// CSS on a class toggled on `<html>` rather than `requestFullscreen()`, which
+/// needs a user gesture that PiP entry never provides. Idempotent.
+String pipLayoutScript(bool on) {
+  final encodedOn = jsonEncode(on);
+  return '''
+(() => {
+  const on = $encodedOn;
+  const id = 'kiu-pip-style';
+  if (!document.getElementById(id)) {
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `html.kiu-pip .plyr,
+      html.kiu-pip video,
+      html.kiu-pip iframe[src*="rutube.ru"] {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: none !important;
+        z-index: 2147483647 !important;
+        background: #000 !important;
+      }`;
+    (document.head || document.documentElement).appendChild(style);
+  }
+  document.documentElement.classList.toggle('kiu-pip', on);
+  return on ? 'pip' : 'page';
+})();
+''';
+}
 
 /// Seeks the lesson video to [seconds] and starts it.
 ///

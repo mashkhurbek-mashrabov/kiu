@@ -14,6 +14,7 @@
 -keep class com.mashkhurbek.kiu.LessonCallBootReceiver
 -keep class com.mashkhurbek.kiu.KiuLessonWidgetProvider
 -keep class com.mashkhurbek.kiu.KiuLessonWidgetService
+-keep class com.mashkhurbek.kiu.LessonPlaybackService
 
 # Android instantiates every manifest component through its default
 # constructor; without this R8 may strip the constructor itself.

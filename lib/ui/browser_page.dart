@@ -17,6 +17,7 @@ import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
 import '../l10n/app_localizations.dart';
 import '../services/lesson_widget_service.dart';
+import '../services/media_session_service.dart';
 import '../services/permission_onboarding.dart';
 import '../services/time_zone_service.dart';
 import '../services/update_downloader.dart';
@@ -112,6 +113,15 @@ class _BrowserPageState extends State<BrowserPage>
   /// auth redirect in between can never seek some later, unrelated video.
   double? _pendingResumeSeconds;
 
+  /// Whether the activity is in picture-in-picture, where only the video may
+  /// show. Local state on purpose: `notifyListeners()` would rebuild the whole
+  /// app, WebView included, mid-playback.
+  bool _inPip = false;
+
+  /// Whether the native media session was told about this page's video, so a
+  /// navigation away knows to clear it (and a page with no video never calls).
+  bool _mediaActive = false;
+
   AppLocalizations get strings => AppLocalizations.of(context);
 
   String get _homeUrl => homeUrlFor(widget.controller.settings.localeTag);
@@ -131,6 +141,7 @@ class _BrowserPageState extends State<BrowserPage>
     // can arrive from the launch check, the resume check or the manual one,
     // and the user must not have to open Settings to learn it exists.
     widget.controller.availableUpdate.addListener(_offerOptionalUpdate);
+    mediaChannel.setMethodCallHandler(_handleMediaCall);
     // A stored update restored during `initialize()` was already set before
     // this page existed, so the listener alone would never see it.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -261,6 +272,11 @@ class _BrowserPageState extends State<BrowserPage>
   void _pageStarted(String url) {
     final uri = Uri.tryParse(url);
     _pullWatchdog?.cancel();
+    // Any main-frame load unloads the playing video with the old document.
+    if (_mediaActive) {
+      _mediaActive = false;
+      unawaited(_invokeMedia('clear'));
+    }
     setState(() {
       if (uri != null) _currentUri = uri;
       _pageFailed = false;
@@ -630,6 +646,10 @@ class _BrowserPageState extends State<BrowserPage>
         }
         return;
       }
+      if (decoded['type'] == 'videoState') {
+        _handleVideoState(decoded);
+        return;
+      }
       if (decoded['type'] != 'markWatchedResult' ||
           decoded['requestId'] != _markRequestId ||
           decoded['ok'] is! bool ||
@@ -641,6 +661,88 @@ class _BrowserPageState extends State<BrowserPage>
       }
     } on FormatException {
       return;
+    }
+  }
+
+  static bool _isPosition(Object? value) =>
+      value is num && value.isFinite && value >= 0;
+
+  /// Mirrors the page's play state into the native media session. Like
+  /// `videoProgress`, only a video lesson under Dart's own URL counts, and the
+  /// title is read from the WebView, never taken from the payload.
+  void _handleVideoState(Map<String, dynamic> message) {
+    final playing = message['playing'];
+    final seconds = message['seconds'];
+    final duration = message['duration'];
+    final rate = message['rate'];
+    if (playing is! bool ||
+        !_isPosition(seconds) ||
+        !isVideoLessonUri(_currentUri)) {
+      return;
+    }
+    unawaited(
+      _publishMedia(
+        playing: playing,
+        seconds: (seconds as num).toDouble(),
+        duration: _isPosition(duration) ? (duration as num).toDouble() : 0,
+        rate: rate is num && rate.isFinite && rate > 0 ? rate.toDouble() : 1,
+      ),
+    );
+  }
+
+  Future<void> _publishMedia({
+    required bool playing,
+    required double seconds,
+    required double duration,
+    required double rate,
+  }) async {
+    final title = await _webView.getTitle();
+    if (!mounted || !isVideoLessonUri(_currentUri)) return;
+    _mediaActive = true;
+    await _invokeMedia('update', {
+      'playing': playing,
+      'title': title ?? '',
+      'position': seconds,
+      'duration': duration,
+      'speed': rate,
+      'channelName': strings.mediaChannelName,
+      'playLabel': strings.mediaPlay,
+      'pauseLabel': strings.mediaPause,
+      'rewindLabel': strings.mediaRewind,
+      'forwardLabel': strings.mediaForward,
+      'closeLabel': strings.close,
+    });
+  }
+
+  /// Best effort: a media session that cannot be reached must never break the
+  /// page the user is watching.
+  Future<void> _invokeMedia(String method, [Object? arguments]) async {
+    try {
+      await mediaChannel.invokeMethod<void>(method, arguments);
+    } on PlatformException {
+      return;
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  /// Native → Dart: a system media control was used, or PiP was entered/left.
+  Future<void> _handleMediaCall(MethodCall call) async {
+    if (!mounted) return;
+    switch (call.method) {
+      case 'command':
+        final action = call.arguments;
+        if (action is String &&
+            mediaCommands.contains(action) &&
+            isVideoLessonUri(_currentUri)) {
+          await _webView.runJavaScript(mediaCommandScript(action));
+        }
+      case 'pipChanged':
+        final inPip = call.arguments == true;
+        setState(() => _inPip = inPip);
+        if (isVideoLessonUri(_currentUri)) {
+          await _webView.runJavaScript(pipLayoutScript(inPip));
+        }
     }
   }
 
@@ -3008,6 +3110,8 @@ class _BrowserPageState extends State<BrowserPage>
     widget.homeRequests.removeListener(_goHome);
     widget.navigationRequests?.removeListener(_goToRequestedPage);
     widget.controller.availableUpdate.removeListener(_offerOptionalUpdate);
+    mediaChannel.setMethodCallHandler(null);
+    if (_mediaActive) unawaited(_invokeMedia('clear'));
     _foregroundTimer?.cancel();
     _pullWatchdog?.cancel();
     _versionTapReset?.cancel();
@@ -3026,7 +3130,7 @@ class _BrowserPageState extends State<BrowserPage>
         child: Stack(
           children: [
             WebViewWidget(controller: _webView),
-            if (_pullDistance > 0) _pullIndicator(),
+            if (_pullDistance > 0 && !_inPip) _pullIndicator(),
             if (_pageFailed)
               ColoredBox(
                 color: Theme.of(context).colorScheme.surface,
@@ -3058,7 +3162,7 @@ class _BrowserPageState extends State<BrowserPage>
             // Top, not bottom: the floating pill is painted last and would
             // cover a bar sitting on the bottom edge, which is what silently
             // lost the loading indicator when the bar stopped being docked.
-            if (_progress < 100)
+            if (_progress < 100 && !_inPip)
               Positioned(
                 left: 0,
                 right: 0,
@@ -3069,7 +3173,8 @@ class _BrowserPageState extends State<BrowserPage>
                   value: _progress / 100,
                 ),
               ),
-            _floatingNavBar(),
+            // PiP shows the video alone; the page CSS does the rest.
+            if (!_inPip) _floatingNavBar(),
           ],
         ),
       ),

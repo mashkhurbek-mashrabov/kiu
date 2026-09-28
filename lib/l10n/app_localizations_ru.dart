@@ -549,4 +549,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get contactForKey => 'Написать за ключом';
+
+  @override
+  String get mediaChannelName => 'Видео урока';
+
+  @override
+  String get mediaPlay => 'Воспроизвести';
+
+  @override
+  String get mediaPause => 'Пауза';
+
+  @override
+  String get mediaRewind => 'Назад на 10 с';
+
+  @override
+  String get mediaForward => 'Вперёд на 10 с';
 }

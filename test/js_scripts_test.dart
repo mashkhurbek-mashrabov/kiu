@@ -67,4 +67,33 @@ void main() {
     // A reported seek alone is not done: Rutube may have dropped the play.
     expect(script, contains('if (seeked && playing) stop();'));
   });
+
+  test('video progress script also reports play state for the session', () {
+    final script = videoProgressScript();
+    expect(script, contains("type: 'videoState'"));
+    expect(script, contains('player:changeState'));
+    expect(script, contains('player:durationChange'));
+    // Rutube is still read from its exact origin only.
+    expect(script, contains("event.origin !== 'https://rutube.ru'"));
+  });
+
+  test('media command script drives both players', () {
+    final forward = mediaCommandScript('forward');
+    expect(forward, contains('const action = "forward"'));
+    expect(forward, contains('#video_player, video'));
+    expect(forward, contains('player:relativelySeek'));
+    expect(mediaCommandScript('pause'), contains('player:pause'));
+    expect(mediaCommandScript('play'), contains('player:play'));
+    // The action is JSON-encoded, so it can never break out of the string.
+    expect(mediaCommandScript('"); alert(1); ("'), contains(r'\"'));
+  });
+
+  test('pip layout script toggles one class and one stylesheet', () {
+    final on = pipLayoutScript(true);
+    expect(on, contains('const on = true'));
+    expect(on, contains("classList.toggle('kiu-pip', on)"));
+    expect(on, contains('iframe[src*="rutube.ru"]'));
+    expect(on, contains('getElementById(id)'));
+    expect(pipLayoutScript(false), contains('const on = false'));
+  });
 }

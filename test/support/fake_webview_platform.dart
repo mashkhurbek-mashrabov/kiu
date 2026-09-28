@@ -32,6 +32,9 @@ bool canGoBackResult = false;
 /// setUp.
 int goBackCount = 0;
 
+/// What the fake reports as the page `<title>`.
+const String fakePageTitle = 'Lesson 7: Tajweed';
+
 class FakeWebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewController createPlatformWebViewController(
@@ -88,6 +91,9 @@ class _FakeController extends PlatformWebViewController {
 
   @override
   Future<bool> canGoForward() async => false;
+
+  @override
+  Future<String?> getTitle() async => fakePageTitle;
 
   // The base implementation throws UnimplementedError rather than returning
   // null, so any test that reaches a sync needs this stubbed.

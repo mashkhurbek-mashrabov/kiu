@@ -548,4 +548,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contactForKey => 'Message to get a key';
+
+  @override
+  String get mediaChannelName => 'Lesson video';
+
+  @override
+  String get mediaPlay => 'Play';
+
+  @override
+  String get mediaPause => 'Pause';
+
+  @override
+  String get mediaRewind => 'Back 10 s';
+
+  @override
+  String get mediaForward => 'Forward 10 s';
 }
