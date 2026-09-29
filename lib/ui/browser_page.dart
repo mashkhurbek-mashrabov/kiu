@@ -949,7 +949,9 @@ class _BrowserPageState extends State<BrowserPage>
                               SettingsRow(
                                 key: const Key('notification-settings-menu'),
                                 icon: Icons.notifications_active_rounded,
-                                title: strings.notificationSettings,
+                                title: runsOnIOS
+                                    ? strings.sectionNotifications
+                                    : strings.notificationSettings,
                                 trailing: const Icon(
                                   Icons.chevron_right_rounded,
                                 ),
@@ -1686,7 +1688,9 @@ class _BrowserPageState extends State<BrowserPage>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SheetHeader(
-                    title: strings.notificationSettings,
+                    title: runsOnIOS
+                        ? strings.sectionNotifications
+                        : strings.notificationSettings,
                     backTooltip: strings.back,
                     backKey: const Key('notification-settings-back'),
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../core/constants.dart';
+import '../core/platform.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
@@ -11,6 +12,11 @@ import 'notification_service.dart';
 import 'time_zone_service.dart';
 
 const _notificationDeliveryGrace = Duration(hours: 1);
+
+/// iOS keeps only the 64 soonest pending notifications and silently drops the
+/// rest. Scheduling the soonest 60 ourselves leaves headroom and keeps the
+/// scheduled-id record honest; every sync and launch tops the queue back up.
+const iosPendingReminderLimit = 60;
 
 class ReminderReconcileResult {
   const ReminderReconcileResult({
@@ -28,7 +34,10 @@ class ReminderReconciler {
     required NotificationGateway notifications,
     TimeZoneService? timeZones,
     DateTime Function()? now,
+    int? pendingLimit,
   }) : _repository = repository,
+       _pendingLimit =
+           pendingLimit ?? (runsOnIOS ? iosPendingReminderLimit : null),
        _notifications = notifications,
        _timeZones = timeZones ?? TimeZoneService(),
        _now = now ?? DateTime.now;
@@ -37,6 +46,10 @@ class ReminderReconciler {
   final NotificationGateway _notifications;
   final TimeZoneService _timeZones;
   final DateTime Function() _now;
+
+  /// Most future reminders handed to the OS at once, soonest first; null for
+  /// no limit.
+  final int? _pendingLimit;
 
   Future<ReminderReconcileResult> reconcile(
     List<Lesson> lessons,
@@ -57,6 +70,16 @@ class ReminderReconciler {
       final offsets = settings.reminderOffsetsMinutes.toSet().where(
         (offset) => offset >= 0 && offset <= 10080,
       );
+      final pending =
+          <
+            ({
+              int id,
+              DateTime trigger,
+              DateTime start,
+              Lesson lesson,
+              int offset,
+            })
+          >[];
       for (final lesson in lessons) {
         DateTime start;
         try {
@@ -77,35 +100,49 @@ class ReminderReconciler {
             }
             continue;
           }
-          try {
-            await _notifications.schedule(
-              id: id,
-              when: _timeZones.inZone(trigger, settings.timeZoneId),
-              title: lesson.title,
-              body: _notificationBody(strings, settings, start, offset),
-              payload: homeUrl,
-              exact: exact,
-              reminderOffsetMinutes: offset,
-              soundUri:
-                  settings.reminderSoundOverrides[offset] ??
-                  settings.reminderSoundUri,
-            );
-            // ponytail: one failed alarm (e.g. a revoked custom sound URI)
-            // must not abort the whole batch and strand every later lesson
-            // unscheduled; only mark ids that actually made it to the OS.
-            nextIds.add(id);
-          } on PlatformException catch (error) {
-            // A silent `continue` here previously hid systemic failures
-            // (e.g. every offset sharing one revoked sound URI, or exact
-            // alarm permission dropped mid-session): sync would report
-            // success with scheduledCount 0 and nobody could tell why
-            // reminders stopped firing. Surface it instead.
-            debugPrint(
-              'ReminderReconciler: failed to schedule "${lesson.title}" '
-              '(+$offset min): $error',
-            );
-            continue;
-          }
+          pending.add((
+            id: id,
+            trigger: trigger,
+            start: start,
+            lesson: lesson,
+            offset: offset,
+          ));
+        }
+      }
+      pending.sort((a, b) => a.trigger.compareTo(b.trigger));
+      final limit = _pendingLimit;
+      final toSchedule = limit == null || pending.length <= limit
+          ? pending
+          : pending.sublist(0, limit);
+      for (final (:id, :trigger, :start, :lesson, :offset) in toSchedule) {
+        try {
+          await _notifications.schedule(
+            id: id,
+            when: _timeZones.inZone(trigger, settings.timeZoneId),
+            title: lesson.title,
+            body: _notificationBody(strings, settings, start, offset),
+            payload: homeUrl,
+            exact: exact,
+            reminderOffsetMinutes: offset,
+            soundUri:
+                settings.reminderSoundOverrides[offset] ??
+                settings.reminderSoundUri,
+          );
+          // ponytail: one failed alarm (e.g. a revoked custom sound URI)
+          // must not abort the whole batch and strand every later lesson
+          // unscheduled; only mark ids that actually made it to the OS.
+          nextIds.add(id);
+        } on PlatformException catch (error) {
+          // A silent `continue` here previously hid systemic failures
+          // (e.g. every offset sharing one revoked sound URI, or exact
+          // alarm permission dropped mid-session): sync would report
+          // success with scheduledCount 0 and nobody could tell why
+          // reminders stopped firing. Surface it instead.
+          debugPrint(
+            'ReminderReconciler: failed to schedule "${lesson.title}" '
+            '(+$offset min): $error',
+          );
+          continue;
         }
       }
     }
