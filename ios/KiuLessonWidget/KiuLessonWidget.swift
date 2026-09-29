@@ -140,7 +140,28 @@ private enum Palette {
   static func strong(_ dark: Bool) -> Color { dark ? rgb(245, 245, 245) : rgb(15, 15, 15) }
   static func muted(_ dark: Bool) -> Color { dark ? rgb(168, 168, 168) : rgb(115, 115, 115) }
   static func rule(_ dark: Bool) -> Color { dark ? rgb(38, 38, 38) : rgb(219, 219, 219) }
-  static func background(_ dark: Bool) -> Color { dark ? rgb(18, 18, 18) : rgb(255, 255, 255) }
+  /// Frosted backdrop for full-color mode: a faint brand tint, so the
+  /// translucent panels on top read as glass rather than grey boxes.
+  static func backdrop(_ dark: Bool) -> LinearGradient {
+    LinearGradient(
+      colors: dark
+        ? [rgb(34, 44, 40), rgb(14, 18, 16)]
+        : [rgb(250, 252, 251), rgb(222, 236, 229)],
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
+    )
+  }
+
+  static func panel(_ dark: Bool) -> Color { dark ? Color.white.opacity(0.07) : Color.white.opacity(0.62) }
+
+  /// The bright top edge that sells a pane as glass.
+  static func edge(_ dark: Bool) -> LinearGradient {
+    LinearGradient(
+      colors: [Color.white.opacity(dark ? 0.28 : 0.95), Color.white.opacity(dark ? 0.04 : 0.25)],
+      startPoint: .top,
+      endPoint: .bottom
+    )
+  }
 
   static func title(_ dark: Bool, started: Bool, today: Bool) -> Color {
     if started { return brand(dark) }
@@ -153,6 +174,11 @@ private enum Palette {
     if today { return dark ? rgb(212, 170, 82) : rgb(138, 101, 0) }
     return muted(dark)
   }
+
+  /// Status colors for icons on Liquid Glass: the theme palette's amber and
+  /// green are tuned for a white or black card and go muddy on glass.
+  static let glassAmber = rgb(255, 196, 64)
+  static let glassGreen = rgb(72, 222, 140)
 
   private static func rgb(_ r: Double, _ g: Double, _ b: Double) -> Color {
     Color(red: r / 255, green: g / 255, blue: b / 255)
@@ -189,6 +215,11 @@ struct LessonWidgetView: View {
   let entry: LessonEntry
   @Environment(\.widgetFamily) private var family
   @Environment(\.colorScheme) private var systemScheme
+  /// `.accented` is the Home Screen's Clear or Tinted style: iOS draws the
+  /// Liquid Glass itself, removes our background and tints what is marked
+  /// accentable, so the view must not paint its own surfaces or colors.
+  @Environment(\.widgetRenderingMode) private var renderingMode
+  private var systemGlass: Bool { renderingMode != .fullColor }
 
   private var snapshot: LessonSnapshot { entry.snapshot }
   /// Follows the in-app Appearance setting, like the Android widget.
@@ -197,7 +228,7 @@ struct LessonWidgetView: View {
   private var rowLimit: Int {
     switch family {
     case .systemSmall: return 2
-    case .systemMedium: return 3
+    case .systemMedium: return 4
     default: return 7
     }
   }
@@ -212,7 +243,7 @@ struct LessonWidgetView: View {
     }
     .widgetURL(openAppURL)
     .environment(\.colorScheme, dark ? .dark : .light)
-    .containerBackground(for: .widget) { Palette.background(dark) }
+    .containerBackground(for: .widget) { Palette.backdrop(dark) }
   }
 
   private var board: some View {
@@ -229,10 +260,16 @@ struct LessonWidgetView: View {
         rows
         Spacer(minLength: 0)
       }
-      if family != .systemSmall {
-        footer
-      }
     }
+  }
+
+  /// "Last sync: 12:28" trimmed to its time, since the refresh icon beside it
+  /// already says what the time is; a status such as "Open KIU and sign in"
+  /// wins, because it is the thing to act on.
+  private var syncCaption: String {
+    if !snapshot.status.isEmpty { return snapshot.status }
+    guard let separator = snapshot.lastSync.range(of: ": ") else { return snapshot.lastSync }
+    return String(snapshot.lastSync[separator.upperBound...])
   }
 
   private var header: some View {
@@ -242,8 +279,7 @@ struct LessonWidgetView: View {
           .font(.headline.weight(.bold))
           .foregroundStyle(Palette.brand(dark))
           .widgetAccentable()
-        // Only the large size has a spare line; on medium it pushed the
-        // last-sync footer off the bottom edge.
+        // Only the large size has a spare line for it.
         if family == .systemLarge {
           Text(snapshot.subtitle)
             .font(.caption2)
@@ -252,12 +288,41 @@ struct LessonWidgetView: View {
         }
       }
       Spacer(minLength: 4)
+      if family != .systemSmall, let next = snapshot.lessons.first(where: { $0.startDate > entry.date }) {
+        // Counts down live on its own -- WidgetKit re-renders relative dates
+        // without a timeline entry.
+        HStack(spacing: 3) {
+          glassColoredIcon(
+            "hourglass",
+            color: systemGlass ? Palette.glassAmber : Palette.title(dark, started: false, today: true),
+            font: .caption2.weight(.semibold)
+          )
+          Text(next.startDate, style: .relative)
+            .foregroundStyle(Palette.strong(dark))
+            .monospacedDigit()
+        }
+        .font(.caption2.weight(.semibold))
+        .lineLimit(1)
+      }
+      if family != .systemSmall {
+        // Last sync (or the sync status while it matters) sits next to the
+        // button that refreshes it, so the two read as one control.
+        Text(syncCaption)
+          .font(.caption2)
+          .foregroundStyle(Palette.muted(dark))
+          .lineLimit(1)
+      }
       Link(destination: openAppURL) {
         Image(systemName: snapshot.syncing ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
           .font(.caption.weight(.semibold))
           .foregroundStyle(Palette.strong(dark))
           .padding(6)
-          .background(Circle().fill(Palette.rule(dark)))
+          .background {
+            if !systemGlass {
+              Circle().fill(Palette.panel(dark))
+                .overlay(Circle().strokeBorder(Palette.edge(dark), lineWidth: 0.8))
+            }
+          }
           .accessibilityLabel(snapshot.syncLabel)
       }
     }
@@ -265,7 +330,7 @@ struct LessonWidgetView: View {
 
   private var rows: some View {
     let shown = Array(snapshot.lessons.prefix(rowLimit))
-    return VStack(alignment: .leading, spacing: 4) {
+    return VStack(alignment: .leading, spacing: 3) {
       ForEach(Array(shown.enumerated()), id: \.element.id) { index, lesson in
         let group = snapshot.group(of: lesson, at: entry.date)
         if family != .systemSmall,
@@ -286,34 +351,68 @@ struct LessonWidgetView: View {
     let started = lesson.startDate <= entry.date
     let today = group == .today
     let content = HStack(spacing: 6) {
-      RoundedRectangle(cornerRadius: 1.5)
-        .fill(Palette.title(dark, started: started, today: today))
-        .frame(width: 3)
-        .opacity(started || today ? 1 : 0)
-        .widgetAccentable()
+      // The one element that keeps its color in the Clear and Tinted styles,
+      // where iOS flattens text and shapes to a single tint: green "live" for
+      // a started lesson, amber clock for later today, grey calendar after.
+      glassColoredIcon(
+        started ? "dot.radiowaves.left.and.right" : today ? "clock.fill" : "calendar",
+        color: statusColor(started: started, today: today),
+        font: .system(size: systemGlass ? 12 : 10, weight: .semibold)
+      )
+        .frame(width: 14)
       Text(lesson.title)
         .font(.caption.weight(started || today ? .semibold : .regular))
         .foregroundStyle(Palette.title(dark, started: started, today: today))
         .lineLimit(1)
       Spacer(minLength: 4)
-      Text(family == .systemSmall ? String(lesson.displayStart.prefix(5)) : lesson.displayStart)
+      // Today and Tomorrow rows sit under a heading that already names the
+      // day, so the time alone is enough and leaves room for the title.
+      Text(family == .systemSmall || group != .others ? String(lesson.displayStart.prefix(5)) : lesson.displayStart)
         .font(.caption2.monospacedDigit())
         .foregroundStyle(Palette.time(dark, started: started, today: today))
         .lineLimit(1)
     }
-    .frame(height: 18)
+    .frame(height: 17)
+    .padding(.horizontal, 6)
+    .padding(.vertical, 1.5)
+    // In the glass styles brightness is the only hierarchy left, so later
+    // lessons step back behind today's.
+    .opacity(systemGlass && !(started || today) ? 0.65 : 1)
+    let pane = glassPane(radius: 9) { content }
     if started, let url = joinURL(for: lesson) {
-      Link(destination: url) { content }
+      Link(destination: url) { pane }
     } else {
-      content
+      pane
     }
   }
 
-  private var footer: some View {
-    Text(snapshot.status.isEmpty ? snapshot.lastSync : snapshot.status)
-      .font(.caption2)
-      .foregroundStyle(Palette.muted(dark))
-      .lineLimit(1)
+  private func statusColor(started: Bool, today: Bool) -> Color {
+    if systemGlass {
+      if started { return Palette.glassGreen }
+      if today { return Palette.glassAmber }
+      return .white.opacity(0.7)
+    }
+    return started || today ? Palette.title(dark, started: started, today: today) : Palette.muted(dark)
+  }
+
+  /// A frosted pane in full color; nothing in the system glass styles, where
+  /// iOS already provides the glass.
+  @ViewBuilder
+  private func glassPane<Content: View>(radius: CGFloat, @ViewBuilder _ content: () -> Content) -> some View {
+    if systemGlass {
+      content()
+    } else {
+      content()
+        .background(
+          RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(Palette.panel(dark))
+            .overlay(
+              RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Palette.edge(dark), lineWidth: 0.8)
+            )
+            .shadow(color: .black.opacity(dark ? 0.25 : 0.06), radius: 3, y: 1)
+        )
+    }
   }
 
   /// Lock Screen: the next lesson only, in the system's monochrome style.
@@ -352,5 +451,22 @@ struct KiuLessonWidget: Widget {
 struct KiuWidgetBundle: WidgetBundle {
   var body: some Widget {
     KiuLessonWidget()
+  }
+}
+
+/// A status icon that keeps its color in the Clear and Tinted styles (iOS
+/// 18+), where iOS otherwise flattens everything to one tint -- the only way
+/// to keep green and amber on Liquid Glass.
+@ViewBuilder
+func glassColoredIcon(_ name: String, color: Color, font: Font) -> some View {
+  if #available(iOS 18.0, *) {
+    Image(systemName: name)
+      .widgetAccentedRenderingMode(.fullColor)
+      .font(font)
+      .foregroundStyle(color)
+  } else {
+    Image(systemName: name)
+      .font(font)
+      .foregroundStyle(color)
   }
 }
