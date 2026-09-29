@@ -6,6 +6,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../core/activation.dart';
 import '../core/constants.dart';
+import '../core/platform.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
@@ -25,13 +26,32 @@ abstract interface class BackgroundScheduler {
 class WorkManagerScheduler implements BackgroundScheduler {
   static const _interval = Duration(minutes: 5);
 
-  static Future<void> scheduleNext() => Workmanager().registerOneOffTask(
-    backgroundTaskUniqueName,
-    backgroundTaskName,
-    initialDelay: _interval,
-    constraints: Constraints(networkType: NetworkType.connected),
-    existingWorkPolicy: ExistingWorkPolicy.update,
-  );
+  /// iOS decides by itself when an app refresh actually runs -- typically a
+  /// few times a day for an app the user opens often -- so this only sets the
+  /// earliest start. Reminders therefore rely on the schedule cached by the
+  /// last sync, which foreground syncs keep fresh.
+  static const _iosEarliestRefresh = Duration(minutes: 15);
+
+  static Future<void> scheduleNext() => runsOnIOS
+      // A BGAppRefreshTask, identified by the unique name, which is also the
+      // `BGTaskSchedulerPermittedIdentifiers` entry and the task name the
+      // callback dispatcher receives. A one-off would only run while the app
+      // is still alive in the background, which is exactly when it is not
+      // needed.
+      ? Workmanager().registerPeriodicTask(
+          backgroundTaskUniqueName,
+          backgroundTaskName,
+          frequency: _iosEarliestRefresh,
+          initialDelay: _iosEarliestRefresh,
+          constraints: Constraints(networkType: NetworkType.connected),
+        )
+      : Workmanager().registerOneOffTask(
+          backgroundTaskUniqueName,
+          backgroundTaskName,
+          initialDelay: _interval,
+          constraints: Constraints(networkType: NetworkType.connected),
+          existingWorkPolicy: ExistingWorkPolicy.update,
+        );
 
   @override
   Future<void> setEnabled(bool enabled) async {

@@ -8,10 +8,12 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../app/app_controller.dart';
 import '../core/activation.dart';
 import '../core/constants.dart';
+import '../core/platform.dart';
 import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
@@ -152,7 +154,7 @@ class _BrowserPageState extends State<BrowserPage>
         ? requestedUri
         : Uri.parse(_homeUrl);
     _currentUri = initialUri;
-    _webView = WebViewController()
+    _webView = WebViewController.fromPlatformCreationParams(_creationParams())
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(surfaceFor(_brightness))
       ..addJavaScriptChannel(
@@ -182,8 +184,28 @@ class _BrowserPageState extends State<BrowserPage>
     _startForegroundSync();
   }
 
+  /// WKWebView plays video fullscreen-only and waits for a tap unless told
+  /// otherwise at creation -- neither can be changed once the view exists.
+  /// Inline playback keeps lesson videos inside the page, where the injected
+  /// speed, resume and progress scripts can reach them.
+  static PlatformWebViewControllerCreationParams _creationParams() {
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      return WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    }
+    return const PlatformWebViewControllerCreationParams();
+  }
+
   void _configureAndroidVideo() {
     final platform = _webView.platform;
+    if (platform is WebKitWebViewController) {
+      // The edge swipe iOS users expect for Back; Android has its own gesture.
+      platform.setAllowsBackForwardNavigationGestures(true);
+      return;
+    }
+
     if (platform is! AndroidWebViewController) return;
     platform.setMediaPlaybackRequiresUserGesture(false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -515,7 +537,8 @@ class _BrowserPageState extends State<BrowserPage>
     final result = await widget.controller.runPermissionOnboarding(
       explain: _explainPermission,
     );
-    if (!mounted) return;
+    // Calls do not exist on iOS, so there is no outcome worth reporting.
+    if (!mounted || runsOnIOS) return;
     // Only worth a message when calls were the thing at stake. Silence on the
     // happy path would leave the user wondering whether anything took.
     ScaffoldMessenger.of(context).showSnackBar(
@@ -582,7 +605,8 @@ class _BrowserPageState extends State<BrowserPage>
   }
 
   Future<void> _maybeExplainBackgroundAccess() async {
-    if (_backgroundPromptOpen ||
+    if (runsOnIOS ||
+        _backgroundPromptOpen ||
         !widget.controller.shouldShowBackgroundExplainer ||
         !mounted) {
       return;
@@ -1692,25 +1716,28 @@ class _BrowserPageState extends State<BrowserPage>
                                   setSheetState(() {});
                                 },
                               ),
-                              SettingsRow(
-                                key: const Key('notification-sound-settings'),
-                                icon: Icons.music_note_rounded,
-                                title: strings.sound,
-                                value: settings.reminderSoundUri == null
-                                    ? strings.defaultSound
-                                    : settings.reminderSoundName ??
-                                          strings.soundSelected,
-                                trailing: const Icon(
-                                  Icons.chevron_right_rounded,
+                              // iOS can only play sounds bundled in the app,
+                              // not pick a system sound by URI.
+                              if (!runsOnIOS)
+                                SettingsRow(
+                                  key: const Key('notification-sound-settings'),
+                                  icon: Icons.music_note_rounded,
+                                  title: strings.sound,
+                                  value: settings.reminderSoundUri == null
+                                      ? strings.defaultSound
+                                      : settings.reminderSoundName ??
+                                            strings.soundSelected,
+                                  trailing: const Icon(
+                                    Icons.chevron_right_rounded,
+                                  ),
+                                  // Close this sheet first: the sound page
+                                  // reopens it on the way back, and leaving it
+                                  // mounted would stack a second copy.
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _openSoundSettings();
+                                  },
                                 ),
-                                // Close this sheet first: the sound page
-                                // reopens it on the way back, and leaving it
-                                // mounted would stack a second copy.
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  _openSoundSettings();
-                                },
-                              ),
                             ],
                           ),
                           _reminderTimesSection(
@@ -1720,8 +1747,13 @@ class _BrowserPageState extends State<BrowserPage>
                             toggleOffset: toggleOffset,
                             setSheetState: setSheetState,
                           ),
-                          _callsSection(settings, setSheetState),
-                          _permissionsSection(settings, setSheetState),
+                          // Full-screen calls and the permissions behind them
+                          // are Android-only; iOS cannot open an app's screen
+                          // on its own.
+                          if (!runsOnIOS) ...[
+                            _callsSection(settings, setSheetState),
+                            _permissionsSection(settings, setSheetState),
+                          ],
                         ],
                       ),
                     ),
@@ -2223,7 +2255,9 @@ class _BrowserPageState extends State<BrowserPage>
             key: const Key('background-sync-switch'),
             icon: Icons.cloud_sync_rounded,
             title: strings.backgroundSync,
-            hint: strings.backgroundSyncHelp,
+            hint: runsOnIOS
+                ? strings.backgroundSyncHelpIos
+                : strings.backgroundSyncHelp,
             value: settings.backgroundSyncEnabled,
             onChanged: (value) async {
               await widget.controller.setBackgroundSyncEnabled(value);
@@ -2297,54 +2331,58 @@ class _BrowserPageState extends State<BrowserPage>
         // update notifier so the row that *announces* an update is also the
         // one that downloads it -- a separate button below read as unrelated
         // to the line above it.
-        ValueListenableBuilder<AppUpdate?>(
-          valueListenable: widget.controller.availableUpdate,
-          builder: (context, update, _) {
-            // A mandatory update never renders here: the gate has already
-            // replaced this whole page by the time it exists.
-            final pending = downloader != null && update != null
-                ? update
-                : null;
-            return ValueListenableBuilder<DateTime?>(
-              valueListenable: widget.controller.updateCheckState,
-              builder: (context, lastChecked, _) => SettingsRow(
-                key: const Key('check-updates'),
-                icon: Icons.system_update_rounded,
-                title: texts.checkForUpdates,
-                value: switch ((_checking, _checkResult)) {
-                  (true, _) => texts.checking,
-                  (_, final result?) => result,
-                  _ => texts.lastChecked(
-                    lastChecked == null
-                        ? texts.never
-                        : DateFormat('dd.MM.yyyy HH:mm').format(lastChecked),
-                  ),
-                },
-                // A pending update takes the subtitle over entirely: the
-                // version, then the progress bar and any failure, none of
-                // which fit the single line `value` allows.
-                valueWidget: pending == null || _checking
-                    ? null
-                    : updateRowStatus(pending, downloader!, texts),
-                trailing: switch ((_checking, pending)) {
-                  (true, _) => const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2.2),
-                  ),
-                  (_, final update?) => UpdateRowButton(
-                    update: update,
-                    downloader: downloader!,
-                  ),
-                  _ => const Icon(Icons.refresh_rounded),
-                },
-                // Tapping the row still re-checks; the update itself is behind
-                // the button, so the two actions never collide.
-                onTap: _checking ? null : () => _checkForUpdates(setSheetState),
-              ),
-            );
-          },
-        ),
+        // App Store and TestFlight deliver iOS updates themselves.
+        if (!runsOnIOS)
+          ValueListenableBuilder<AppUpdate?>(
+            valueListenable: widget.controller.availableUpdate,
+            builder: (context, update, _) {
+              // A mandatory update never renders here: the gate has already
+              // replaced this whole page by the time it exists.
+              final pending = downloader != null && update != null
+                  ? update
+                  : null;
+              return ValueListenableBuilder<DateTime?>(
+                valueListenable: widget.controller.updateCheckState,
+                builder: (context, lastChecked, _) => SettingsRow(
+                  key: const Key('check-updates'),
+                  icon: Icons.system_update_rounded,
+                  title: texts.checkForUpdates,
+                  value: switch ((_checking, _checkResult)) {
+                    (true, _) => texts.checking,
+                    (_, final result?) => result,
+                    _ => texts.lastChecked(
+                      lastChecked == null
+                          ? texts.never
+                          : DateFormat('dd.MM.yyyy HH:mm').format(lastChecked),
+                    ),
+                  },
+                  // A pending update takes the subtitle over entirely: the
+                  // version, then the progress bar and any failure, none of
+                  // which fit the single line `value` allows.
+                  valueWidget: pending == null || _checking
+                      ? null
+                      : updateRowStatus(pending, downloader!, texts),
+                  trailing: switch ((_checking, pending)) {
+                    (true, _) => const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    ),
+                    (_, final update?) => UpdateRowButton(
+                      update: update,
+                      downloader: downloader!,
+                    ),
+                    _ => const Icon(Icons.refresh_rounded),
+                  },
+                  // Tapping the row still re-checks; the update itself is behind
+                  // the button, so the two actions never collide.
+                  onTap: _checking
+                      ? null
+                      : () => _checkForUpdates(setSheetState),
+                ),
+              );
+            },
+          ),
       ],
     );
   }

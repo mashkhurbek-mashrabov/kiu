@@ -6,6 +6,7 @@ import 'package:workmanager/workmanager.dart';
 import 'app/app.dart';
 import 'app/app_controller.dart';
 import 'core/constants.dart';
+import 'core/platform.dart';
 import 'data/settings_repository.dart';
 import 'domain/lesson.dart';
 import 'services/notification_service.dart';
@@ -21,7 +22,11 @@ import 'services/update_service.dart';
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task != backgroundTaskName) return true;
+    // iOS hands back the BGTaskScheduler identifier, which is the unique name,
+    // rather than the task name Android forwards.
+    if (task != backgroundTaskName && task != backgroundTaskUniqueName) {
+      return true;
+    }
     return _runBackgroundSync();
   });
 }
@@ -72,7 +77,7 @@ Future<bool> _runBackgroundSync({bool force = false}) async {
   try {
     final notifications = LocalNotificationGateway();
     await notifications.initialize();
-    final lessonWidgets = HomeLessonWidgetGateway();
+    final lessonWidgets = runsOnIOS ? null : HomeLessonWidgetGateway();
     final fetcher = ScheduleFetcher(cookieProvider: AndroidCookieProvider());
     final reconciler = ReminderReconciler(
       repository: repository,
@@ -102,23 +107,29 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   TimeZoneService.initialize();
   await Workmanager().initialize(callbackDispatcher);
-  await HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
+  // The iOS widget has no interactive Sync or call toggles, and its data
+  // store needs an App Group that only a signed build can have.
+  if (!runsOnIOS) {
+    await HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
+  }
 
   final preferences = await SharedPreferences.getInstance();
   final repository = SettingsRepository(preferences);
   final notifications = LocalNotificationGateway();
   final homeRequests = ValueNotifier<int>(0);
   final navigationRequests = ValueNotifier<Uri?>(
-    await HomeWidget.initiallyLaunchedFromHomeWidget(),
+    runsOnIOS ? null : await HomeWidget.initiallyLaunchedFromHomeWidget(),
   );
-  HomeWidget.widgetClicked.listen((uri) {
-    if (uri != null && isTrustedHttps(uri)) {
-      navigationRequests.value = uri;
-    }
-  });
+  if (!runsOnIOS) {
+    HomeWidget.widgetClicked.listen((uri) {
+      if (uri != null && isTrustedHttps(uri)) {
+        navigationRequests.value = uri;
+      }
+    });
+  }
   await notifications.initialize(onTap: (_) => homeRequests.value++);
   final fetcher = ScheduleFetcher(cookieProvider: AndroidCookieProvider());
-  final lessonWidgets = HomeLessonWidgetGateway();
+  final lessonWidgets = runsOnIOS ? null : HomeLessonWidgetGateway();
   final reconciler = ReminderReconciler(
     repository: repository,
     notifications: notifications,
@@ -134,7 +145,9 @@ Future<void> main() async {
     reconciler: reconciler,
     notifications: notifications,
     lessonWidgets: lessonWidgets,
-    updateChecker: GitHubUpdateChecker(),
+    // iOS installs only come from the App Store or TestFlight, which deliver
+    // their own updates; an app may not download and install code itself.
+    updateChecker: runsOnIOS ? null : GitHubUpdateChecker(),
   );
   await controller.initialize();
   runApp(
@@ -142,7 +155,9 @@ Future<void> main() async {
       controller: controller,
       homeRequests: homeRequests,
       navigationRequests: navigationRequests,
-      updateDownloader: UpdateDownloader(installer: AndroidApkInstaller()),
+      updateDownloader: runsOnIOS
+          ? null
+          : UpdateDownloader(installer: AndroidApkInstaller()),
     ),
   );
 }

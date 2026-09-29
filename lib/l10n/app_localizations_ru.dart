@@ -168,6 +168,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Проверяет расписание каждые 5 минут, пока KIU закрыт.';
 
   @override
+  String get backgroundSyncHelpIos =>
+      'Проверяет расписание, пока KIU закрыт, когда это позволяет iOS.';
+
+  @override
   String get backgroundAccess => 'Доступ к батарее';
 
   @override
@@ -361,7 +365,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'Отправляет уведомление перед началом каждого урока.';
 
   @override
-  String get themeSystemHelp => 'Следует светлой или тёмной теме Android.';
+  String get themeSystemHelp => 'Следует светлой или тёмной теме телефона.';
 
   @override
   String get close => 'Закрыть';

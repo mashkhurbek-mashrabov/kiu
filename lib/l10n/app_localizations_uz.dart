@@ -168,6 +168,10 @@ class AppLocalizationsUz extends AppLocalizations {
       'KIU yopiq bo‘lganda jadvalni har 5 daqiqada tekshiradi.';
 
   @override
+  String get backgroundSyncHelpIos =>
+      'KIU yopiq bo‘lganda iOS ruxsat bergan paytlarda jadvalni tekshiradi.';
+
+  @override
   String get backgroundAccess => 'Batareya ruxsati';
 
   @override
@@ -362,7 +366,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get themeSystemHelp =>
-      'Android’dagi yorug‘ yoki tungi sozlamaga ergashadi.';
+      'Telefondagi yorug‘ yoki tungi sozlamaga ergashadi.';
 
   @override
   String get close => 'Yopish';
@@ -729,6 +733,10 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
       'KIU ёпиқ бўлганда жадвални ҳар 5 дақиқада текширади.';
 
   @override
+  String get backgroundSyncHelpIos =>
+      'KIU ёпиқ бўлганда iOS рухсат берган пайтларда жадвални текширади.';
+
+  @override
   String get backgroundAccess => 'Батарея рухсати';
 
   @override
@@ -923,7 +931,7 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get themeSystemHelp =>
-      'Android’даги ёруғ ёки тунги созламага эргашади.';
+      'Телефондаги ёруғ ёки тунги созламага эргашади.';
 
   @override
   String get close => 'Ёпиш';

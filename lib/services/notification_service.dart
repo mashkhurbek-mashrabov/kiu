@@ -2,6 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../core/platform.dart';
+
 abstract interface class NotificationGateway {
   Future<void> initialize({void Function(String? payload)? onTap});
   Future<bool> requestNotificationPermission();
@@ -43,6 +45,14 @@ class LocalNotificationGateway implements NotificationGateway {
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('ic_notification'),
+        // No permission prompt at init: this also runs in the background
+        // isolate, and iOS asks exactly once, so the prompt belongs to the
+        // onboarding step that explains it first.
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestSoundPermission: false,
+          requestBadgePermission: false,
+        ),
       ),
       onDidReceiveNotificationResponse: (response) =>
           onTap?.call(response.payload),
@@ -54,17 +64,29 @@ class LocalNotificationGateway implements NotificationGateway {
         AndroidFlutterLocalNotificationsPlugin
       >();
 
+  IOSFlutterLocalNotificationsPlugin? get _ios => _plugin
+      .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin
+      >();
+
   @override
-  Future<bool> requestNotificationPermission() async =>
-      await _android?.requestNotificationsPermission() ?? true;
+  Future<bool> requestNotificationPermission() async {
+    final ios = _ios;
+    if (ios != null) {
+      return await ios.requestPermissions(alert: true, sound: true) ?? false;
+    }
+    return await _android?.requestNotificationsPermission() ?? true;
+  }
 
   @override
   Future<bool> requestExactAlarmPermission() async =>
       await _android?.requestExactAlarmsPermission() ?? false;
 
+  /// iOS delivers every scheduled notification on time and has no exact-alarm
+  /// permission, so it always counts as exact.
   @override
   Future<bool> canScheduleExactly() async =>
-      await _android?.canScheduleExactNotifications() ?? false;
+      runsOnIOS || (await _android?.canScheduleExactNotifications() ?? false);
 
   @override
   Future<NotificationSound?> selectSound({
@@ -120,6 +142,15 @@ class LocalNotificationGateway implements NotificationGateway {
           importance: Importance.high,
           priority: Priority.high,
           sound: sound,
+        ),
+        // Time-sensitive lets a reminder break through Focus modes, the
+        // closest iOS gets to Android's high-priority channel. Without the
+        // entitlement iOS quietly treats it as an ordinary alert.
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
         ),
       ),
       androidScheduleMode: exact
