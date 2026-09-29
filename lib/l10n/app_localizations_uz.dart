@@ -366,7 +366,11 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get themeSystemHelp =>
-      'Telefondagi yorug‘ yoki tungi sozlamaga ergashadi.';
+      'Android’dagi yorug‘ yoki tungi sozlamaga ergashadi.';
+
+  @override
+  String get themeSystemHelpIos =>
+      'iPhone’dagi yorug‘ yoki tungi sozlamaga ergashadi.';
 
   @override
   String get close => 'Yopish';
@@ -931,7 +935,11 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get themeSystemHelp =>
-      'Телефондаги ёруғ ёки тунги созламага эргашади.';
+      'Android’даги ёруғ ёки тунги созламага эргашади.';
+
+  @override
+  String get themeSystemHelpIos =>
+      'iPhone’даги ёруғ ёки тунги созламага эргашади.';
 
   @override
   String get close => 'Ёпиш';

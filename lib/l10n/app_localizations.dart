@@ -776,8 +776,14 @@ abstract class AppLocalizations {
   /// No description provided for @themeSystemHelp.
   ///
   /// In uz_Cyrl, this message translates to:
-  /// **'Телефондаги ёруғ ёки тунги созламага эргашади.'**
+  /// **'Android’даги ёруғ ёки тунги созламага эргашади.'**
   String get themeSystemHelp;
+
+  /// No description provided for @themeSystemHelpIos.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'iPhone’даги ёруғ ёки тунги созламага эргашади.'**
+  String get themeSystemHelpIos;
 
   /// No description provided for @close.
   ///

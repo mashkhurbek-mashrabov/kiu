@@ -22,6 +22,11 @@ private let scheduleSyncTaskIdentifier = "kiu.periodicScheduleSync"
     // plugins -- WebView cookies, preferences and notifications among them.
     WorkmanagerPlugin.setPluginRegistrantCallback { registry in
       GeneratedPluginRegistrant.register(with: registry)
+      // The background sync republishes the call schedule and re-arms the
+      // alarms, so the platform channel must exist in that engine too.
+      if let registrar = registry.registrar(forPlugin: "KiuPlatformPlugin") {
+        KiuPlatformPlugin.register(with: registrar)
+      }
     }
     // BGTaskScheduler requires every launch handler to be registered before
     // launch finishes; the Dart side only submits the request.
@@ -32,10 +37,43 @@ private let scheduleSyncTaskIdentifier = "kiu.periodicScheduleSync"
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  /// A fallback lesson call's Join opens the lesson; everything else goes to
+  /// flutter_local_notifications through the default handling.
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    if LessonCalls.handle(response) {
+      completionHandler()
+      return
+    }
+    super.userNotificationCenter(center, didReceive: response, withCompletionHandler: completionHandler)
+  }
+
+  /// A call that comes due while KIU is open rings the in-app call screen.
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    if notification.request.content.categoryIdentifier == LessonCalls.category {
+      // KIU is open: ring the full call screen instead of a banner, and keep
+      // the call in Notification Center in case it is missed.
+      LessonCalls.present(notification)
+      completionHandler([.list])
+      return
+    }
+    super.userNotificationCenter(center, willPresent: notification, withCompletionHandler: completionHandler)
+  }
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KiuPlatformPlugin") {
       KiuPlatformPlugin.register(with: registrar)
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KiuMediaSession") {
+      MediaSessionPlugin.register(with: registrar)
     }
     engineBridge.pluginRegistry.registrar(forPlugin: "KiuGlass")?
       .register(GlassBackgroundFactory(), withId: "kiu/glass")
@@ -44,11 +82,12 @@ private let scheduleSyncTaskIdentifier = "kiu.periodicScheduleSync"
 
 /// The iOS side of `com.mashkhurbek.kiu/platform`.
 ///
-/// Only the app version exists here. Everything else the Android channel
-/// carries -- battery, overlay and full-screen permissions, the APK installer,
-/// the system sound picker -- has no iOS counterpart, and the Dart side never
-/// calls it on iOS. An unknown method answers `notImplemented`, which Dart
-/// surfaces as `MissingPluginException` and already tolerates.
+/// The app version and the AlarmKit lesson calls live here. Everything else
+/// the Android channel carries -- battery, overlay and full-screen
+/// permissions, the APK installer, the system sound picker -- has no iOS
+/// counterpart, and the Dart side never calls it on iOS. An unknown method
+/// answers `notImplemented`, which Dart surfaces as `MissingPluginException`
+/// and already tolerates.
 final class KiuPlatformPlugin: NSObject, FlutterPlugin {
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
@@ -70,6 +109,18 @@ final class KiuPlatformPlugin: NSObject, FlutterPlugin {
       }
       // No ABI split on iOS: one binary serves every device.
       result(["versionName": name, "versionCode": build, "abi": 0])
+    case "lessonCallsAvailable":
+      result(LessonCalls.available)
+    case "alarmKitAvailable":
+      if #available(iOS 26.0, *) { result(true) } else { result(false) }
+    case "requestAlarmKitAuthorization":
+      Task { @MainActor in result(await LessonCalls.requestAlarmKitAuthorization()) }
+    case "lessonCallsAuthorized":
+      result(LessonCalls.alarmKitAuthorized)
+    case "requestLessonCallAuthorization":
+      Task { @MainActor in result(await LessonCalls.requestAuthorization()) }
+    case "rearmLessonCalls":
+      Task { @MainActor in result(await LessonCalls.rearm()) }
     default:
       result(FlutterMethodNotImplemented)
     }

@@ -40,6 +40,7 @@ Future<AppController> createController({
   required FakeBackgroundAccessGateway backgroundAccess,
   required ResumeWaiter resumeWaiter,
   FakeLessonWidgetGateway? lessonWidgets,
+  Future<bool> Function(String method)? iosPlatform,
 }) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
   final reconciler = ReminderReconciler(
@@ -58,6 +59,7 @@ Future<AppController> createController({
     scheduler: FakeBackgroundScheduler(),
     backgroundAccess: backgroundAccess,
     lessonWidgets: lessonWidgets,
+    iosPlatform: iosPlatform ?? (_) async => false,
     onboarding: PermissionOnboarding(
       notifications: notifications,
       backgroundAccess: backgroundAccess,

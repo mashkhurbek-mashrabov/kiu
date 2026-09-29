@@ -22,7 +22,7 @@ class _Version implements AppVersionProvider {
   Future<AppVersion> read() async => const AppVersion(name: '2.3.0', code: 38);
 }
 
-Future<AppController> _controller() async {
+Future<AppController> _controller({bool alarmKit = false}) async {
   final repository = SettingsRepository(await SharedPreferences.getInstance());
   final notifications = FakeNotificationGateway();
   final reconciler = ReminderReconciler(
@@ -41,14 +41,22 @@ Future<AppController> _controller() async {
     scheduler: FakeBackgroundScheduler(),
     appVersionProvider: _Version(),
     backgroundAccess: FakeBackgroundAccessGateway(),
+    // Stands in for the AlarmKit question; false is iOS before 26.
+    iosPlatform: (method) async => alarmKit && method == 'lessonCallsAvailable',
   );
   await controller.initialize();
   return controller;
 }
 
-Future<void> _openNotificationSettings(WidgetTester tester) async {
+Future<void> _openNotificationSettings(
+  WidgetTester tester, {
+  bool alarmKit = false,
+}) async {
   await tester.pumpWidget(
-    KiuApp(controller: await _controller(), homeRequests: ValueNotifier(0)),
+    KiuApp(
+      controller: await _controller(alarmKit: alarmKit),
+      homeRequests: ValueNotifier(0),
+    ),
   );
   await tester.tap(find.byKey(const Key('actions-menu')));
   await tester.pumpAndSettle();
@@ -59,7 +67,12 @@ Future<void> _openNotificationSettings(WidgetTester tester) async {
 void main() {
   setUp(() {
     WebViewPlatform.instance = FakeWebViewPlatform();
-    SharedPreferences.setMockInitialValues({'kiu.locale': 'en'});
+    // Onboarding already done, so the first-open permission flow on iOS does
+    // not put its explainer over the sheets these tests open.
+    SharedPreferences.setMockInitialValues({
+      'kiu.locale': 'en',
+      'kiu.permissionOnboardingShown': true,
+    });
     injectedScripts.clear();
     loadedUrls.clear();
     navigateTo = null;
@@ -96,6 +109,93 @@ void main() {
     expect(controller.settings.callsEnabled, isFalse);
   });
 
+  group('iOS onboarding and AlarmKit', () {
+    setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.iOS);
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    Future<({AppController controller, List<String> asked})> onboard({
+      required bool alarmKit,
+      required bool granted,
+      bool notifications = true,
+    }) async {
+      final asked = <String>[];
+      final controller = await createController(
+        notifications: FakeNotificationGateway()..permission = notifications,
+        backgroundAccess: FakeBackgroundAccessGateway(),
+        resumeWaiter: ImmediateResumeWaiter(),
+        iosPlatform: (method) async {
+          asked.add(method);
+          return switch (method) {
+            'alarmKitAvailable' => alarmKit,
+            'requestAlarmKitAuthorization' => granted,
+            'requestLessonCallAuthorization' => granted,
+            _ => false,
+          };
+        },
+      );
+      await controller.runPermissionOnboarding(
+        explain: RecordingExplainer().call,
+      );
+      return (controller: controller, asked: asked);
+    }
+
+    test('iOS 26 with AlarmKit allowed switches calls on', () async {
+      final run = await onboard(alarmKit: true, granted: true);
+      expect(run.asked, contains('requestAlarmKitAuthorization'));
+      expect(run.controller.settings.callsEnabled, isTrue);
+    });
+
+    test('a declined AlarmKit prompt leaves calls off', () async {
+      final run = await onboard(alarmKit: true, granted: false);
+      expect(run.controller.settings.callsEnabled, isFalse);
+    });
+
+    test('before iOS 26 AlarmKit is never asked for', () async {
+      final run = await onboard(alarmKit: false, granted: true);
+      expect(run.asked, isNot(contains('requestAlarmKitAuthorization')));
+      expect(run.controller.settings.callsEnabled, isFalse);
+    });
+
+    test('no alarm prompt after notifications were refused', () async {
+      final run = await onboard(
+        alarmKit: true,
+        granted: true,
+        notifications: false,
+      );
+      expect(run.asked, isNot(contains('requestAlarmKitAuthorization')));
+      expect(run.controller.settings.callsEnabled, isFalse);
+    });
+  });
+
+  testWidgets('a fresh iOS install asks for permissions on first open', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'en'});
+    await tester.pumpWidget(
+      KiuApp(controller: await _controller(), homeRequests: ValueNotifier(0)),
+    );
+    await tester.pumpAndSettle();
+
+    // The login page never reaches Home, yet the explainer is already up.
+    expect(
+      find.text('So KIU can tell you before a lesson starts.'),
+      findsOneWidget,
+    );
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  testWidgets('Android still waits for the first Home page', (tester) async {
+    SharedPreferences.setMockInitialValues({'kiu.locale': 'en'});
+    await tester.pumpWidget(
+      KiuApp(controller: await _controller(), homeRequests: ValueNotifier(0)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('So KIU can tell you before a lesson starts.'),
+      findsNothing,
+    );
+  });
+
   testWidgets(
     'iOS hides lesson calls, Android permissions and the sound picker',
     (tester) async {
@@ -111,6 +211,24 @@ void main() {
     },
     variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
+
+  testWidgets('iOS with AlarmKit offers calls, without Android-only knobs', (
+    tester,
+  ) async {
+    await _openNotificationSettings(tester, alarmKit: true);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('lesson-calls-switch')),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+
+    expect(find.byKey(const Key('lesson-calls-switch')), findsOneWidget);
+    // Ring duration sets how long the fallback and in-app screen ring; a
+    // system ringtone cannot be picked on iOS.
+    expect(find.byKey(const Key('call-ring-duration')), findsOneWidget);
+    expect(find.byKey(const Key('call-ringtone')), findsNothing);
+    expect(find.byKey(const Key('battery-access')), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
   testWidgets('Android still shows them', (tester) async {
     await _openNotificationSettings(tester);

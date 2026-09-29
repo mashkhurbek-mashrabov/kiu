@@ -365,7 +365,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Sends a notification before each lesson starts.';
 
   @override
-  String get themeSystemHelp => 'Follows your phone\'s light or dark setting.';
+  String get themeSystemHelp => 'Follows your Android light or dark setting.';
+
+  @override
+  String get themeSystemHelpIos =>
+      'Follows your iPhone\'s light or dark setting.';
 
   @override
   String get close => 'Close';

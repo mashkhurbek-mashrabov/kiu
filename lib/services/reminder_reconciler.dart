@@ -14,9 +14,10 @@ import 'time_zone_service.dart';
 const _notificationDeliveryGrace = Duration(hours: 1);
 
 /// iOS keeps only the 64 soonest pending notifications and silently drops the
-/// rest. Scheduling the soonest 60 ourselves leaves headroom and keeps the
-/// scheduled-id record honest; every sync and launch tops the queue back up.
-const iosPendingReminderLimit = 60;
+/// rest. Scheduling the soonest 48 ourselves keeps the scheduled-id record
+/// honest and leaves 16 slots for ringing lesson calls (5 calls x 3 rings, see
+/// `LessonCalls.swift`); every sync and launch tops the queue back up.
+const iosPendingReminderLimit = 48;
 
 class ReminderReconcileResult {
   const ReminderReconcileResult({

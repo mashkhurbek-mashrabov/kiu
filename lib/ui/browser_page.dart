@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -149,6 +150,15 @@ class _BrowserPageState extends State<BrowserPage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => unawaited(_offerOptionalUpdate()),
     );
+    // iOS asks on the very first open: none of its prompts (notifications,
+    // AlarmKit) depend on being signed in, and a student who never reaches
+    // the lessons page would otherwise never be asked. Android keeps asking
+    // from the first Home page, where its settings-screen trips make sense.
+    if (runsOnIOS) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => unawaited(_maybeRunPermissionOnboarding()),
+      );
+    }
     final requestedUri = widget.navigationRequests?.value;
     final initialUri = requestedUri != null && isTrustedHttps(requestedUri)
         ? requestedUri
@@ -537,14 +547,17 @@ class _BrowserPageState extends State<BrowserPage>
     final result = await widget.controller.runPermissionOnboarding(
       explain: _explainPermission,
     );
-    // Calls do not exist on iOS, so there is no outcome worth reporting.
-    if (!mounted || runsOnIOS) return;
+    if (!mounted) return;
+    // On iOS calls are opt-in unless AlarmKit was granted, so only a call
+    // actually switched on is worth reporting -- a "missing permission" note
+    // would point at Android settings that do not exist there.
+    if (runsOnIOS && !widget.controller.settings.callsEnabled) return;
     // Only worth a message when calls were the thing at stake. Silence on the
     // happy path would leave the user wondering whether anything took.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          result.callsUsable
+          result.callsUsable || runsOnIOS
               ? strings.callsEnabledAfterOnboarding
               : strings.callsDisabledMissingPermission,
         ),
@@ -949,9 +962,9 @@ class _BrowserPageState extends State<BrowserPage>
                               SettingsRow(
                                 key: const Key('notification-settings-menu'),
                                 icon: Icons.notifications_active_rounded,
-                                title: runsOnIOS
-                                    ? strings.sectionNotifications
-                                    : strings.notificationSettings,
+                                title: widget.controller.lessonCallsAvailable
+                                    ? strings.notificationSettings
+                                    : strings.sectionNotifications,
                                 trailing: const Icon(
                                   Icons.chevron_right_rounded,
                                 ),
@@ -1210,43 +1223,73 @@ class _BrowserPageState extends State<BrowserPage>
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              InfoHint(message: strings.themeSystemHelp),
+              InfoHint(
+                message: runsOnIOS
+                    ? strings.themeSystemHelpIos
+                    : strings.themeSystemHelp,
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          SegmentedButton<ThemeMode>(
-            showSelectedIcon: false,
-            style: const ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          if (runsOnIOS)
+            // The system's own sliding control, as in iOS Settings.
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoSlidingSegmentedControl<ThemeMode>(
+                groupValue: mode,
+                children: {
+                  for (final (value, icon) in [
+                    (ThemeMode.system, Icons.brightness_auto_rounded),
+                    (ThemeMode.light, Icons.light_mode_rounded),
+                    (ThemeMode.dark, Icons.dark_mode_rounded),
+                  ])
+                    value: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Icon(icon, size: 20),
+                    ),
+                },
+                onValueChanged: (value) async {
+                  if (value == null) return;
+                  await widget.controller.setThemeMode(value);
+                  await _applySiteTheme();
+                  setSheetState(() {});
+                },
+              ),
+            )
+          else
+            SegmentedButton<ThemeMode>(
+              showSelectedIcon: false,
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              segments: [
+                // Icons only: three translated labels do not fit across the
+                // sheet width, and the active mode is already named in the row
+                // above. Tooltips carry the name for anyone unsure of an icon.
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: const Icon(Icons.brightness_auto_rounded, size: 20),
+                  tooltip: strings.themeSystem,
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: const Icon(Icons.light_mode_rounded, size: 20),
+                  tooltip: strings.themeLight,
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: const Icon(Icons.dark_mode_rounded, size: 20),
+                  tooltip: strings.themeDark,
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (values) async {
+                await widget.controller.setThemeMode(values.first);
+                await _applySiteTheme();
+                setSheetState(() {});
+              },
             ),
-            segments: [
-              // Icons only: three translated labels do not fit across the
-              // sheet width, and the active mode is already named in the row
-              // above. Tooltips carry the name for anyone unsure of an icon.
-              ButtonSegment(
-                value: ThemeMode.system,
-                icon: const Icon(Icons.brightness_auto_rounded, size: 20),
-                tooltip: strings.themeSystem,
-              ),
-              ButtonSegment(
-                value: ThemeMode.light,
-                icon: const Icon(Icons.light_mode_rounded, size: 20),
-                tooltip: strings.themeLight,
-              ),
-              ButtonSegment(
-                value: ThemeMode.dark,
-                icon: const Icon(Icons.dark_mode_rounded, size: 20),
-                tooltip: strings.themeDark,
-              ),
-            ],
-            selected: {mode},
-            onSelectionChanged: (values) async {
-              await widget.controller.setThemeMode(values.first);
-              await _applySiteTheme();
-              setSheetState(() {});
-            },
-          ),
         ],
       ),
     );
@@ -1440,7 +1483,10 @@ class _BrowserPageState extends State<BrowserPage>
                                                   onPressed: () =>
                                                       _joinLesson(lesson),
                                                 )
-                                              : lessonEntity == null
+                                              : lessonEntity == null ||
+                                                    !widget
+                                                        .controller
+                                                        .lessonCallsAvailable
                                               ? null
                                               : _LessonCallToggle(
                                                   key: Key(
@@ -1688,9 +1734,9 @@ class _BrowserPageState extends State<BrowserPage>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SheetHeader(
-                    title: runsOnIOS
-                        ? strings.sectionNotifications
-                        : strings.notificationSettings,
+                    title: widget.controller.lessonCallsAvailable
+                        ? strings.notificationSettings
+                        : strings.sectionNotifications,
                     backTooltip: strings.back,
                     backKey: const Key('notification-settings-back'),
                   ),
@@ -1751,13 +1797,12 @@ class _BrowserPageState extends State<BrowserPage>
                             toggleOffset: toggleOffset,
                             setSheetState: setSheetState,
                           ),
-                          // Full-screen calls and the permissions behind them
-                          // are Android-only; iOS cannot open an app's screen
-                          // on its own.
-                          if (!runsOnIOS) ...[
+                          // iOS rings calls as AlarmKit alarms (iOS 26+) and
+                          // has none of the Android permissions behind them.
+                          if (widget.controller.lessonCallsAvailable)
                             _callsSection(settings, setSheetState),
+                          if (!runsOnIOS)
                             _permissionsSection(settings, setSheetState),
-                          ],
                         ],
                       ),
                     ),
@@ -2015,7 +2060,10 @@ class _BrowserPageState extends State<BrowserPage>
               icon: const Icon(Icons.delete_outline_rounded, size: 20),
               onPressed: enabled ? onDelete : null,
             ),
-          Switch(value: active, onChanged: enabled ? (_) => onTap() : null),
+          SettingsSwitch(
+            value: active,
+            onChanged: enabled ? (_) => onTap() : null,
+          ),
         ],
       ),
     );
@@ -2052,28 +2100,32 @@ class _BrowserPageState extends State<BrowserPage>
             setSheetState(() {});
           },
         ),
-        SettingsRow(
-          key: const Key('call-ringtone'),
-          icon: Icons.music_note_rounded,
-          title: strings.callRingtone,
-          value: settings.callRingtoneName ?? strings.defaultSound,
-          enabled: on,
-          trailing: on && settings.callRingtoneUri != null
-              ? IconButton(
-                  key: const Key('call-ringtone-reset'),
-                  tooltip: strings.defaultSound,
-                  icon: const Icon(Icons.settings_backup_restore_rounded),
-                  onPressed: () async {
-                    await widget.controller.clearCallRingtone();
-                    setSheetState(() {});
-                  },
-                )
-              : const Icon(Icons.chevron_right_rounded),
-          onTap: () async {
-            await widget.controller.selectCallRingtone();
-            setSheetState(() {});
-          },
-        ),
+        // iOS rings with KIU's own tone (or the system alarm sound under
+        // AlarmKit) and cannot play a system ringtone picked by URI.
+        if (!runsOnIOS) ...[
+          SettingsRow(
+            key: const Key('call-ringtone'),
+            icon: Icons.music_note_rounded,
+            title: strings.callRingtone,
+            value: settings.callRingtoneName ?? strings.defaultSound,
+            enabled: on,
+            trailing: on && settings.callRingtoneUri != null
+                ? IconButton(
+                    key: const Key('call-ringtone-reset'),
+                    tooltip: strings.defaultSound,
+                    icon: const Icon(Icons.settings_backup_restore_rounded),
+                    onPressed: () async {
+                      await widget.controller.clearCallRingtone();
+                      setSheetState(() {});
+                    },
+                  )
+                : const Icon(Icons.chevron_right_rounded),
+            onTap: () async {
+              await widget.controller.selectCallRingtone();
+              setSheetState(() {});
+            },
+          ),
+        ],
       ],
     );
   }
@@ -2863,32 +2915,34 @@ class _BrowserPageState extends State<BrowserPage>
                   ),
               ],
             ),
-            SettingsSection(
-              title: strings.apps,
-              icon: Icons.apps_rounded,
-              children: [
-                for (final link in const [
-                  (
-                    'Riyozus solihiyn',
-                    'https://play.google.com/store/apps/details?id=uz.hilolnashr.riyozus_solihiyn',
-                  ),
-                  (
-                    'Odoblar xazinasi',
-                    'https://play.google.com/store/apps/details?id=uz.hilol.odoblar',
-                  ),
-                  (
-                    'Arabcha-O‘zbekcha lug‘at',
-                    'https://play.google.com/store/apps/details?id=uz.hilal.javohir',
-                  ),
-                ])
-                  SettingsRow(
-                    icon: Icons.shop_rounded,
-                    title: link.$1,
-                    trailing: const Icon(Icons.open_in_new_rounded, size: 20),
-                    onTap: () => _launchExternal(link.$2),
-                  ),
-              ],
-            ),
+            // Google Play listings: Android apps an iPhone cannot install.
+            if (!runsOnIOS)
+              SettingsSection(
+                title: strings.apps,
+                icon: Icons.apps_rounded,
+                children: [
+                  for (final link in const [
+                    (
+                      'Riyozus solihiyn',
+                      'https://play.google.com/store/apps/details?id=uz.hilolnashr.riyozus_solihiyn',
+                    ),
+                    (
+                      'Odoblar xazinasi',
+                      'https://play.google.com/store/apps/details?id=uz.hilol.odoblar',
+                    ),
+                    (
+                      'Arabcha-O‘zbekcha lug‘at',
+                      'https://play.google.com/store/apps/details?id=uz.hilal.javohir',
+                    ),
+                  ])
+                    SettingsRow(
+                      icon: Icons.shop_rounded,
+                      title: link.$1,
+                      trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                      onTap: () => _launchExternal(link.$2),
+                    ),
+                ],
+              ),
           ],
         ),
       ),

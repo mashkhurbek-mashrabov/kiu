@@ -365,7 +365,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Отправляет уведомление перед началом каждого урока.';
 
   @override
-  String get themeSystemHelp => 'Следует светлой или тёмной теме телефона.';
+  String get themeSystemHelp => 'Следует светлой или тёмной теме Android.';
+
+  @override
+  String get themeSystemHelpIos => 'Следует светлой или тёмной теме iPhone.';
 
   @override
   String get close => 'Закрыть';
