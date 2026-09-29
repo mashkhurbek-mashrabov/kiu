@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'platform.dart';
+
 /// KIU brand green. Anchors both schemes; every other role is derived from it
 /// so light and dark stay the same family rather than two unrelated palettes.
 const Color kiuGreen = Color(0xFF176B45);
@@ -127,8 +129,18 @@ ColorScheme _scheme(Brightness brightness) {
   );
 }
 
+/// iOS system grouped colors, used for the settings sheets on iOS so they read
+/// as the platform's own Settings: a grey page with white (or near-black)
+/// rounded cards. Android keeps the flat surface it always had.
+Color iosGroupedBackground(Brightness brightness) =>
+    brightness == Brightness.dark ? Colors.black : const Color(0xFFF2F2F7);
+
+Color iosGroupedCard(Brightness brightness) =>
+    brightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.white;
+
 ThemeData kiuTheme(Brightness brightness) {
   final colors = _scheme(brightness);
+  final ios = runsOnIOS;
   return ThemeData(
     colorScheme: colors,
     scaffoldBackgroundColor: colors.surface,
@@ -147,17 +159,22 @@ ThemeData kiuTheme(Brightness brightness) {
       // The sheet is the settings surface itself, so it takes the plain
       // surface rather than a raised container: on light that is the pure
       // white the flat list needs.
-      backgroundColor: colors.surface,
+      backgroundColor: ios ? iosGroupedBackground(brightness) : colors.surface,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      // iOS 26 sheets have the larger, continuous corner of the system's own.
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(ios ? 38 : 28),
+        ),
       ),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: colors.surfaceContainerHigh,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ios ? 34 : 28),
+      ),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: colors.surface,
