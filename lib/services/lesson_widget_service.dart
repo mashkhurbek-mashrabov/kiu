@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 
+import '../core/platform.dart';
 import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
@@ -101,6 +102,13 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     'widgetSubtitle': _label(settings.localeTag, 'subtitle'),
     'emptyLabel': _label(settings.localeTag, 'empty'),
     'widgetDark': widgetDarkFlag(settings),
+    // WidgetKit renders future timeline entries on its own, days after a
+    // publish, so the iOS widget regroups rows itself and needs every group
+    // label plus the zone to decide "today" in.
+    'groupTodayLabel': _label(settings.localeTag, 'today'),
+    'groupTomorrowLabel': _label(settings.localeTag, 'tomorrow'),
+    'groupOthersLabel': _label(settings.localeTag, 'others'),
+    'widgetTimeZone': settings.timeZoneId,
   };
 
   /// One platform-channel round trip per key is unavoidable with `home_widget`,
@@ -113,6 +121,7 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
 
   Future<void> _update() => HomeWidget.updateWidget(
     qualifiedAndroidName: lessonWidgetQualifiedProvider,
+    iOSName: iosLessonWidgetKind,
   );
 }
 

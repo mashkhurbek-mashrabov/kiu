@@ -69,6 +69,7 @@ Future<void> _toggleLessonCall(Uri uri) async {
 Future<bool> _runBackgroundSync({bool force = false}) async {
   WidgetsFlutterBinding.ensureInitialized();
   TimeZoneService.initialize();
+  if (runsOnIOS) await HomeWidget.setAppGroupId(iosAppGroupId);
   final preferences = await SharedPreferences.getInstance();
   await preferences.reload();
   final repository = SettingsRepository(preferences);
@@ -77,7 +78,7 @@ Future<bool> _runBackgroundSync({bool force = false}) async {
   try {
     final notifications = LocalNotificationGateway();
     await notifications.initialize();
-    final lessonWidgets = runsOnIOS ? null : HomeLessonWidgetGateway();
+    final lessonWidgets = HomeLessonWidgetGateway();
     final fetcher = ScheduleFetcher(cookieProvider: AndroidCookieProvider());
     final reconciler = ReminderReconciler(
       repository: repository,
@@ -107,9 +108,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   TimeZoneService.initialize();
   await Workmanager().initialize(callbackDispatcher);
-  // The iOS widget has no interactive Sync or call toggles, and its data
-  // store needs an App Group that only a signed build can have.
-  if (!runsOnIOS) {
+  if (runsOnIOS) {
+    // Where `home_widget` keeps the payload the WidgetKit extension reads.
+    await HomeWidget.setAppGroupId(iosAppGroupId);
+  } else {
+    // The iOS widget's buttons reopen the app instead, whose resume sync does
+    // what Android's background Sync callback does.
     await HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
   }
 
@@ -118,18 +122,15 @@ Future<void> main() async {
   final notifications = LocalNotificationGateway();
   final homeRequests = ValueNotifier<int>(0);
   final navigationRequests = ValueNotifier<Uri?>(
-    runsOnIOS ? null : await HomeWidget.initiallyLaunchedFromHomeWidget(),
+    widgetLaunchTarget(await HomeWidget.initiallyLaunchedFromHomeWidget()),
   );
-  if (!runsOnIOS) {
-    HomeWidget.widgetClicked.listen((uri) {
-      if (uri != null && isTrustedHttps(uri)) {
-        navigationRequests.value = uri;
-      }
-    });
-  }
+  HomeWidget.widgetClicked.listen((uri) {
+    final target = widgetLaunchTarget(uri);
+    if (target != null) navigationRequests.value = target;
+  });
   await notifications.initialize(onTap: (_) => homeRequests.value++);
   final fetcher = ScheduleFetcher(cookieProvider: AndroidCookieProvider());
-  final lessonWidgets = runsOnIOS ? null : HomeLessonWidgetGateway();
+  final lessonWidgets = HomeLessonWidgetGateway();
   final reconciler = ReminderReconciler(
     repository: repository,
     notifications: notifications,
