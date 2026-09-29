@@ -3253,120 +3253,146 @@ class _BrowserPageState extends State<BrowserPage>
   /// one thing a floating bar must not do. Overlapping the page is intentional;
   /// the WebView scrolls under the glass.
   Widget _floatingNavBar() {
-    final colors = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Positioned(
       key: const Key('nav-bar'),
       left: _navBarSideInset,
       right: _navBarSideInset,
       // Clears the gesture bar without the large iOS-style float, as asked.
       bottom: MediaQuery.of(context).padding.bottom + _navBarBottomGap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(_navBarHeight / 2),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: _navBlurSigma,
-            sigmaY: _navBlurSigma,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              // Translucent so the page shows through the blur as glass. The
-              // hairline replaces the old top border: a pill floating over
-              // arbitrary page content needs an edge to stay legible on both
-              // a white page and a photo.
-              color: colors.surface.withValues(alpha: dark ? 0.62 : 0.72),
-              borderRadius: BorderRadius.circular(_navBarHeight / 2),
-              border: Border.all(
-                color: colors.outlineVariant.withValues(alpha: 0.45),
-              ),
-            ),
-            // The tooltips each action carries resolve their text style from
-            // the nearest Material ancestor. Transparent so the glass above
-            // still shows through -- nothing here paints ink any more.
-            child: Material(
-              type: MaterialType.transparency,
-              child: SizedBox(
-                height: _navBarHeight,
-                child: Stack(
+      child: _navBarSurface(
+        // The tooltips each action carries resolve their text style from
+        // the nearest Material ancestor. Transparent so the glass behind
+        // still shows through -- nothing here paints ink any more.
+        child: Material(
+          type: MaterialType.transparency,
+          child: SizedBox(
+            height: _navBarHeight,
+            child: Stack(
+              children: [
+                _selectionCapsule(),
+                Row(
                   children: [
-                    _selectionCapsule(),
-                    Row(
-                      children: [
-                        // Rounded variants throughout: Instagram's glyphs are
-                        // uniformly round-joined, so a boxy calendar or a
-                        // square-ended menu reads as a different icon set
-                        // sitting in the same bar.
-                        _navAction(
-                          key: const Key('nav-back'),
-                          icon: Icons.chevron_left_rounded,
-                          label: strings.back,
-                          enabled: _canBack,
-                          onTap: _goBack,
-                          // Swings left and springs back, echoing the
-                          // direction the page itself is about to move.
-                          animate: (glyph) => SlideTransition(
-                            position:
-                                Tween(
-                                  begin: Offset.zero,
-                                  end: const Offset(-0.35, 0),
-                                ).animate(
-                                  CurvedAnimation(
-                                    parent: _backNudge,
-                                    curve: Curves.easeOutBack,
-                                  ),
-                                ),
-                            child: glyph,
-                          ),
-                        ),
-                        _navAction(
-                          key: const Key('nav-home'),
-                          icon: Icons.home_outlined,
-                          selectedIcon: Icons.home_rounded,
-                          label: strings.home,
-                          selected: isCourseUri(_currentUri),
-                          onTap: _goCourseHome,
-                        ),
-                        _navAction(
-                          key: const Key('nav-lessons'),
-                          selectedKey: const Key('lessons-selected'),
-                          // Outline is calendar_month, not calendar_today:
-                          // the latter is a bare empty square, which next to
-                          // the detailed filled state looked like a missing
-                          // glyph rather than the same icon unselected.
-                          icon: Icons.calendar_month_outlined,
-                          selectedIcon: Icons.calendar_month_rounded,
-                          label: strings.scheduledLessons,
-                          selected: isHomeUri(_currentUri),
-                          onTap: _goHome,
-                        ),
-                        _navAction(
-                          key: const Key('nav-refresh'),
-                          icon: Icons.refresh_rounded,
-                          label: strings.refresh,
-                          onTap: _reload,
-                          // One full turn, which is the action itself rather
-                          // than a generic tap acknowledgement.
-                          animate: (glyph) => RotationTransition(
-                            turns: CurvedAnimation(
-                              parent: _refreshSpin,
-                              curve: Curves.easeInOutCubic,
+                    // Rounded variants throughout: Instagram's glyphs are
+                    // uniformly round-joined, so a boxy calendar or a
+                    // square-ended menu reads as a different icon set
+                    // sitting in the same bar.
+                    _navAction(
+                      key: const Key('nav-back'),
+                      icon: Icons.chevron_left_rounded,
+                      label: strings.back,
+                      enabled: _canBack,
+                      onTap: _goBack,
+                      // Swings left and springs back, echoing the
+                      // direction the page itself is about to move.
+                      animate: (glyph) => SlideTransition(
+                        position:
+                            Tween(
+                              begin: Offset.zero,
+                              end: const Offset(-0.35, 0),
+                            ).animate(
+                              CurvedAnimation(
+                                parent: _backNudge,
+                                curve: Curves.easeOutBack,
+                              ),
                             ),
-                            child: glyph,
-                          ),
+                        child: glyph,
+                      ),
+                    ),
+                    _navAction(
+                      key: const Key('nav-home'),
+                      icon: Icons.home_outlined,
+                      selectedIcon: Icons.home_rounded,
+                      label: strings.home,
+                      selected: isCourseUri(_currentUri),
+                      onTap: _goCourseHome,
+                    ),
+                    _navAction(
+                      key: const Key('nav-lessons'),
+                      selectedKey: const Key('lessons-selected'),
+                      // Outline is calendar_month, not calendar_today:
+                      // the latter is a bare empty square, which next to
+                      // the detailed filled state looked like a missing
+                      // glyph rather than the same icon unselected.
+                      icon: Icons.calendar_month_outlined,
+                      selectedIcon: Icons.calendar_month_rounded,
+                      label: strings.scheduledLessons,
+                      selected: isHomeUri(_currentUri),
+                      onTap: _goHome,
+                    ),
+                    _navAction(
+                      key: const Key('nav-refresh'),
+                      icon: Icons.refresh_rounded,
+                      label: strings.refresh,
+                      onTap: _reload,
+                      // One full turn, which is the action itself rather
+                      // than a generic tap acknowledgement.
+                      animate: (glyph) => RotationTransition(
+                        turns: CurvedAnimation(
+                          parent: _refreshSpin,
+                          curve: Curves.easeInOutCubic,
                         ),
-                        _navAction(
-                          key: const Key('actions-menu'),
-                          icon: Icons.menu_rounded,
-                          label: strings.settings,
-                          onTap: _openActions,
-                        ),
-                      ],
+                        child: glyph,
+                      ),
+                    ),
+                    _navAction(
+                      key: const Key('actions-menu'),
+                      icon: Icons.menu_rounded,
+                      label: strings.settings,
+                      onTap: _openActions,
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The pill the nav bar's buttons sit on.
+  ///
+  /// iOS gets the system's own Liquid Glass through the `kiu/glass` platform
+  /// view: Flutter cannot draw it, but a native view behind the buttons can,
+  /// and it refracts the real WebView under it. Android keeps the Flutter
+  /// blur it always had.
+  Widget _navBarSurface({required Widget child}) {
+    if (runsOnIOS) {
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: UiKitView(
+              // Recreated on an appearance change: the native side reads the
+              // mode once, at creation.
+              key: ValueKey(_brightness),
+              viewType: 'kiu/glass',
+              creationParams: {'dark': _brightness == Brightness.dark},
+              creationParamsCodec: const StandardMessageCodec(),
+            ),
+          ),
+          child,
+        ],
+      );
+    }
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(_navBarHeight / 2),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: _navBlurSigma, sigmaY: _navBlurSigma),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            // Translucent so the page shows through the blur as glass. The
+            // hairline replaces the old top border: a pill floating over
+            // arbitrary page content needs an edge to stay legible on both
+            // a white page and a photo.
+            color: colors.surface.withValues(alpha: dark ? 0.62 : 0.72),
+            borderRadius: BorderRadius.circular(_navBarHeight / 2),
+            border: Border.all(
+              color: colors.outlineVariant.withValues(alpha: 0.45),
+            ),
+          ),
+          child: child,
         ),
       ),
     );

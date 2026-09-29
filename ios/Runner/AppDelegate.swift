@@ -37,6 +37,8 @@ private let scheduleSyncTaskIdentifier = "kiu.periodicScheduleSync"
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KiuPlatformPlugin") {
       KiuPlatformPlugin.register(with: registrar)
     }
+    engineBridge.pluginRegistry.registrar(forPlugin: "KiuGlass")?
+      .register(GlassBackgroundFactory(), withId: "kiu/glass")
   }
 }
 
@@ -70,6 +72,66 @@ final class KiuPlatformPlugin: NSObject, FlutterPlugin {
       result(["versionName": name, "versionCode": build, "abi": 0])
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+}
+
+/// A system glass surface for Flutter chrome to sit on (`kiu/glass`).
+///
+/// Flutter paints its own widgets, so it cannot produce iOS 26's Liquid Glass.
+/// This view is the real `UIGlassEffect`, placed as a platform view *behind*
+/// the Flutter buttons: because the WebView is also a native view, the glass
+/// samples and refracts the actual page scrolling under it. Earlier iOS gets
+/// the system chrome blur instead.
+///
+/// Creation params: `dark` (Bool) pins the glass to the app's own appearance
+/// setting rather than the system's, the same way the rest of KIU does.
+final class GlassBackgroundFactory: NSObject, FlutterPlatformViewFactory {
+  func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+    FlutterStandardMessageCodec.sharedInstance()
+  }
+
+  func create(
+    withFrame frame: CGRect,
+    viewIdentifier viewId: Int64,
+    arguments args: Any?
+  ) -> FlutterPlatformView {
+    let dark = (args as? [String: Any])?["dark"] as? Bool ?? false
+    return GlassBackground(frame: frame, dark: dark)
+  }
+}
+
+private final class GlassBackground: NSObject, FlutterPlatformView {
+  private let effectView: CapsuleEffectView
+
+  init(frame: CGRect, dark: Bool) {
+    let effect: UIVisualEffect
+    if #available(iOS 26.0, *) {
+      effect = UIGlassEffect(style: .regular)
+    } else {
+      effect = UIBlurEffect(style: .systemChromeMaterial)
+    }
+    effectView = CapsuleEffectView(effect: effect)
+    effectView.frame = frame
+    effectView.overrideUserInterfaceStyle = dark ? .dark : .light
+    // Touches belong to the Flutter buttons drawn on top.
+    effectView.isUserInteractionEnabled = false
+    super.init()
+  }
+
+  func view() -> UIView { effectView }
+}
+
+/// Keeps the pill shape at whatever height Flutter lays the view out at.
+private final class CapsuleEffectView: UIVisualEffectView {
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    if #available(iOS 26.0, *) {
+      cornerConfiguration = .capsule()
+    } else {
+      layer.cornerCurve = .continuous
+      layer.cornerRadius = bounds.height / 2
+      clipsToBounds = true
     }
   }
 }
