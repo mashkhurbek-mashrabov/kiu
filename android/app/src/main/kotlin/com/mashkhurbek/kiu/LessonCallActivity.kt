@@ -2,6 +2,7 @@ package com.mashkhurbek.kiu
 
 import android.app.Activity
 import android.app.KeyguardManager
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -18,6 +19,7 @@ import android.os.CountDownTimer
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -57,6 +59,12 @@ class LessonCallActivity : Activity() {
 
     private val finishReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            // The power key never reaches an app as a KeyEvent; the screen going off is the
+            // only sign of it. Hush the call like a phone does, but leave it live to answer.
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                silence()
+                return
+            }
             if (intent.getIntExtra(LessonCallReceiver.EXTRA_REQUEST_CODE, -1) == requestCode) {
                 // Something already stopped this call, so leaving now must not re-ring it.
                 resolved = true
@@ -318,7 +326,9 @@ class LessonCallActivity : Activity() {
     }
 
     private fun registerFinishReceiver() {
-        val filter = IntentFilter(LessonCallReceiver.ACTION_FINISH_CALL_UI)
+        val filter = IntentFilter(LessonCallReceiver.ACTION_FINISH_CALL_UI).apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(finishReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
@@ -329,6 +339,16 @@ class LessonCallActivity : Activity() {
     }
 
     private fun startRinging(data: SharedPreferences) {
+        // Do Not Disturb leaves ringerMode at NORMAL, and this MediaPlayer is not routed through
+        // the notification system that enforces it, so check the filter ourselves: the screen
+        // still comes up, it just neither rings nor vibrates.
+        val filter = (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .currentInterruptionFilter
+        if (filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+            filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+        ) {
+            return
+        }
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (audioManager.ringerMode == AudioManager.RINGER_MODE_NORMAL) {
             val ringtoneUri = data.getString("callRingtoneUri", "")?.takeIf { it.isNotBlank() }
@@ -363,6 +383,21 @@ class LessonCallActivity : Activity() {
             @Suppress("DEPRECATION")
             vibrator?.vibrate(pattern, 0)
         }
+    }
+
+    /** Stops the ringtone and vibration; the call screen and its countdown stay up. */
+    private fun silence() {
+        releasePlayer()
+        vibrator?.cancel()
+    }
+
+    /** Either volume key silences the ring, as on an incoming phone call. */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            silence()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     /** First letter of the lesson name, so the avatar reads as a caller rather than a blank disc. */
