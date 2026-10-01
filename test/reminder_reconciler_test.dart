@@ -262,4 +262,52 @@ void main() {
       expect(repository.loadLessons(), [lesson]);
     },
   );
+
+  test('a pending limit keeps only the soonest reminders', () async {
+    final reconciler = ReminderReconciler(
+      repository: repository,
+      notifications: notifications,
+      now: () => DateTime.utc(2026, 9, 9, 12),
+      pendingLimit: 3,
+    );
+    // Listed latest first, so the cut has to come from sorting, not order.
+    const lessons = [
+      Lesson(title: 'Fiqh', websiteStart: '2026-09-12 19:00'),
+      Lesson(title: 'Aqida', websiteStart: '2026-09-11 19:00'),
+      Lesson(title: 'Tahfiz', websiteStart: '2026-09-10 19:00'),
+    ];
+    const settings = AppSettings(
+      remindersEnabled: true,
+      reminderOffsetsMinutes: [60, 0],
+    );
+
+    final result = await reconciler.reconcile(lessons, settings);
+
+    expect(result.scheduledCount, 3);
+    expect(
+      notifications.scheduled.values.map((call) => call.title),
+      unorderedEquals(['Tahfiz', 'Tahfiz', 'Aqida']),
+    );
+  });
+
+  test('without a limit every future reminder is scheduled', () async {
+    final reconciler = ReminderReconciler(
+      repository: repository,
+      notifications: notifications,
+      now: () => DateTime.utc(2026, 9, 9, 12),
+    );
+    final lessons = [
+      for (var day = 10; day < 30; day++)
+        Lesson(title: 'L$day', websiteStart: '2026-09-$day 19:00'),
+    ];
+    const settings = AppSettings(
+      remindersEnabled: true,
+      reminderOffsetsMinutes: [180, 60, 15, 0],
+    );
+
+    final result = await reconciler.reconcile(lessons, settings);
+
+    // 80 is past the iOS cap; Android must still get them all.
+    expect(result.scheduledCount, 80);
+  });
 }

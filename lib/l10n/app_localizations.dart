@@ -407,6 +407,12 @@ abstract class AppLocalizations {
   /// **'KIU ёпиқ бўлганда жадвални ҳар 5 дақиқада текширади.'**
   String get backgroundSyncHelp;
 
+  /// No description provided for @backgroundSyncHelpIos.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'KIU ёпиқ бўлганда iOS рухсат берган пайтларда жадвални текширади.'**
+  String get backgroundSyncHelpIos;
+
   /// No description provided for @backgroundAccess.
   ///
   /// In uz_Cyrl, this message translates to:
@@ -772,6 +778,12 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Android’даги ёруғ ёки тунги созламага эргашади.'**
   String get themeSystemHelp;
+
+  /// No description provided for @themeSystemHelpIos.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'iPhone’даги ёруғ ёки тунги созламага эргашади.'**
+  String get themeSystemHelpIos;
 
   /// No description provided for @close.
   ///

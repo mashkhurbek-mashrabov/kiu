@@ -6,6 +6,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../core/activation.dart';
 import '../core/constants.dart';
+import '../core/platform.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
@@ -25,13 +26,32 @@ abstract interface class BackgroundScheduler {
 class WorkManagerScheduler implements BackgroundScheduler {
   static const _interval = Duration(minutes: 5);
 
-  static Future<void> scheduleNext() => Workmanager().registerOneOffTask(
-    backgroundTaskUniqueName,
-    backgroundTaskName,
-    initialDelay: _interval,
-    constraints: Constraints(networkType: NetworkType.connected),
-    existingWorkPolicy: ExistingWorkPolicy.update,
-  );
+  /// iOS decides by itself when an app refresh actually runs -- typically a
+  /// few times a day for an app the user opens often -- so this only sets the
+  /// earliest start. Reminders therefore rely on the schedule cached by the
+  /// last sync, which foreground syncs keep fresh.
+  static const _iosEarliestRefresh = Duration(minutes: 15);
+
+  static Future<void> scheduleNext() => runsOnIOS
+      // A BGAppRefreshTask, identified by the unique name, which is also the
+      // `BGTaskSchedulerPermittedIdentifiers` entry and the task name the
+      // callback dispatcher receives. A one-off would only run while the app
+      // is still alive in the background, which is exactly when it is not
+      // needed.
+      ? Workmanager().registerPeriodicTask(
+          backgroundTaskUniqueName,
+          backgroundTaskName,
+          frequency: _iosEarliestRefresh,
+          initialDelay: _iosEarliestRefresh,
+          constraints: Constraints(networkType: NetworkType.connected),
+        )
+      : Workmanager().registerOneOffTask(
+          backgroundTaskUniqueName,
+          backgroundTaskName,
+          initialDelay: _interval,
+          constraints: Constraints(networkType: NetworkType.connected),
+          existingWorkPolicy: ExistingWorkPolicy.update,
+        );
 
   @override
   Future<void> setEnabled(bool enabled) async {
@@ -56,7 +76,9 @@ class AppController extends ChangeNotifier {
     LessonWidgetGateway? lessonWidgets,
     UpdateChecker? updateChecker,
     PermissionOnboarding? onboarding,
+    Future<bool> Function(String method)? iosPlatform,
   }) : _repository = repository,
+       _iosCall = iosPlatform ?? _askIosPlatform,
        _syncService = syncService,
        _reconciler = reconciler,
        _notifications = notifications,
@@ -89,6 +111,11 @@ class AppController extends ChangeNotifier {
   final LessonWidgetGateway? _lessonWidgets;
   final UpdateChecker? _updateChecker;
   late final PermissionOnboarding _onboarding;
+
+  /// Yes/no questions to the iOS side of the platform channel. Injected
+  /// because an unmocked channel call never resolves in a widget test (see
+  /// [canUseFullScreenIntent]); production uses [_askIosPlatform].
+  final Future<bool> Function(String method) _iosCall;
 
   AppSettings settings;
   ScheduleSyncStatus syncStatus = ScheduleSyncStatus.idle;
@@ -140,6 +167,10 @@ class AppController extends ChangeNotifier {
   // flash a red "not granted" badge during the channel round trip.
   bool batteryOptimizationDisabled = true;
   AppVersion? appVersion;
+
+  /// Whether this device can ring lesson calls at all. Always on Android; on
+  /// iOS only with AlarmKit (iOS 26+), asked once in [initialize].
+  bool lessonCallsAvailable = !runsOnIOS;
 
   List<Lesson> get scheduledLessons => _repository.loadLessons();
 
@@ -198,6 +229,9 @@ class AppController extends ChangeNotifier {
       }
     }
     exactTiming = await _notifications.canScheduleExactly();
+    if (runsOnIOS) {
+      lessonCallsAvailable = await _iosCall('lessonCallsAvailable');
+    }
     await _scheduler.setEnabled(settings.backgroundSyncEnabled);
     // Cold start must not depend on the WebView reaching the lessons page or
     // on a background WorkManager chain that may have died: re-arm cached
@@ -373,7 +407,17 @@ class AppController extends ChangeNotifier {
     await _repository.markBackgroundExplainerShown();
 
     final result = await _onboarding.run(explain: explain);
-    if (result.callsUsable && !settings.callsEnabled) {
+    // iOS 26+ rings calls as AlarmKit alarms -- the full-screen, Focus-piercing
+    // alert that is the closest iOS gets to Android's call screen -- so its
+    // permission is asked here, once, the way Android asks for overlay and
+    // full-screen access. Earlier iOS keeps calls off by default: its
+    // notification fallback is opt-in from Settings.
+    final alarmKitGranted =
+        runsOnIOS &&
+        result.notifications &&
+        await _iosCall('alarmKitAvailable') &&
+        await _iosCall('requestAlarmKitAuthorization');
+    if ((result.callsUsable || alarmKitGranted) && !settings.callsEnabled) {
       // Reuses the normal path: it persists, republishes the widget payload the
       // alarms ride on, and notifies. The permission it re-requests is already
       // granted at this point, so it cannot fail.
@@ -408,7 +452,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<bool> setCallsEnabled(bool enabled) async {
-    if (enabled && !await _notifications.requestNotificationPermission()) {
+    // iOS rings through AlarmKit, which has its own permission; Android
+    // posts the call as a notification.
+    final permitted = runsOnIOS
+        ? () => _iosCall('requestLessonCallAuthorization')
+        : _notifications.requestNotificationPermission;
+    if (enabled && !await permitted()) {
       return false;
     }
     settings = settings.copyWith(callsEnabled: enabled);
@@ -660,6 +709,17 @@ class AppController extends ChangeNotifier {
     availableUpdate.dispose();
     updateCheckState.dispose();
     super.dispose();
+  }
+
+  /// A yes/no question to the iOS platform channel; no answer means no.
+  static Future<bool> _askIosPlatform(String method) async {
+    try {
+      return await platformChannel.invokeMethod<bool>(method) ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
   }
 
   Future<void> _rescheduleCached() =>

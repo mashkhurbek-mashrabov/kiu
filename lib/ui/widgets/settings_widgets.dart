@@ -1,5 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/platform.dart';
 import '../../core/theme.dart';
 
 /// Shared building blocks for the settings surfaces.
@@ -47,6 +49,7 @@ class SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (runsOnIOS) return _iosSection(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return Padding(
@@ -128,6 +131,96 @@ class SettingsSection extends StatelessWidget {
   }
 }
 
+extension on SettingsSection {
+  /// iOS inset-grouped list, as in the system Settings app: a plain grey
+  /// caption, then borderless rounded cards whose hairlines start at the text.
+  Widget _iosSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
+    final secondary = brightness == Brightness.dark
+        ? const Color(0xFF8D8D93)
+        : const Color(0xFF6D6D72);
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 8, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: secondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -0.08,
+                    ),
+                  ),
+                ),
+                if (hint != null) InfoHint(message: hint!),
+                ?trailing,
+              ],
+            ),
+          ),
+          // Still a Material, for the same ink reason as the Android card.
+          Material(
+            color: iosGroupedCard(brightness),
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 0.5,
+                      thickness: 0.5,
+                      indent: 58,
+                      color: brightness == Brightness.dark
+                          ? const Color(0xFF38383A)
+                          : const Color(0xFFC6C6C8),
+                    ),
+                  children[i],
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The app's on/off switch: the iOS switch on iOS, Material elsewhere.
+///
+/// `Switch.adaptive` would do the swap too, but it keeps the Material track
+/// colors; the iOS green is what reads as "on" there.
+class SettingsSwitch extends StatelessWidget {
+  const SettingsSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => runsOnIOS
+      ? CupertinoSwitch(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: CupertinoColors.systemGreen,
+        )
+      : Switch(value: value, onChanged: onChanged);
+}
+
 /// Tappable info affordance carrying the long explanation a row used to show
 /// inline.
 ///
@@ -182,6 +275,22 @@ class SettingsLeading extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final disabled = colors.onSurface.withValues(alpha: 0.38);
+    if (runsOnIOS) {
+      // The iOS Settings tile: white glyph on a solid system color. Rows
+      // without a meaning-bearing color get a stable one from the icon, so
+      // the list has the platform's variety without anything shifting.
+      final tile =
+          color ?? _iosTileColors[icon.codePoint % _iosTileColors.length];
+      return Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: active ? tile : CupertinoColors.systemGrey,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 18, color: Colors.white),
+      );
+    }
     if (kFlatSettingsRows) {
       return SizedBox(
         width: 34,
@@ -207,6 +316,17 @@ class SettingsLeading extends StatelessWidget {
     );
   }
 }
+
+const _iosTileColors = <Color>[
+  CupertinoColors.systemBlue,
+  CupertinoColors.systemGreen,
+  CupertinoColors.systemOrange,
+  CupertinoColors.systemIndigo,
+  CupertinoColors.systemTeal,
+  CupertinoColors.systemPink,
+  CupertinoColors.systemPurple,
+  CupertinoColors.systemRed,
+];
 
 /// Granted / not-granted pill for a permission row.
 ///
@@ -303,7 +423,7 @@ class SettingsRow extends StatelessWidget {
     return ListTile(
       enabled: enabled,
       onTap: enabled ? onTap : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      contentPadding: EdgeInsets.symmetric(horizontal: runsOnIOS ? 16 : 12),
       minVerticalPadding: 12,
       shape: const RoundedRectangleBorder(),
       leading: SettingsLeading(icon, color: iconColor, active: enabled),
@@ -386,7 +506,7 @@ class SettingsSwitchRow extends StatelessWidget {
       ),
     );
     final content = ListTile(
-      contentPadding: const EdgeInsets.only(left: 12),
+      contentPadding: EdgeInsets.only(left: runsOnIOS ? 16 : 12),
       minVerticalPadding: 12,
       shape: const RoundedRectangleBorder(),
       leading: SettingsLeading(icon, active: enabled && value),
@@ -408,7 +528,7 @@ class SettingsSwitchRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (hint != null) InfoHint(message: hint!),
-          Switch(value: value, onChanged: enabled ? onChanged : null),
+          SettingsSwitch(value: value, onChanged: enabled ? onChanged : null),
         ],
       ),
     );
@@ -443,7 +563,12 @@ class SheetHeader extends StatelessWidget {
       children: [
         IconButton(
           key: backKey,
-          icon: const Icon(Icons.arrow_back_rounded),
+          // The iOS back chevron where the platform expects it.
+          icon: Icon(
+            runsOnIOS
+                ? Icons.arrow_back_ios_new_rounded
+                : Icons.arrow_back_rounded,
+          ),
           tooltip: backTooltip,
           onPressed: onBack ?? () => Navigator.pop(context, true),
         ),

@@ -1,11 +1,14 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 
+import '../core/platform.dart';
 import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import 'app_version_service.dart' show platformChannel;
 import 'reminder_reconciler.dart' show stableNotificationId;
 import 'time_zone_service.dart';
 
@@ -64,6 +67,7 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       ..._sharedLabels(settings),
     });
     await _update();
+    if (runsOnIOS) await _rearmIosCalls();
     await HomeWidget.cancelScheduledWidgetUpdates(
       qualifiedAndroidName: lessonWidgetQualifiedProvider,
     );
@@ -101,6 +105,16 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     'widgetSubtitle': _label(settings.localeTag, 'subtitle'),
     'emptyLabel': _label(settings.localeTag, 'empty'),
     'widgetDark': widgetDarkFlag(settings),
+    // WidgetKit renders future timeline entries on its own, days after a
+    // publish, so the iOS widget regroups rows itself and needs every group
+    // label plus the zone to decide "today" in. Android's payload is
+    // unchanged.
+    if (runsOnIOS) ...{
+      'groupTodayLabel': _label(settings.localeTag, 'today'),
+      'groupTomorrowLabel': _label(settings.localeTag, 'tomorrow'),
+      'groupOthersLabel': _label(settings.localeTag, 'others'),
+      'widgetTimeZone': settings.timeZoneId,
+    },
   };
 
   /// One platform-channel round trip per key is unavoidable with `home_widget`,
@@ -111,8 +125,22 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
       HomeWidget.saveWidgetData<String>(entry.key, entry.value),
   ]);
 
+  /// iOS arms lesson calls as AlarmKit alarms from the `calls` just written,
+  /// the counterpart of Android's `onUpdate` -> `LessonCallAlarms.rearm`.
+  /// Best effort: a failure here must not fail the sync that published.
+  Future<void> _rearmIosCalls() async {
+    try {
+      await platformChannel.invokeMethod<int>('rearmLessonCalls');
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
+    }
+  }
+
   Future<void> _update() => HomeWidget.updateWidget(
     qualifiedAndroidName: lessonWidgetQualifiedProvider,
+    iOSName: iosLessonWidgetKind,
   );
 }
 

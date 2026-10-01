@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../core/platform.dart';
 import 'background_access_service.dart';
 import 'notification_service.dart';
 
@@ -74,6 +75,19 @@ class PermissionOnboarding {
       permission: PermissionKind.notifications,
       explain: explain,
     );
+
+    // Nothing past notifications exists on iOS: there is no battery, overlay
+    // or full-screen permission to ask for, and notifications are always
+    // delivered on time. Calls stay off, since callsUsable needs the rest.
+    if (runsOnIOS) {
+      return OnboardingResult(
+        notifications: notifications,
+        exactAlarms: true,
+        battery: false,
+        overlay: false,
+        fullScreen: false,
+      );
+    }
 
     await Future<void>.delayed(settleDelay);
 

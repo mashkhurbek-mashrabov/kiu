@@ -168,6 +168,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Checks for schedule changes every 5 minutes while KIU is closed.';
 
   @override
+  String get backgroundSyncHelpIos =>
+      'Checks for schedule changes while KIU is closed, whenever iOS allows it.';
+
+  @override
   String get backgroundAccess => 'Battery access';
 
   @override
@@ -362,6 +366,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeSystemHelp => 'Follows your Android light or dark setting.';
+
+  @override
+  String get themeSystemHelpIos =>
+      'Follows your iPhone\'s light or dark setting.';
 
   @override
   String get close => 'Close';

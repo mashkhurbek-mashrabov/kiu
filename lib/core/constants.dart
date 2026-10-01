@@ -88,6 +88,20 @@ const String _coursePath = 'profile/my-courses';
 bool isTrustedHttps(Uri uri) =>
     uri.scheme == 'https' && uri.host.toLowerCase() == trustedHost;
 
+/// The LMS page a home-screen widget tap asks KIU to open, or null.
+///
+/// Android's widget hands over the trusted HTTPS link itself. The iOS widget
+/// can only reopen the app through its `kiu://` scheme, so it carries the page
+/// in a `target` parameter. Either way the page must pass [isTrustedHttps]:
+/// a widget payload is data, and nothing else may drive the privileged WebView.
+Uri? widgetLaunchTarget(Uri? uri) {
+  if (uri == null) return null;
+  if (isTrustedHttps(uri)) return uri;
+  if (uri.scheme != 'kiu') return null;
+  final target = Uri.tryParse(uri.queryParameters['target'] ?? '');
+  return target != null && isTrustedHttps(target) ? target : null;
+}
+
 /// Either of our sites: the LMS or the exam platform. Only broad enough to
 /// rewrite a language prefix; it grants none of the privileges gated by
 /// [isTrustedHttps].
