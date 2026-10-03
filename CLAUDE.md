@@ -26,15 +26,18 @@ KIU: Android-only Flutter LMS companion app (`com.mashkhurbek.kiu`, Android API 
 
 ## Commands
 
-Flutter 3.47.2, Dart 3.13.2. **The SDK is not on `PATH`** — it lives at
-`/home/dev/.cache/kiu-flutter-3.47.2/flutter` (see `android/local.properties`).
-Prefix every command:
-
-```sh
-export PATH="/home/dev/.cache/kiu-flutter-3.47.2/flutter/bin:$PATH"
-```
+Global Flutter stable (3.47.x), Dart constraint `^3.13.2`. Flutter is the
+Homebrew install already on `PATH` (`/opt/homebrew/bin/flutter`) — no PATH
+prefix, no project-local SDK. `ANDROID_HOME`
+(`/opt/homebrew/share/android-commandlinetools`) and `JAVA_HOME`
+(`/opt/homebrew/opt/openjdk@17`) come from `~/.zshrc`, which also puts `adb`
+and `emulator` on `PATH`; export both variables first if the shell did not
+load it (`android/local.properties` points at the same SDKs).
 
 - `flutter pub get` — install deps
+- `emulator -avd pixel_api35` — start the emulator (Pixel 8, API 35,
+  arm64-v8a); ready once `adb shell getprop sys.boot_completed` prints `1`.
+  It installs the `arm64-v8a` APK only — the `x86_64` APK does not install
 - `flutter run` — launch on device/emulator
 - `dart format --output=none --set-exit-if-changed lib test` — format check
 - `flutter analyze` — lints
@@ -169,7 +172,7 @@ app instead and never reaches the session. Verified on the API-33 emulator.
 
 ## Testing
 
-Add focused tests per behavior change. Parser tests: malformed + duplicate LMS cards. Timezone tests: Asia/Tashkent source + DST-aware destinations. Widget/UI changes need widget tests; reminder changes need reconciliation tests. Run analyze + full test suite before building APK. Native widget and call changes: install on API-33 emulator, verify click/sync manually. Fake-trigger a call without waiting for a real lesson start — `LessonCallActivity`/`LessonCallReceiver` are `exported="true"` in `android/app/src/debug/AndroidManifest.xml` only, `false` in release:
+Add focused tests per behavior change. Parser tests: malformed + duplicate LMS cards. Timezone tests: Asia/Tashkent source + DST-aware destinations. Widget/UI changes need widget tests; reminder changes need reconciliation tests. Run analyze + full test suite before building APK. Native widget and call changes: install on the `pixel_api35` emulator (API 35), verify click/sync manually. Fake-trigger a call without waiting for a real lesson start — `LessonCallActivity`/`LessonCallReceiver` are `exported="true"` in `android/app/src/debug/AndroidManifest.xml` only, `false` in release:
 
 ```sh
 adb shell "am broadcast -n com.mashkhurbek.kiu/.LessonCallReceiver \

@@ -21,17 +21,21 @@ Documentation: [ARCHITECTURE.md](ARCHITECTURE.md) for how it fits together,
 
 ## Setup
 
-Prerequisites: Flutter 3.47.2 / Dart 3.13.2, the Android SDK accepted by
-`flutter doctor`, and JDK 17.
+Prerequisites: global Flutter stable (3.47.x) with a Dart satisfying `^3.13.2`,
+the Android SDK accepted by `flutter doctor`, and JDK 17.
 
-The SDK is pinned and **not on `PATH`** (see `android/local.properties`):
+Flutter is the global Homebrew install, already on `PATH`
+(`/opt/homebrew/bin/flutter`) — no PATH prefix needed. `ANDROID_HOME` and
+`JAVA_HOME` come from `~/.zshrc`, which also puts `adb` and `emulator` on
+`PATH`. If a shell did not load it, export them first:
 
 ```bash
-export PATH="/home/dev/.cache/kiu-flutter-3.47.2/flutter/bin:$PATH"
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 ```
 
 Do not download or install Flutter during a build. `flutter --version` must
-report 3.47.2 / 3.13.2 before continuing.
+report Flutter 3.47.x stable before continuing.
 
 ```bash
 flutter pub get
@@ -54,9 +58,9 @@ flutter gen-l10n && git status --short lib/l10n/
 
 Native widget, alarm, and lesson-call changes are **not** covered by the test
 suite. R8 is enabled, and a stripped reflective entry point fails silently
-rather than crashing, so install on an API-33 emulator and verify by hand. See
-the testing section of [CLAUDE.md](CLAUDE.md), including the `adb` command that
-fakes an incoming call without waiting for a real lesson.
+rather than crashing, so install on the `pixel_api35` emulator (API 35) and
+verify by hand. See the testing section of [CLAUDE.md](CLAUDE.md), including
+the `adb` command that fakes an incoming call without waiting for a real lesson.
 
 ## Build release APKs
 
@@ -68,9 +72,12 @@ Produces one APK per ABI under `build/app/outputs/flutter-apk/`:
 
 | ABI | Size |
 |---|---|
-| `app-arm64-v8a-release.apk` | ~19.8 MB |
-| `app-x86_64-release.apk` | ~21.3 MB |
-| `app-armeabi-v7a-release.apk` | ~17.6 MB |
+| `app-arm64-v8a-release.apk` | ~21.0 MB |
+| `app-x86_64-release.apk` | ~22.5 MB |
+
+`armeabi-v7a` is deliberately not built (see `android/app/build.gradle.kts`).
+Flutter still looks for that APK and ends with `Gradle build failed to produce
+an .apk file`; that message is expected, and the two APKs above are complete.
 
 Copy artifacts to `dist/` using the version from `pubspec.yaml`:
 
@@ -80,7 +87,18 @@ cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/KIU-${VERSION}-
 cp build/app/outputs/flutter-apk/app-x86_64-release.apk "dist/KIU-${VERSION}-x86_64.apk"
 ```
 
-Install the x86_64 APK on an API-33 emulator to verify; ship the ARM64 one.
+Install the ARM64 APK on the `pixel_api35` emulator (Pixel 8, API 35,
+arm64-v8a) to verify, and ship that same ARM64 APK. The x86_64 APK does not
+install on this emulator.
 
-> **Release builds currently use debug signing.** Configure a production signing
-> config before distributing APKs publicly.
+```bash
+emulator -avd pixel_api35 &   # wait until the next line prints 1
+adb shell getprop sys.boot_completed
+adb install -r "dist/KIU-${VERSION}-arm64-v8a.apk"
+```
+
+> **Release builds are signed with the real keystore** through
+> `android/key.properties` (gitignored, as is the `*.jks`). If that file is
+> missing, Gradle silently falls back to the debug key; never publish that
+> build. See [CLAUDE.md](CLAUDE.md) and
+> `.claude/skills/publish-release/SKILL.md` for the signer check.
