@@ -192,13 +192,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(loadedUrls, [rutubeUrl]);
 
+      // Injected as soon as the page starts, not only once it has finished
+      // loading, and still once more at finish in case the first landed in
+      // the outgoing document.
       injectedScripts.clear();
-      finishPage!(rutubeUrl);
+      navigateTo!(rutubeUrl);
       await tester.pumpAndSettle();
       expect(
         injectedScripts.where((s) => s.contains('const target = 303.6')),
         hasLength(1),
       );
+      injectedScripts.clear();
+      finishPage!(rutubeUrl);
+      await tester.pumpAndSettle();
+      expect(injectedScripts.first, contains('const target = 303.6'));
 
       // Consumed by that load: the next one must not seek again.
       injectedScripts.clear();

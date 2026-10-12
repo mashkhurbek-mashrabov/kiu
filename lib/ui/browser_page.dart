@@ -111,7 +111,7 @@ class _BrowserPageState extends State<BrowserPage>
   Completer<Map<String, dynamic>>? _markCompleter;
   String? _markRequestId;
 
-  /// Position to seek to once the page loaded by [_resumeLastVideo] finishes.
+  /// Position to seek to on the page loaded by [_resumeLastVideo].
   /// Consumed by the very next trusted page load, video page or not, so an
   /// auth redirect in between can never seek some later, unrelated video.
   double? _pendingResumeSeconds;
@@ -315,12 +315,25 @@ class _BrowserPageState extends State<BrowserPage>
       _progress = 0;
       _pullDistance = 0;
     });
+    // Not consumed here: this may still land in the outgoing document, so
+    // [_pageFinished] injects again. The script is idempotent per document.
+    final resumeAt = _pendingResumeSeconds;
+    if (resumeAt != null && uri != null && isVideoLessonUri(uri)) {
+      unawaited(_webView.runJavaScript(resumeVideoScript(resumeAt)));
+    }
   }
 
   Future<void> _pageFinished(String url) async {
     final uri = Uri.tryParse(url);
     _canBack = await _webView.canGoBack();
     if (uri != null && isTrustedHttps(uri)) {
+      // First, ahead of the other injections: each one is a round trip the
+      // user would otherwise spend looking at a paused player.
+      final resumeAt = _pendingResumeSeconds;
+      _pendingResumeSeconds = null;
+      if (resumeAt != null && isVideoLessonUri(uri)) {
+        await _webView.runJavaScript(resumeVideoScript(resumeAt));
+      }
       await _applyPlaybackRate();
       await _applySiteTheme();
       await _webView.runJavaScript(
@@ -334,11 +347,6 @@ class _BrowserPageState extends State<BrowserPage>
       }
       if (isVideoLessonUri(uri)) {
         await _webView.runJavaScript(videoProgressScript());
-      }
-      final resumeAt = _pendingResumeSeconds;
-      _pendingResumeSeconds = null;
-      if (resumeAt != null && isVideoLessonUri(uri)) {
-        await _webView.runJavaScript(resumeVideoScript(resumeAt));
       }
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
