@@ -13,11 +13,8 @@ See also:
 
 ## Quick reference
 
-The Flutter SDK is **not on `PATH`**:
-
-```sh
-export PATH="/home/dev/.cache/kiu-flutter-3.47.2/flutter/bin:$PATH"
-```
+Flutter is the global Homebrew install, already on `PATH`
+(`/opt/homebrew/bin/flutter`) — no PATH prefix needed.
 
 Before any delivery, all three must pass:
 
@@ -26,5 +23,6 @@ flutter analyze && flutter test && dart format --output=none --set-exit-if-chang
 ```
 
 Native widget, alarm, or lesson-call changes additionally require installing on
-an API-33 emulator and verifying by hand — R8 is enabled, and a stripped
-reflective entry point fails silently rather than crashing. See CLAUDE.md.
+the `pixel_api35` emulator (API 35) and verifying by hand — R8 is enabled, and
+a stripped reflective entry point fails silently rather than crashing. See
+CLAUDE.md.

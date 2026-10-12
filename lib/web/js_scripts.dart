@@ -322,17 +322,25 @@ String pipLayoutScript(bool on) {
 
 /// Seeks the lesson video to [seconds] and starts it.
 ///
-/// Polls because neither player is ready at `onPageFinished`: the native one
-/// needs metadata (`readyState >= 1`) before a seek sticks, and the Rutube
-/// iframe drops commands sent before its player loads, so those are resent
-/// every tick until the player itself reports both a position near the target
-/// and a `playing` state. The seek alone is not enough: Rutube can accept it
-/// and still drop a `play` that arrived too early, leaving the lesson paused.
-/// Gives up after ~30 s.
+/// Injected at page start as well as at `onPageFinished`, so it must be
+/// idempotent per document (`__kiuResumeBound`) and tolerate a player that
+/// does not exist yet: it polls every 100 ms for up to ~30 s.
+///
+/// Native player: `currentTime` set before metadata arrives becomes the
+/// default playback start position, so `play()` buffers at the target instead
+/// of buffering at 0 and then again after a seek. Later ticks re-assert the
+/// seek once metadata is in, for a player that ignored the early one.
+///
+/// The Rutube iframe drops commands sent before its player loads, so those are
+/// resent until the player itself reports both a position near the target and
+/// a `playing` state. The seek alone is not enough: Rutube can accept it and
+/// still drop a `play` that arrived too early, leaving the lesson paused.
 String resumeVideoScript(double seconds) {
   final encodedSeconds = jsonEncode(seconds);
   return '''
 (() => {
+  if (window.__kiuResumeBound) return 'present';
+  window.__kiuResumeBound = true;
   const target = $encodedSeconds;
   let ticks = 0;
   let timer = null;
@@ -362,14 +370,15 @@ String resumeVideoScript(double seconds) {
     window.removeEventListener('message', onMessage);
   };
   window.addEventListener('message', onMessage);
-  timer = setInterval(() => {
-    if (++ticks > 60) return stop();
+  const tick = () => {
+    if (++ticks > 300) return stop();
     const video = document.querySelector('#video_player, video');
     if (video) {
-      // Without preload the metadata never arrives on its own; play() fetches
-      // it, and the seek lands on the next tick.
-      if (video.readyState < 1) return void video.play().catch(() => {});
-      video.currentTime = target;
+      if (video.readyState < 1) {
+        video.currentTime = target;
+        return void video.play().catch(() => {});
+      }
+      if (Math.abs(video.currentTime - target) > 2) video.currentTime = target;
       video.play().catch(() => {});
       return stop();
     }
@@ -377,7 +386,9 @@ String resumeVideoScript(double seconds) {
     if (!frame) return;
     if (!seeked) command(frame, 'player:setCurrentTime', {time: target});
     command(frame, 'player:play', {});
-  }, 500);
+  };
+  timer = setInterval(tick, 100);
+  tick();
   return 'polling';
 })();
 ''';

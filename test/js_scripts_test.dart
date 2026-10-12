@@ -66,6 +66,8 @@ void main() {
     expect(script, contains('readyState < 1'));
     // A reported seek alone is not done: Rutube may have dropped the play.
     expect(script, contains('if (seeked && playing) stop();'));
+    // Injected at page start and again at page finish.
+    expect(script, contains('if (window.__kiuResumeBound) return'));
   });
 
   test('video progress script also reports play state for the session', () {

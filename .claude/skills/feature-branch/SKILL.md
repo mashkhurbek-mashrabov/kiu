@@ -59,7 +59,6 @@ skill. This has been slipped repeatedly and needed `git reset --soft` to fix.
 All three must pass, and a failure stops the merge:
 
 ```bash
-export PATH="/home/dev/.cache/kiu-flutter-3.47.2/flutter/bin:$PATH"
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test

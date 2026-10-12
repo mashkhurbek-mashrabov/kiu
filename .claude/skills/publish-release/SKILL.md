@@ -45,7 +45,6 @@ and needed a `git reset --soft` to correct.
 ## 2. Verify before building
 
 ```bash
-export PATH="/home/dev/.cache/kiu-flutter-3.47.2/flutter/bin:$PATH"
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
@@ -75,11 +74,10 @@ The `-<abi>.apk` suffix is what `_selectAsset` in
 `lib/services/update_service.dart` matches on. A mistyped name means the app
 finds the release, finds no asset for its ABI, and silently offers nothing.
 
-Confirm the version codes are `2<build>` and `4<build>` (`apkanalyzer` is not
-on `PATH`; use the full path):
+Confirm the version codes are `2<build>` and `4<build>`:
 
 ```bash
-/home/dev/Android/cmdline-tools/latest/bin/apkanalyzer manifest print \
+apkanalyzer manifest print \
   dist/KIU-<version>+<build>-x86_64.apk | grep -oE 'versionCode="[0-9]+"'
 ```
 
@@ -168,10 +166,13 @@ never be committed.
 ## Testing an update end to end
 
 To watch a real upgrade, install the **previous** release and let the app find
-the new one:
+the new one. Use the `pixel_api35` emulator (API 35, arm64-v8a) — it takes the
+`arm64-v8a` APK; the `x86_64` one does not install on it:
 
 ```bash
-adb install -r "dist/KIU-<previous>-x86_64.apk"
+emulator -avd pixel_api35 &   # wait until the next line prints 1
+adb shell getprop sys.boot_completed
+adb install -r "dist/KIU-<previous>-arm64-v8a.apk"
 adb shell appops set com.mashkhurbek.kiu REQUEST_INSTALL_PACKAGES allow
 adb shell am start -n com.mashkhurbek.kiu/.MainActivity
 ```
@@ -198,10 +199,11 @@ exist.
   If that file is missing, Gradle falls back to the shared Flutter debug key
   without any error. Never publish that build: anyone with the SDK could sign
   an upgrade Android would accept. Before uploading, check that the signer
-  matches the previous release (`CN=Mashkhurbek Mashrabov, OU=KIU`):
+  matches the previous release (`CN=Mashkhurbek Mashrabov, OU=KIU`).
+  `apksigner` is not on `PATH`; it lives under `$ANDROID_HOME`:
 
   ```bash
-  /home/dev/Android/build-tools/<latest>/apksigner verify --print-certs \
+  $ANDROID_HOME/build-tools/<latest>/apksigner verify --print-certs \
     dist/KIU-<version>+<build>-x86_64.apk | grep -m1 SHA-256
   ```
 
