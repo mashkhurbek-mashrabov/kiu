@@ -1,7 +1,7 @@
 name: kiu
 description: Kazan Islamic University LMS companion
 publish_to: none
-version: 2.3.2+40
+version: 2.3.3+41
 
 environment:
   sdk: ^3.13.2
