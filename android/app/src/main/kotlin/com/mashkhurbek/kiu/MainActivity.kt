@@ -364,6 +364,14 @@ class MainActivity : FlutterActivity() {
         )
         mediaChannel = media
         LessonPlaybackService.commandSink = { action ->
+            // Before the page hears about it: a paused lesson is not kept
+            // "visible", so by now the WebView may know it is hidden, and
+            // Chromium does not start media in a hidden page. Waiting for the
+            // page to report "playing" first is a deadlock -- it never does.
+            if (action == "play") {
+                videoPlaying = true
+                if (window.decorView.windowVisibility != View.VISIBLE) keepWebViewsVisible()
+            }
             mediaChannel?.invokeMethod("command", action)
         }
         media.setMethodCallHandler { call, result ->
