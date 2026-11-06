@@ -186,6 +186,29 @@ bool isRussianCourseVideoUri(Uri uri) {
 ///
 /// Strict like [isRussianCourseVideoUri]: it decides which page's playback
 /// position is saved and which saved URL is trusted enough to reopen.
+/// The download key of a downloadable lesson video page — `"<course>/<lesson>"`
+/// from `<lang>/my-course/<course>/<lesson>/video` — or null.
+///
+/// Language-free, so the uz, ru and en pages of one lesson share one download.
+/// Only `video` pages: `video-iframe` pages embed a cross-origin Rutube player
+/// whose media URL the page cannot read.
+String? videoDownloadKey(Uri uri) {
+  if (!isVideoLessonUri(uri)) return null;
+  final segments = uri.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  if (segments[4].toLowerCase() != 'video') return null;
+  return '${segments[2]}/${segments[3]}';
+}
+
+/// Whether [uri] is a lesson video file the app may download: a static MP4
+/// under `/videos/` on the trusted LMS host. The URL is read from the page,
+/// so it is checked like any other page-supplied value.
+bool isLessonVideoFile(Uri uri) =>
+    isTrustedHttps(uri) &&
+    uri.path.startsWith('/videos/') &&
+    uri.path.toLowerCase().endsWith('.mp4');
+
 bool isVideoLessonUri(Uri uri) {
   if (!isTrustedHttps(uri)) return false;
   final segments = uri.pathSegments

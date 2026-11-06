@@ -1150,6 +1150,72 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'10 сония олдинга'**
   String get mediaForward;
+
+  /// No description provided for @downloadVideo.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Видеони юклаб олиш'**
+  String get downloadVideo;
+
+  /// No description provided for @downloadingVideo.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Юкланмоқда'**
+  String get downloadingVideo;
+
+  /// No description provided for @videoDownloaded.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Юклаб олинган'**
+  String get videoDownloaded;
+
+  /// No description provided for @cancelDownloadQuestion.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Юклаб олиш бекор қилинсинми?'**
+  String get cancelDownloadQuestion;
+
+  /// No description provided for @downloadedVideos.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Юклаб олинган видеолар'**
+  String get downloadedVideos;
+
+  /// No description provided for @noDownloadedVideos.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳали юклаб олинган видео йўқ'**
+  String get noDownloadedVideos;
+
+  /// No description provided for @deleteVideoQuestion.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бу видео телефондан ўчирилсинми?'**
+  String get deleteVideoQuestion;
+
+  /// No description provided for @deleteAll.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Ҳаммасини ўчириш'**
+  String get deleteAll;
+
+  /// No description provided for @deleteAllVideosQuestion.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Барча юклаб олинган видеолар телефондан ўчирилсинми?'**
+  String get deleteAllVideosQuestion;
+
+  /// No description provided for @downloadFailed.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Юклаб олишни бошлаб бўлмади'**
+  String get downloadFailed;
+
+  /// No description provided for @videoNotDownloadable.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Бу видеони юклаб олиб бўлмайди'**
+  String get videoNotDownloadable;
 }
 
 class _AppLocalizationsDelegate

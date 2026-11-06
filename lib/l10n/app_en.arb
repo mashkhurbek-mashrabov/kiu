@@ -203,5 +203,16 @@
   "mediaPlay": "Play",
   "mediaPause": "Pause",
   "mediaRewind": "Back 10 s",
-  "mediaForward": "Forward 10 s"
+  "mediaForward": "Forward 10 s",
+  "downloadVideo": "Download video",
+  "downloadingVideo": "Downloading",
+  "videoDownloaded": "Downloaded",
+  "cancelDownloadQuestion": "Cancel this download?",
+  "downloadedVideos": "Downloaded videos",
+  "noDownloadedVideos": "No downloaded videos yet",
+  "deleteVideoQuestion": "Delete this video from the phone?",
+  "deleteAll": "Delete all",
+  "deleteAllVideosQuestion": "Delete all downloaded videos from the phone?",
+  "downloadFailed": "Could not start the download",
+  "videoNotDownloadable": "This video cannot be downloaded"
 }

@@ -203,5 +203,16 @@
   "mediaPlay": "Воспроизвести",
   "mediaPause": "Пауза",
   "mediaRewind": "Назад на 10 с",
-  "mediaForward": "Вперёд на 10 с"
+  "mediaForward": "Вперёд на 10 с",
+  "downloadVideo": "Скачать видео",
+  "downloadingVideo": "Скачивается",
+  "videoDownloaded": "Скачано",
+  "cancelDownloadQuestion": "Отменить скачивание?",
+  "downloadedVideos": "Скачанные видео",
+  "noDownloadedVideos": "Скачанных видео пока нет",
+  "deleteVideoQuestion": "Удалить это видео с телефона?",
+  "deleteAll": "Удалить все",
+  "deleteAllVideosQuestion": "Удалить все скачанные видео с телефона?",
+  "downloadFailed": "Не удалось начать скачивание",
+  "videoNotDownloadable": "Это видео нельзя скачать"
 }

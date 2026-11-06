@@ -203,5 +203,16 @@
   "mediaPlay": "Ijro etish",
   "mediaPause": "Pauza",
   "mediaRewind": "10 soniya orqaga",
-  "mediaForward": "10 soniya oldinga"
+  "mediaForward": "10 soniya oldinga",
+  "downloadVideo": "Videoni yuklab olish",
+  "downloadingVideo": "Yuklanmoqda",
+  "videoDownloaded": "Yuklab olingan",
+  "cancelDownloadQuestion": "Yuklab olish bekor qilinsinmi?",
+  "downloadedVideos": "Yuklab olingan videolar",
+  "noDownloadedVideos": "Hali yuklab olingan video yo‘q",
+  "deleteVideoQuestion": "Bu video telefondan o‘chirilsinmi?",
+  "deleteAll": "Hammasini o‘chirish",
+  "deleteAllVideosQuestion": "Barcha yuklab olingan videolar telefondan o‘chirilsinmi?",
+  "downloadFailed": "Yuklab olishni boshlab bo‘lmadi",
+  "videoNotDownloadable": "Bu videoni yuklab olib bo‘lmaydi"
 }

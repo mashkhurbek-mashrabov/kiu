@@ -423,6 +423,35 @@ class MainActivity : FlutterActivity() {
                     // streamed into the PackageInstaller session.
                     result.success(cacheDir.absolutePath)
                 }
+                "enqueueVideoDownload" -> {
+                    val url = call.argument<String>("url")
+                    val fileName = call.argument<String>("fileName")
+                    val title = call.argument<String>("title") ?: "KIU"
+                    if (url == null || fileName == null) {
+                        result.error("invalid_args", "Missing url or fileName.", null)
+                    } else {
+                        try {
+                            result.success(
+                                LessonVideoDownloads.enqueue(this, url, fileName, title),
+                            )
+                        } catch (error: Exception) {
+                            // No external storage mounted, or DownloadManager
+                            // disabled by the user.
+                            result.error("enqueue_failed", error.message, null)
+                        }
+                    }
+                }
+                "queryVideoDownloads" -> {
+                    val ids = call.argument<List<Number>>("ids").orEmpty()
+                    result.success(
+                        LessonVideoDownloads.query(this, ids.map { it.toLong() }.toLongArray()),
+                    )
+                }
+                "removeVideoDownloads" -> {
+                    val ids = call.argument<List<Number>>("ids").orEmpty()
+                    LessonVideoDownloads.remove(this, ids.map { it.toLong() }.toLongArray())
+                    result.success(null)
+                }
                 "canInstallPackages" -> {
                     result.success(
                         Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
