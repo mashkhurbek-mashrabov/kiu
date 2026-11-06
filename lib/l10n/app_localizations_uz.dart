@@ -572,6 +572,40 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get mediaForward => '10 soniya oldinga';
+
+  @override
+  String get downloadVideo => 'Videoni yuklab olish';
+
+  @override
+  String get downloadingVideo => 'Yuklanmoqda';
+
+  @override
+  String get videoDownloaded => 'Yuklab olingan';
+
+  @override
+  String get cancelDownloadQuestion => 'Yuklab olish bekor qilinsinmi?';
+
+  @override
+  String get downloadedVideos => 'Yuklab olingan videolar';
+
+  @override
+  String get noDownloadedVideos => 'Hali yuklab olingan video yo‘q';
+
+  @override
+  String get deleteVideoQuestion => 'Bu video telefondan o‘chirilsinmi?';
+
+  @override
+  String get deleteAll => 'Hammasini o‘chirish';
+
+  @override
+  String get deleteAllVideosQuestion =>
+      'Barcha yuklab olingan videolar telefondan o‘chirilsinmi?';
+
+  @override
+  String get downloadFailed => 'Yuklab olishni boshlab bo‘lmadi';
+
+  @override
+  String get videoNotDownloadable => 'Bu videoni yuklab olib bo‘lmaydi';
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -1141,4 +1175,38 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get mediaForward => '10 сония олдинга';
+
+  @override
+  String get downloadVideo => 'Видеони юклаб олиш';
+
+  @override
+  String get downloadingVideo => 'Юкланмоқда';
+
+  @override
+  String get videoDownloaded => 'Юклаб олинган';
+
+  @override
+  String get cancelDownloadQuestion => 'Юклаб олиш бекор қилинсинми?';
+
+  @override
+  String get downloadedVideos => 'Юклаб олинган видеолар';
+
+  @override
+  String get noDownloadedVideos => 'Ҳали юклаб олинган видео йўқ';
+
+  @override
+  String get deleteVideoQuestion => 'Бу видео телефондан ўчирилсинми?';
+
+  @override
+  String get deleteAll => 'Ҳаммасини ўчириш';
+
+  @override
+  String get deleteAllVideosQuestion =>
+      'Барча юклаб олинган видеолар телефондан ўчирилсинми?';
+
+  @override
+  String get downloadFailed => 'Юклаб олишни бошлаб бўлмади';
+
+  @override
+  String get videoNotDownloadable => 'Бу видеони юклаб олиб бўлмайди';
 }

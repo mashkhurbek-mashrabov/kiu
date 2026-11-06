@@ -4,6 +4,7 @@ import 'package:kiu/services/background_access_service.dart';
 import 'package:kiu/services/notification_service.dart';
 import 'package:kiu/services/lesson_widget_service.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
+import 'package:kiu/services/video_download_service.dart';
 import 'package:kiu/domain/app_settings.dart';
 import 'package:kiu/domain/lesson.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -195,4 +196,35 @@ class FakeLessonWidgetGateway implements LessonWidgetGateway {
     statusHistory.add(value);
     settings = appSettings;
   }
+}
+
+class FakeVideoDownloadGateway implements VideoDownloadGateway {
+  final enqueued = <({Uri url, String fileName, String title})>[];
+  final removed = <int>[];
+
+  /// What [query] reports per download id. An enqueued id without an entry
+  /// reports as running; any other id is unknown to the system.
+  final statuses = <int, NativeDownloadStatus>{};
+
+  @override
+  Future<int> enqueue({
+    required Uri url,
+    required String fileName,
+    required String title,
+  }) async {
+    enqueued.add((url: url, fileName: fileName, title: title));
+    return enqueued.length;
+  }
+
+  @override
+  Future<List<NativeDownloadStatus>> query(List<int> ids) async => [
+    for (final id in ids)
+      if (statuses[id] case final status?)
+        status
+      else if (id <= enqueued.length)
+        (id: id, status: 'running', downloaded: 0, total: 0, path: null),
+  ];
+
+  @override
+  Future<void> remove(List<int> ids) async => removed.addAll(ids);
 }

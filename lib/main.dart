@@ -18,6 +18,7 @@ import 'services/app_version_service.dart';
 import 'services/time_zone_service.dart';
 import 'services/update_downloader.dart';
 import 'services/update_service.dart';
+import 'services/video_download_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -159,6 +160,10 @@ Future<void> main() async {
       updateDownloader: runsOnIOS
           ? null
           : UpdateDownloader(installer: AndroidApkInstaller()),
+      // Rides Android's DownloadManager; iOS has no equivalent wired up.
+      videoDownloads: runsOnIOS
+          ? null
+          : VideoDownloadService(repository: repository),
     ),
   );
 }

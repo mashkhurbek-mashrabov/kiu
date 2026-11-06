@@ -571,4 +571,38 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mediaForward => 'Вперёд на 10 с';
+
+  @override
+  String get downloadVideo => 'Скачать видео';
+
+  @override
+  String get downloadingVideo => 'Скачивается';
+
+  @override
+  String get videoDownloaded => 'Скачано';
+
+  @override
+  String get cancelDownloadQuestion => 'Отменить скачивание?';
+
+  @override
+  String get downloadedVideos => 'Скачанные видео';
+
+  @override
+  String get noDownloadedVideos => 'Скачанных видео пока нет';
+
+  @override
+  String get deleteVideoQuestion => 'Удалить это видео с телефона?';
+
+  @override
+  String get deleteAll => 'Удалить все';
+
+  @override
+  String get deleteAllVideosQuestion =>
+      'Удалить все скачанные видео с телефона?';
+
+  @override
+  String get downloadFailed => 'Не удалось начать скачивание';
+
+  @override
+  String get videoNotDownloadable => 'Это видео нельзя скачать';
 }

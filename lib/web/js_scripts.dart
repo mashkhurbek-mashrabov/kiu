@@ -429,3 +429,56 @@ String markWatchedScript(String requestId) {
 })();
 ''';
 }
+
+/// The lesson video's file URL and the lesson's name, as a JSON string
+/// `{"src": ..., "title": ...}`.
+///
+/// The source is the native player's `currentSrc`, or its first `<source>`
+/// before the player has picked one. The page `<title>` is the same generic
+/// site name on every lesson, so the name comes from the course-contents link
+/// that points at this lesson, then the course heading.
+///
+/// Run with `runJavaScriptReturningResult`, which evaluates in the main frame
+/// only: the URL is never taken from a bridge message, which the Rutube frame
+/// could also send. Dart still validates it with `isLessonVideoFile`.
+String videoSourceScript() => '''
+(() => {
+  const video = document.querySelector('#video_player, video');
+  const src = video
+    ? video.currentSrc || video.querySelector('source')?.src || ''
+    : '';
+  const lesson = location.pathname.split('/').filter(Boolean).slice(2, 4).join('/');
+  const clean = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
+  const link = [...document.querySelectorAll('.panel-title1 a[href]')]
+    .find((a) => a.pathname.includes('/' + lesson + '/'));
+  const title = clean(link) || clean(document.querySelector('h4')) || document.title;
+  return JSON.stringify({src, title: title.slice(0, 200)});
+})();
+''';
+
+/// Points the lesson's own player at a downloaded copy of its video, so it
+/// keeps playing with no internet. The page and the player stay as they are;
+/// only the `<video>` source changes.
+///
+/// Keeps the position and the playing state, so it can also run mid-lesson
+/// when a download finishes. Idempotent: does nothing once on [url].
+String localVideoSourceScript(String url) {
+  final encodedUrl = jsonEncode(url);
+  return '''
+(() => {
+  const url = $encodedUrl;
+  const video = document.querySelector('#video_player, video');
+  if (!video) return 'missing';
+  if (video.getAttribute('src') === url) return 'present';
+  const time = video.currentTime;
+  const playing = !video.paused && !video.ended;
+  video.src = url;
+  if (time > 0) {
+    video.addEventListener('loadedmetadata', () => { video.currentTime = time; },
+      {once: true});
+  }
+  if (playing) video.play().catch(() => {});
+  return 'swapped';
+})();
+''';
+}

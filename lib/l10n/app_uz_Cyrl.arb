@@ -231,5 +231,16 @@
   "mediaPlay": "Ижро этиш",
   "mediaPause": "Пауза",
   "mediaRewind": "10 сония орқага",
-  "mediaForward": "10 сония олдинга"
+  "mediaForward": "10 сония олдинга",
+  "downloadVideo": "Видеони юклаб олиш",
+  "downloadingVideo": "Юкланмоқда",
+  "videoDownloaded": "Юклаб олинган",
+  "cancelDownloadQuestion": "Юклаб олиш бекор қилинсинми?",
+  "downloadedVideos": "Юклаб олинган видеолар",
+  "noDownloadedVideos": "Ҳали юклаб олинган видео йўқ",
+  "deleteVideoQuestion": "Бу видео телефондан ўчирилсинми?",
+  "deleteAll": "Ҳаммасини ўчириш",
+  "deleteAllVideosQuestion": "Барча юклаб олинган видеолар телефондан ўчирилсинми?",
+  "downloadFailed": "Юклаб олишни бошлаб бўлмади",
+  "videoNotDownloadable": "Бу видеони юклаб олиб бўлмайди"
 }

@@ -18,6 +18,7 @@ import '../core/platform.dart';
 import '../core/theme.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import '../domain/video_download.dart';
 import '../l10n/app_localizations.dart';
 import '../services/lesson_widget_service.dart';
 import '../services/media_session_service.dart';
@@ -25,7 +26,9 @@ import '../services/permission_onboarding.dart';
 import '../services/time_zone_service.dart';
 import '../services/update_downloader.dart';
 import '../services/update_service.dart';
+import '../services/video_download_service.dart';
 import '../web/js_scripts.dart';
+import 'downloaded_videos_page.dart';
 import 'update_gate.dart';
 import 'widgets/settings_widgets.dart';
 
@@ -36,6 +39,7 @@ class BrowserPage extends StatefulWidget {
     required this.homeRequests,
     this.navigationRequests,
     this.updateDownloader,
+    this.videoDownloads,
   });
 
   final AppController controller;
@@ -46,6 +50,10 @@ class BrowserPage extends StatefulWidget {
   /// section. A mandatory one never reaches here — `KiuApp` has already
   /// replaced this page with the gate.
   final UpdateDownloader? updateDownloader;
+
+  /// Lesson-video downloads for offline viewing; null where unsupported (iOS),
+  /// which hides the download button and the settings row.
+  final VideoDownloadService? videoDownloads;
 
   @override
   State<BrowserPage> createState() => _BrowserPageState();
@@ -125,6 +133,10 @@ class _BrowserPageState extends State<BrowserPage>
   /// navigation away knows to clear it (and a page with no video never calls).
   bool _mediaActive = false;
 
+  /// Keys of finished downloads, so a download that completes while its
+  /// lesson is open can switch the player to the local file right away.
+  Set<String> _doneDownloads = const {};
+
   AppLocalizations get strings => AppLocalizations.of(context);
 
   String get _homeUrl => homeUrlFor(widget.controller.settings.localeTag);
@@ -145,6 +157,12 @@ class _BrowserPageState extends State<BrowserPage>
     // and the user must not have to open Settings to learn it exists.
     widget.controller.availableUpdate.addListener(_offerOptionalUpdate);
     mediaChannel.setMethodCallHandler(_handleMediaCall);
+    final videoDownloads = widget.videoDownloads;
+    if (videoDownloads != null) {
+      _doneDownloads = _doneKeys(videoDownloads.downloads.value);
+      videoDownloads.downloads.addListener(_onDownloadsChanged);
+      unawaited(videoDownloads.refresh());
+    }
     // A stored update restored during `initialize()` was already set before
     // this page existed, so the listener alone would never see it.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -262,6 +280,8 @@ class _BrowserPageState extends State<BrowserPage>
       // Throttled to 6h inside the controller, so resuming repeatedly costs
       // nothing. Catches an update published while the app sat backgrounded.
       unawaited(widget.controller.checkForUpdate());
+      // Downloads finished while the app was closed show up as done.
+      unawaited(widget.videoDownloads?.refresh());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _foregroundTimer?.cancel();
@@ -327,6 +347,10 @@ class _BrowserPageState extends State<BrowserPage>
     final uri = Uri.tryParse(url);
     _canBack = await _webView.canGoBack();
     if (uri != null && isTrustedHttps(uri)) {
+      // Before the resume seek, which then lands on the local file: a
+      // downloaded lesson plays from the device and survives losing the
+      // internet. The page and its player stay the LMS's own.
+      await _applyLocalVideo(uri);
       // First, ahead of the other injections: each one is a round trip the
       // user would otherwise spend looking at a paused player.
       final resumeAt = _pendingResumeSeconds;
@@ -981,6 +1005,22 @@ class _BrowserPageState extends State<BrowserPage>
                                   _openNotificationSettings();
                                 },
                               ),
+                              if (widget.videoDownloads case final downloads?)
+                                SettingsRow(
+                                  key: const Key('downloaded-videos-menu'),
+                                  icon: Icons.download_for_offline_rounded,
+                                  title: strings.downloadedVideos,
+                                  value: downloads.downloads.value.isEmpty
+                                      ? null
+                                      : '${downloads.downloads.value.length}',
+                                  trailing: const Icon(
+                                    Icons.chevron_right_rounded,
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(sheetContext);
+                                    _openDownloadedVideos();
+                                  },
+                                ),
                             ],
                           ),
                           // Sync sits here rather than inside Notifications:
@@ -2687,6 +2727,158 @@ class _BrowserPageState extends State<BrowserPage>
 
   /// Same return-to-settings contract as [_openUsefulLinks]: the sheet is gone
   /// by the time this page is pushed, so it is reopened on the way back.
+  /// [backToSettings] reopens the settings sheet on return, like the other
+  /// pages reached from it; the lesson page's button comes straight back.
+  Future<void> _openDownloadedVideos({bool backToSettings = true}) async {
+    final service = widget.videoDownloads;
+    if (service == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DownloadedVideosPage(
+          service: service,
+          beforePlay: () {
+            if (isVideoLessonUri(_currentUri)) {
+              unawaited(_webView.runJavaScript(mediaCommandScript('pause')));
+            }
+          },
+        ),
+      ),
+    );
+    if (backToSettings && mounted) await _openActions();
+  }
+
+  static Set<String> _doneKeys(List<VideoDownload> downloads) => {
+    for (final download in downloads)
+      if (download.done) download.key,
+  };
+
+  void _onDownloadsChanged() {
+    final done = _doneKeys(widget.videoDownloads!.downloads.value);
+    final key = videoDownloadKey(_currentUri);
+    final justFinished =
+        key != null && done.contains(key) && !_doneDownloads.contains(key);
+    _doneDownloads = done;
+    if (justFinished) unawaited(_applyLocalVideo(_currentUri));
+  }
+
+  /// Points the lesson's player at its downloaded file, if there is one.
+  Future<void> _applyLocalVideo(Uri uri) async {
+    final key = videoDownloadKey(uri);
+    final service = widget.videoDownloads;
+    if (key == null || service == null) return;
+    final url = await service.localUrl(key);
+    if (url == null || videoDownloadKey(_currentUri) != key) return;
+    await _webView.runJavaScript(localVideoSourceScript(url.toString()));
+  }
+
+  Future<void> _downloadCurrentVideo() async {
+    final service = widget.videoDownloads;
+    final lessonUrl = _currentUri;
+    final key = videoDownloadKey(lessonUrl);
+    if (service == null || key == null) return;
+    Uri? videoUrl;
+    var title = '';
+    try {
+      final raw = await _webView.runJavaScriptReturningResult(
+        videoSourceScript(),
+      );
+      // Android hands a JS string back still JSON-quoted.
+      var decoded = jsonDecode('$raw');
+      if (decoded is String) decoded = jsonDecode(decoded);
+      if (decoded is Map) {
+        final src = decoded['src'];
+        final name = decoded['title'];
+        if (src is String) videoUrl = Uri.tryParse(src);
+        if (name is String) title = name.trim();
+      }
+    } on Exception {
+      videoUrl = null;
+    }
+    if (!mounted) return;
+    if (videoUrl == null || !isLessonVideoFile(videoUrl)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.videoNotDownloadable)));
+      return;
+    }
+    try {
+      await service.start(
+        key: key,
+        title: title.isEmpty ? strings.downloadedVideos : title,
+        lessonUrl: lessonUrl,
+        videoUrl: videoUrl,
+      );
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(strings.downloadFailed)));
+      }
+    }
+  }
+
+  /// Download / progress / done button over a downloadable lesson video page.
+  /// Listens to the service's own notifier, so progress never rebuilds the
+  /// WebView.
+  Widget? _videoDownloadButton() {
+    final service = widget.videoDownloads;
+    final key = videoDownloadKey(_currentUri);
+    if (service == null || key == null) return null;
+    return Positioned(
+      right: _navBarSideInset,
+      bottom:
+          MediaQuery.of(context).padding.bottom +
+          _navBarBottomGap +
+          _navBarHeight +
+          12,
+      child: ValueListenableBuilder<List<VideoDownload>>(
+        valueListenable: service.downloads,
+        builder: (context, _, _) {
+          final entry = service.entryFor(key);
+          if (entry == null) {
+            return FloatingActionButton.small(
+              key: const Key('video-download-button'),
+              heroTag: null,
+              tooltip: strings.downloadVideo,
+              onPressed: _downloadCurrentVideo,
+              child: const Icon(Icons.download_rounded),
+            );
+          }
+          if (entry.done) {
+            return FloatingActionButton.small(
+              key: const Key('video-downloaded-button'),
+              heroTag: null,
+              tooltip: strings.videoDownloaded,
+              onPressed: () => _openDownloadedVideos(backToSettings: false),
+              child: const Icon(Icons.download_done_rounded),
+            );
+          }
+          return FloatingActionButton.small(
+            key: const Key('video-downloading-button'),
+            heroTag: null,
+            tooltip: strings.downloadingVideo,
+            onPressed: () async {
+              if (await confirmCancelDownload(context)) {
+                await service.delete(key);
+              }
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox.square(
+                  dimension: 28,
+                  child: CircularProgressIndicator(
+                    value: entry.fraction,
+                    strokeWidth: 2.5,
+                  ),
+                ),
+                const Icon(Icons.close_rounded, size: 16),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _openAdditionalFunctions() async {
     await _pushAdditionalFunctions();
     if (mounted) await _openActions();
@@ -3214,6 +3406,7 @@ class _BrowserPageState extends State<BrowserPage>
     widget.homeRequests.removeListener(_goHome);
     widget.navigationRequests?.removeListener(_goToRequestedPage);
     widget.controller.availableUpdate.removeListener(_offerOptionalUpdate);
+    widget.videoDownloads?.downloads.removeListener(_onDownloadsChanged);
     mediaChannel.setMethodCallHandler(null);
     if (_mediaActive) unawaited(_invokeMedia('clear'));
     _foregroundTimer?.cancel();
@@ -3277,6 +3470,7 @@ class _BrowserPageState extends State<BrowserPage>
                   value: _progress / 100,
                 ),
               ),
+            if (!_inPip && !_pageFailed) ?_videoDownloadButton(),
             // PiP shows the video alone; the page CSS does the rest.
             if (!_inPip) _floatingNavBar(),
           ],

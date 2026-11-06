@@ -7,6 +7,7 @@ import '../core/activation.dart';
 import '../core/constants.dart';
 import '../domain/app_settings.dart';
 import '../domain/lesson.dart';
+import '../domain/video_download.dart';
 import '../services/update_service.dart';
 
 class SettingsRepository {
@@ -46,6 +47,7 @@ class SettingsRepository {
   static const _userId = 'kiu.userId';
   static const _activationReset = 'kiu.activationResetV2';
   static const _lastVideo = 'kiu.lastVideo';
+  static const _videoDownloads = 'kiu.videoDownloads';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -336,6 +338,30 @@ class SettingsRepository {
     _lastVideo,
     jsonEncode({'url': url.toString(), 'seconds': seconds}),
   );
+
+  /// Downloaded lesson videos, oldest first. Tolerant like [loadLessons]:
+  /// unreadable JSON is an empty list, and bad entries are dropped while the
+  /// good ones are kept.
+  List<VideoDownload> loadVideoDownloads() {
+    final raw = _preferences.get(_videoDownloads);
+    if (raw is! String) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .map(VideoDownload.tryFromJson)
+          .whereType<VideoDownload>()
+          .toList(growable: false);
+    } on FormatException {
+      return const [];
+    }
+  }
+
+  Future<void> saveVideoDownloads(List<VideoDownload> downloads) =>
+      _preferences.setString(
+        _videoDownloads,
+        jsonEncode([for (final download in downloads) download.toJson()]),
+      );
 
   /// Whether the one-shot clearing of pre-2.1.0 activations has already run.
   ///

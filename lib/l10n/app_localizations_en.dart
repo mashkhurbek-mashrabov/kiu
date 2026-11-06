@@ -571,4 +571,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaForward => 'Forward 10 s';
+
+  @override
+  String get downloadVideo => 'Download video';
+
+  @override
+  String get downloadingVideo => 'Downloading';
+
+  @override
+  String get videoDownloaded => 'Downloaded';
+
+  @override
+  String get cancelDownloadQuestion => 'Cancel this download?';
+
+  @override
+  String get downloadedVideos => 'Downloaded videos';
+
+  @override
+  String get noDownloadedVideos => 'No downloaded videos yet';
+
+  @override
+  String get deleteVideoQuestion => 'Delete this video from the phone?';
+
+  @override
+  String get deleteAll => 'Delete all';
+
+  @override
+  String get deleteAllVideosQuestion =>
+      'Delete all downloaded videos from the phone?';
+
+  @override
+  String get downloadFailed => 'Could not start the download';
+
+  @override
+  String get videoNotDownloadable => 'This video cannot be downloaded';
 }
