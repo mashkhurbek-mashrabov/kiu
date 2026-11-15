@@ -169,10 +169,16 @@ Future<void> main() async {
       updateDownloader: runsOnApple
           ? null
           : UpdateDownloader(installer: AndroidApkInstaller()),
-      // Rides Android's DownloadManager; Apple platforms have no equivalent wired up.
-      videoDownloads: runsOnApple
+      // Android uses DownloadManager; macOS uses DesktopVideoDownloadGateway.
+      // iOS has no download gateway wired up yet.
+      videoDownloads: runsOnIOS
           ? null
-          : VideoDownloadService(repository: repository),
+          : VideoDownloadService(
+              repository: repository,
+              gateway: runsOnMacOS
+                  ? DesktopVideoDownloadGateway()
+                  : AndroidVideoDownloadGateway(),
+            ),
     ),
   );
 }

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +14,7 @@ import 'package:kiu/services/permission_onboarding.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
+import 'package:kiu/services/video_download_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -22,6 +26,54 @@ import 'support/fakes.dart';
 class _Version implements AppVersionProvider {
   @override
   Future<AppVersion> read() async => const AppVersion(name: '2.4.0', code: 42);
+}
+
+class _FakeStreamHttpClient extends Fake implements HttpClient {
+  _FakeStreamHttpClient(this.bytes);
+  final List<int> bytes;
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async => _FakeRequest(bytes);
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _FakeRequest extends Fake implements HttpClientRequest {
+  _FakeRequest(this.bytes);
+  final List<int> bytes;
+
+  @override
+  Future<HttpClientResponse> close() async => _FakeResponse(bytes);
+
+  @override
+  void abort([Object? exception, StackTrace? stackTrace]) {}
+}
+
+class _FakeResponse extends Fake implements HttpClientResponse {
+  _FakeResponse(this.bytes);
+  final List<int> bytes;
+
+  @override
+  int get statusCode => HttpStatus.ok;
+
+  @override
+  int get contentLength => bytes.length;
+
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return Stream.value(bytes).listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
 }
 
 Future<AppController> _controller() async {
@@ -156,5 +208,83 @@ void main() {
 
     expect(find.byKey(const Key('app-version')), findsOneWidget);
     expect(find.byKey(const Key('check-updates')), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  test(
+    'DesktopVideoDownloadGateway enqueues, queries, and removes downloads',
+    () async {
+      final tempDir = Directory.systemTemp.createTempSync('desktop_video_test');
+      addTearDown(() {
+        try {
+          tempDir.deleteSync(recursive: true);
+        } catch (_) {}
+      });
+
+      final gateway = DesktopVideoDownloadGateway(
+        baseDirectory: tempDir,
+        clientFactory: () => _FakeStreamHttpClient([1, 2, 3, 4, 5]),
+      );
+
+      final videoUrl = Uri.parse('https://example.com/videos/1-2.mp4');
+      final id = await gateway.enqueue(
+        url: videoUrl,
+        fileName: '1-2.mp4',
+        title: 'Lesson 2',
+      );
+
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        final status = await gateway.query([id]);
+        if (status.isNotEmpty && status.first.status == 'done') break;
+      }
+
+      final statuses = await gateway.query([id]);
+      expect(statuses, hasLength(1));
+      expect(statuses.first.status, 'done');
+      expect(statuses.first.downloaded, 5);
+      expect(statuses.first.total, 5);
+      expect(statuses.first.path, isNotNull);
+      expect(File(statuses.first.path!).existsSync(), isTrue);
+
+      await gateway.remove([id]);
+      expect(File(statuses.first.path!).existsSync(), isFalse);
+      final afterRemove = await gateway.query([id]);
+      expect(afterRemove, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'macOS keeps the floating nav bar compact and centered on wide screens',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        KiuApp(controller: await _controller(), homeRequests: ValueNotifier(0)),
+      );
+      await tester.pumpAndSettle();
+
+      final bar = tester.getRect(find.byKey(const Key('nav-bar')));
+      expect(bar.width, lessThanOrEqualTo(420));
+      expect(bar.left, closeTo((1200 - bar.width) / 2, 2));
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
+
+  testWidgets('macOS uses a visible 4px brand-colored progress bar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      KiuApp(controller: await _controller(), homeRequests: ValueNotifier(0)),
+    );
+
+    final indicatorFinder = find.byKey(const Key('page-progress'));
+    expect(indicatorFinder, findsOneWidget);
+    final indicator = tester.widget<LinearProgressIndicator>(indicatorFinder);
+    expect(indicator.minHeight, 4.0);
+    expect(indicator.value, isNotNull);
+    expect(indicator.value, greaterThan(0.0));
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 }

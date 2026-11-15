@@ -350,31 +350,38 @@ class _BrowserPageState extends State<BrowserPage>
   Future<void> _pageFinished(String url) async {
     final uri = Uri.tryParse(url);
     _canBack = await _webView.canGoBack();
+    if (mounted) {
+      setState(() {
+        if (uri != null) _currentUri = uri;
+        _progress = 100;
+      });
+    }
     if (uri != null && isTrustedHttps(uri)) {
-      // Before the resume seek, which then lands on the local file: a
-      // downloaded lesson plays from the device and survives losing the
-      // internet. The page and its player stay the LMS's own.
-      await _applyLocalVideo(uri);
       // First, ahead of the other injections: each one is a round trip the
       // user would otherwise spend looking at a paused player.
       final resumeAt = _pendingResumeSeconds;
       _pendingResumeSeconds = null;
       if (resumeAt != null && isVideoLessonUri(uri)) {
-        await _webView.runJavaScript(resumeVideoScript(resumeAt));
+        unawaited(_webView.runJavaScript(resumeVideoScript(resumeAt)));
       }
-      await _applyPlaybackRate();
-      await _applySiteTheme();
-      await _webView.runJavaScript(
-        pullToRefreshScript(thresholdPx: _pullThreshold.round()),
-      );
+      unawaited(_applyLocalVideo(uri));
+      unawaited(_applyPlaybackRate());
+      unawaited(_applySiteTheme());
+      if (!runsOnMacOS) {
+        unawaited(
+          _webView.runJavaScript(
+            pullToRefreshScript(thresholdPx: _pullThreshold.round()),
+          ),
+        );
+      }
       // Every logged-in page carries the same nav, so the level is read here
       // rather than on one specific route. Reports only when it finds a link.
-      await _webView.runJavaScript(courseLevelScript());
+      unawaited(_webView.runJavaScript(courseLevelScript()));
       if (isRussianCourseVideoUri(uri)) {
-        await _webView.runJavaScript(videoIframeFixScript());
+        unawaited(_webView.runJavaScript(videoIframeFixScript()));
       }
       if (isVideoLessonUri(uri)) {
-        await _webView.runJavaScript(videoProgressScript());
+        unawaited(_webView.runJavaScript(videoProgressScript()));
       }
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
@@ -386,12 +393,6 @@ class _BrowserPageState extends State<BrowserPage>
           unawaited(_maybeExplainBackgroundAccess());
         }
       }
-    }
-    if (mounted) {
-      setState(() {
-        if (uri != null) _currentUri = uri;
-        _progress = 100;
-      });
     }
   }
 
@@ -2788,9 +2789,17 @@ class _BrowserPageState extends State<BrowserPage>
       final raw = await _webView.runJavaScriptReturningResult(
         videoSourceScript(),
       );
-      // Android hands a JS string back still JSON-quoted.
-      var decoded = jsonDecode('$raw');
-      if (decoded is String) decoded = jsonDecode(decoded);
+      Object? decoded;
+      if (raw is Map) {
+        decoded = raw;
+      } else {
+        try {
+          decoded = jsonDecode('$raw');
+          if (decoded is String) decoded = jsonDecode(decoded);
+        } catch (_) {
+          decoded = null;
+        }
+      }
       if (decoded is Map) {
         final src = decoded['src'];
         final name = decoded['title'];
@@ -3475,8 +3484,11 @@ class _BrowserPageState extends State<BrowserPage>
                 top: 0,
                 child: LinearProgressIndicator(
                   key: const Key('page-progress'),
-                  minHeight: 2,
-                  value: _progress / 100,
+                  minHeight: runsOnMacOS ? 4 : 2.5,
+                  value: (_progress / 100).clamp(0.08, 1.0),
+                  color: brandGreen(Theme.of(context).brightness),
+                  backgroundColor: brandGreen(Theme.of(context).brightness)
+                      .withValues(alpha: 0.18),
                 ),
               ),
             if (!_inPip && !_pageFailed) ?_videoDownloadButton(),
@@ -3519,95 +3531,103 @@ class _BrowserPageState extends State<BrowserPage>
   /// the WebView scrolls under the glass.
   Widget _floatingNavBar() {
     return Positioned(
-      key: const Key('nav-bar'),
-      left: _navBarSideInset,
-      right: _navBarSideInset,
+      left: 0,
+      right: 0,
       // Clears the gesture bar without the large iOS-style float, as asked.
       bottom: MediaQuery.of(context).padding.bottom + _navBarBottomGap,
-      child: _navBarSurface(
-        // The tooltips each action carries resolve their text style from
-        // the nearest Material ancestor. Transparent so the glass behind
-        // still shows through -- nothing here paints ink any more.
-        child: Material(
-          type: MaterialType.transparency,
-          child: SizedBox(
-            height: _navBarHeight,
-            child: Stack(
-              children: [
-                _selectionCapsule(),
-                Row(
-                  children: [
-                    // Rounded variants throughout: Instagram's glyphs are
-                    // uniformly round-joined, so a boxy calendar or a
-                    // square-ended menu reads as a different icon set
-                    // sitting in the same bar.
-                    _navAction(
-                      key: const Key('nav-back'),
-                      icon: Icons.chevron_left_rounded,
-                      label: strings.back,
-                      enabled: _canBack,
-                      onTap: _goBack,
-                      // Swings left and springs back, echoing the
-                      // direction the page itself is about to move.
-                      animate: (glyph) => SlideTransition(
-                        position:
-                            Tween(
-                              begin: Offset.zero,
-                              end: const Offset(-0.35, 0),
-                            ).animate(
-                              CurvedAnimation(
-                                parent: _backNudge,
-                                curve: Curves.easeOutBack,
-                              ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _navBarSideInset),
+          child: ConstrainedBox(
+            key: const Key('nav-bar'),
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: _navBarSurface(
+              // The tooltips each action carries resolve their text style from
+              // the nearest Material ancestor. Transparent so the glass behind
+              // still shows through -- nothing here paints ink any more.
+              child: Material(
+                type: MaterialType.transparency,
+                child: SizedBox(
+                  height: _navBarHeight,
+                  child: Stack(
+                    children: [
+                      _selectionCapsule(),
+                      Row(
+                        children: [
+                          // Rounded variants throughout: Instagram's glyphs are
+                          // uniformly round-joined, so a boxy calendar or a
+                          // square-ended menu reads as a different icon set
+                          // sitting in the same bar.
+                          _navAction(
+                            key: const Key('nav-back'),
+                            icon: Icons.chevron_left_rounded,
+                            label: strings.back,
+                            enabled: _canBack,
+                            onTap: _goBack,
+                            // Swings left and springs back, echoing the
+                            // direction the page itself is about to move.
+                            animate: (glyph) => SlideTransition(
+                              position:
+                                  Tween(
+                                    begin: Offset.zero,
+                                    end: const Offset(-0.35, 0),
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _backNudge,
+                                      curve: Curves.easeOutBack,
+                                    ),
+                                  ),
+                              child: glyph,
                             ),
-                        child: glyph,
+                          ),
+                          _navAction(
+                            key: const Key('nav-home'),
+                            icon: Icons.home_outlined,
+                            selectedIcon: Icons.home_rounded,
+                            label: strings.home,
+                            selected: isCourseUri(_currentUri),
+                            onTap: _goCourseHome,
+                          ),
+                          _navAction(
+                            key: const Key('nav-lessons'),
+                            selectedKey: const Key('lessons-selected'),
+                            // Outline is calendar_month, not calendar_today:
+                            // the latter is a bare empty square, which next to
+                            // the detailed filled state looked like a missing
+                            // glyph rather than the same icon unselected.
+                            icon: Icons.calendar_month_outlined,
+                            selectedIcon: Icons.calendar_month_rounded,
+                            label: strings.scheduledLessons,
+                            selected: isHomeUri(_currentUri),
+                            onTap: _goHome,
+                          ),
+                          _navAction(
+                            key: const Key('nav-refresh'),
+                            icon: Icons.refresh_rounded,
+                            label: strings.refresh,
+                            onTap: _reload,
+                            // One full turn, which is the action itself rather
+                            // than a generic tap acknowledgement.
+                            animate: (glyph) => RotationTransition(
+                              turns: CurvedAnimation(
+                                parent: _refreshSpin,
+                                curve: Curves.easeInOutCubic,
+                              ),
+                              child: glyph,
+                            ),
+                          ),
+                          _navAction(
+                            key: const Key('actions-menu'),
+                            icon: Icons.menu_rounded,
+                            label: strings.settings,
+                            onTap: _openActions,
+                          ),
+                        ],
                       ),
-                    ),
-                    _navAction(
-                      key: const Key('nav-home'),
-                      icon: Icons.home_outlined,
-                      selectedIcon: Icons.home_rounded,
-                      label: strings.home,
-                      selected: isCourseUri(_currentUri),
-                      onTap: _goCourseHome,
-                    ),
-                    _navAction(
-                      key: const Key('nav-lessons'),
-                      selectedKey: const Key('lessons-selected'),
-                      // Outline is calendar_month, not calendar_today:
-                      // the latter is a bare empty square, which next to
-                      // the detailed filled state looked like a missing
-                      // glyph rather than the same icon unselected.
-                      icon: Icons.calendar_month_outlined,
-                      selectedIcon: Icons.calendar_month_rounded,
-                      label: strings.scheduledLessons,
-                      selected: isHomeUri(_currentUri),
-                      onTap: _goHome,
-                    ),
-                    _navAction(
-                      key: const Key('nav-refresh'),
-                      icon: Icons.refresh_rounded,
-                      label: strings.refresh,
-                      onTap: _reload,
-                      // One full turn, which is the action itself rather
-                      // than a generic tap acknowledgement.
-                      animate: (glyph) => RotationTransition(
-                        turns: CurvedAnimation(
-                          parent: _refreshSpin,
-                          curve: Curves.easeInOutCubic,
-                        ),
-                        child: glyph,
-                      ),
-                    ),
-                    _navAction(
-                      key: const Key('actions-menu'),
-                      icon: Icons.menu_rounded,
-                      label: strings.settings,
-                      onTap: _openActions,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
