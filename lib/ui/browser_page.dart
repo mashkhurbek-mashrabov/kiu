@@ -184,8 +184,11 @@ class _BrowserPageState extends State<BrowserPage>
         : Uri.parse(_homeUrl);
     _currentUri = initialUri;
     _webView = WebViewController.fromPlatformCreationParams(_creationParams())
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(surfaceFor(_brightness))
+      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+    if (!runsOnMacOS) {
+      _webView.setBackgroundColor(surfaceFor(_brightness));
+    }
+    _webView
       ..addJavaScriptChannel(
         'KiuBridge',
         onMessageReceived: _handleBridgeMessage,
@@ -404,7 +407,9 @@ class _BrowserPageState extends State<BrowserPage>
   /// dark-mode toggle when it disagrees with the app.
   Future<void> _applySiteTheme() async {
     final brightness = _brightness;
-    await _webView.setBackgroundColor(surfaceFor(brightness));
+    if (!runsOnMacOS) {
+      await _webView.setBackgroundColor(surfaceFor(brightness));
+    }
     if (!isTrustedHttps(_currentUri)) return;
     await _webView.runJavaScript(
       siteThemeScript(brightness == Brightness.dark),
@@ -3188,8 +3193,11 @@ class _BrowserPageState extends State<BrowserPage>
         var loading = true;
         void Function()? onPageFinished;
         final controller = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(surfaceFor(_brightness))
+          ..setJavaScriptMode(JavaScriptMode.unrestricted);
+        if (!runsOnMacOS) {
+          controller.setBackgroundColor(surfaceFor(_brightness));
+        }
+        controller
           ..setNavigationDelegate(
             NavigationDelegate(onPageFinished: (_) => onPageFinished?.call()),
           )

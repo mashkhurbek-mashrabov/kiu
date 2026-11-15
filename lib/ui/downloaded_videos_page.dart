@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+import '../core/platform.dart';
 import '../domain/video_download.dart';
 import '../l10n/app_localizations.dart';
 import '../services/video_download_service.dart';
@@ -192,18 +193,19 @@ class _OfflineVideoPageState extends State<OfflineVideoPage> {
       platform.setMediaPlaybackRequiresUserGesture(false);
     }
     final src = const HtmlEscape().convert('${widget.url}');
-    _webView
-      ..setJavaScriptMode(JavaScriptMode.disabled)
-      ..setBackgroundColor(Colors.black)
-      ..loadHtmlString(
-        '<!doctype html><html><head>'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<style>html,body{margin:0;height:100%;background:#000}'
-        'video{width:100%;height:100%;object-fit:contain}</style>'
-        '</head><body>'
-        '<video controls autoplay playsinline src="$src"></video>'
-        '</body></html>',
-      );
+    _webView.setJavaScriptMode(JavaScriptMode.disabled);
+    if (!runsOnMacOS) {
+      _webView.setBackgroundColor(Colors.black);
+    }
+    _webView.loadHtmlString(
+      '<!doctype html><html><head>'
+      '<meta name="viewport" content="width=device-width,initial-scale=1">'
+      '<style>html,body{margin:0;height:100%;background:#000}'
+      'video{width:100%;height:100%;object-fit:contain}</style>'
+      '</head><body>'
+      '<video controls autoplay playsinline src="$src"></video>'
+      '</body></html>',
+    );
   }
 
   @override
