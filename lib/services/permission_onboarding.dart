@@ -76,10 +76,10 @@ class PermissionOnboarding {
       explain: explain,
     );
 
-    // Nothing past notifications exists on iOS: there is no battery, overlay
-    // or full-screen permission to ask for, and notifications are always
-    // delivered on time. Calls stay off, since callsUsable needs the rest.
-    if (runsOnIOS) {
+    // Nothing past notifications exists on Apple platforms: there is no battery,
+    // overlay or full-screen permission to ask for, and notifications are
+    // always delivered on time. Calls stay off, since callsUsable needs the rest.
+    if (runsOnApple) {
       return OnboardingResult(
         notifications: notifications,
         exactAlarms: true,

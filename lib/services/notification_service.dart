@@ -53,6 +53,11 @@ class LocalNotificationGateway implements NotificationGateway {
           requestSoundPermission: false,
           requestBadgePermission: false,
         ),
+        macOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestSoundPermission: false,
+          requestBadgePermission: false,
+        ),
       ),
       onDidReceiveNotificationResponse: (response) =>
           onTap?.call(response.payload),
@@ -69,11 +74,20 @@ class LocalNotificationGateway implements NotificationGateway {
         IOSFlutterLocalNotificationsPlugin
       >();
 
+  MacOSFlutterLocalNotificationsPlugin? get _macos => _plugin
+      .resolvePlatformSpecificImplementation<
+        MacOSFlutterLocalNotificationsPlugin
+      >();
+
   @override
   Future<bool> requestNotificationPermission() async {
     final ios = _ios;
     if (ios != null) {
       return await ios.requestPermissions(alert: true, sound: true) ?? false;
+    }
+    final macos = _macos;
+    if (macos != null) {
+      return await macos.requestPermissions(alert: true, sound: true) ?? false;
     }
     return await _android?.requestNotificationsPermission() ?? true;
   }
@@ -82,11 +96,11 @@ class LocalNotificationGateway implements NotificationGateway {
   Future<bool> requestExactAlarmPermission() async =>
       await _android?.requestExactAlarmsPermission() ?? false;
 
-  /// iOS delivers every scheduled notification on time and has no exact-alarm
-  /// permission, so it always counts as exact.
+  /// Apple platforms deliver every scheduled notification on time and have no
+  /// exact-alarm permission, so they always count as exact.
   @override
   Future<bool> canScheduleExactly() async =>
-      runsOnIOS || (await _android?.canScheduleExactNotifications() ?? false);
+      runsOnApple || (await _android?.canScheduleExactNotifications() ?? false);
 
   @override
   Future<NotificationSound?> selectSound({
@@ -144,9 +158,15 @@ class LocalNotificationGateway implements NotificationGateway {
           sound: sound,
         ),
         // Time-sensitive lets a reminder break through Focus modes, the
-        // closest iOS gets to Android's high-priority channel. Without the
-        // entitlement iOS quietly treats it as an ordinary alert.
+        // closest Apple platforms get to Android's high-priority channel.
+        // Without the entitlement Apple quietly treats it as an ordinary alert.
         iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
+        ),
+        macOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBanner: true,
           presentSound: true,

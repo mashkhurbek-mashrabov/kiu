@@ -168,11 +168,12 @@ class _BrowserPageState extends State<BrowserPage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => unawaited(_offerOptionalUpdate()),
     );
-    // iOS asks on the very first open: none of its prompts (notifications,
-    // AlarmKit) depend on being signed in, and a student who never reaches
-    // the lessons page would otherwise never be asked. Android keeps asking
-    // from the first Home page, where its settings-screen trips make sense.
-    if (runsOnIOS) {
+    // Apple platforms ask on the very first open: none of their prompts
+    // (notifications, AlarmKit) depend on being signed in, and a student who
+    // never reaches the lessons page would otherwise never be asked. Android
+    // keeps asking from the first Home page, where its settings-screen trips
+    // make sense.
+    if (runsOnApple) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => unawaited(_maybeRunPermissionOnboarding()),
       );
@@ -580,16 +581,16 @@ class _BrowserPageState extends State<BrowserPage>
       explain: _explainPermission,
     );
     if (!mounted) return;
-    // On iOS calls are opt-in unless AlarmKit was granted, so only a call
-    // actually switched on is worth reporting -- a "missing permission" note
-    // would point at Android settings that do not exist there.
-    if (runsOnIOS && !widget.controller.settings.callsEnabled) return;
+    // On Apple platforms calls are opt-in unless AlarmKit was granted, so only
+    // a call actually switched on is worth reporting -- a "missing permission"
+    // note would point at Android settings that do not exist there.
+    if (runsOnApple && !widget.controller.settings.callsEnabled) return;
     // Only worth a message when calls were the thing at stake. Silence on the
     // happy path would leave the user wondering whether anything took.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          result.callsUsable || runsOnIOS
+          result.callsUsable || runsOnApple
               ? strings.callsEnabledAfterOnboarding
               : strings.callsDisabledMissingPermission,
         ),
@@ -650,7 +651,7 @@ class _BrowserPageState extends State<BrowserPage>
   }
 
   Future<void> _maybeExplainBackgroundAccess() async {
-    if (runsOnIOS ||
+    if (runsOnApple ||
         _backgroundPromptOpen ||
         !widget.controller.shouldShowBackgroundExplainer ||
         !mounted) {
@@ -1272,15 +1273,15 @@ class _BrowserPageState extends State<BrowserPage>
                 ),
               ),
               InfoHint(
-                message: runsOnIOS
+                message: runsOnApple
                     ? strings.themeSystemHelpIos
                     : strings.themeSystemHelp,
               ),
             ],
           ),
           const SizedBox(height: 10),
-          if (runsOnIOS)
-            // The system's own sliding control, as in iOS Settings.
+          if (runsOnApple)
+            // The system's own sliding control, as on Apple platforms.
             SizedBox(
               width: double.infinity,
               child: CupertinoSlidingSegmentedControl<ThemeMode>(
@@ -1814,9 +1815,9 @@ class _BrowserPageState extends State<BrowserPage>
                                   setSheetState(() {});
                                 },
                               ),
-                              // iOS can only play sounds bundled in the app,
+                              // Apple platforms can only play sounds bundled in the app,
                               // not pick a system sound by URI.
-                              if (!runsOnIOS)
+                              if (!runsOnApple)
                                 SettingsRow(
                                   key: const Key('notification-sound-settings'),
                                   icon: Icons.music_note_rounded,
@@ -1849,7 +1850,7 @@ class _BrowserPageState extends State<BrowserPage>
                           // has none of the Android permissions behind them.
                           if (widget.controller.lessonCallsAvailable)
                             _callsSection(settings, setSheetState),
-                          if (!runsOnIOS)
+                          if (!runsOnApple)
                             _permissionsSection(settings, setSheetState),
                         ],
                       ),
@@ -2148,9 +2149,9 @@ class _BrowserPageState extends State<BrowserPage>
             setSheetState(() {});
           },
         ),
-        // iOS rings with KIU's own tone (or the system alarm sound under
+        // Apple platforms ring with KIU's own tone (or the system alarm sound under
         // AlarmKit) and cannot play a system ringtone picked by URI.
-        if (!runsOnIOS) ...[
+        if (!runsOnApple) ...[
           SettingsRow(
             key: const Key('call-ringtone'),
             icon: Icons.music_note_rounded,
@@ -2359,7 +2360,7 @@ class _BrowserPageState extends State<BrowserPage>
             key: const Key('background-sync-switch'),
             icon: Icons.cloud_sync_rounded,
             title: strings.backgroundSync,
-            hint: runsOnIOS
+            hint: runsOnApple
                 ? strings.backgroundSyncHelpIos
                 : strings.backgroundSyncHelp,
             value: settings.backgroundSyncEnabled,
@@ -2435,8 +2436,8 @@ class _BrowserPageState extends State<BrowserPage>
         // update notifier so the row that *announces* an update is also the
         // one that downloads it -- a separate button below read as unrelated
         // to the line above it.
-        // App Store and TestFlight deliver iOS updates themselves.
-        if (!runsOnIOS)
+        // App Store, TestFlight, or macOS deliver non-APK updates.
+        if (!runsOnApple)
           ValueListenableBuilder<AppUpdate?>(
             valueListenable: widget.controller.availableUpdate,
             builder: (context, update, _) {
@@ -3115,8 +3116,8 @@ class _BrowserPageState extends State<BrowserPage>
                   ),
               ],
             ),
-            // Google Play listings: Android apps an iPhone cannot install.
-            if (!runsOnIOS)
+            // Google Play listings: Android apps an Apple device cannot install.
+            if (!runsOnApple)
               SettingsSection(
                 title: strings.apps,
                 icon: Icons.apps_rounded,
