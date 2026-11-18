@@ -360,7 +360,7 @@ class VideoDownloadService {
 
   /// Starts a download, or does nothing if [key] already has one.
   ///
-  /// Throws [ArgumentError] for a URL that is not a lesson MP4 on the LMS host.
+  /// Throws [ArgumentError] for a URL that is not a lesson MP4 (see `isLessonVideoFile`).
   /// No cookies are sent: the files are static and public, so nothing of the
   /// session ever reaches the download manager.
   Future<void> start({

@@ -201,13 +201,19 @@ String? videoDownloadKey(Uri uri) {
   return '${segments[2]}/${segments[3]}';
 }
 
-/// Whether [uri] is a lesson video file the app may download: a static MP4
-/// under `/videos/` on the trusted LMS host. The URL is read from the page,
-/// so it is checked like any other page-supplied value.
-bool isLessonVideoFile(Uri uri) =>
-    isTrustedHttps(uri) &&
-    uri.path.startsWith('/videos/') &&
-    uri.path.toLowerCase().endsWith('.mp4');
+/// Whether [uri] is a lesson video file the app may download: an HTTPS file
+/// on any host, since courses move their videos between servers. Plain HTTP
+/// is refused because a file fetched in the clear can be swapped in transit,
+/// and HLS/DASH manifests are refused because they are playlists, not video.
+///
+/// Any host is safe here because downloads never carry the LMS session: no
+/// cookie or header of the user's reaches the download manager. The URL is
+/// read from the trusted lesson page's main frame.
+bool isLessonVideoFile(Uri uri) {
+  if (uri.scheme != 'https' || uri.host.isEmpty) return false;
+  final path = uri.path.toLowerCase();
+  return !path.endsWith('.m3u8') && !path.endsWith('.mpd');
+}
 
 bool isVideoLessonUri(Uri uri) {
   if (!isTrustedHttps(uri)) return false;

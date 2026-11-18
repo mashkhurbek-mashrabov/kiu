@@ -57,14 +57,21 @@ void main() {
     });
   });
 
-  test('isLessonVideoFile accepts only LMS mp4 files under /videos/', () {
-    expect(isLessonVideoFile(videoFile), isTrue);
+  test('isLessonVideoFile accepts HTTPS video files on any host', () {
     for (final url in [
+      videoFile.toString(),
+      'https://kazan.firdavsiya.com/videos/lessons/32/2025-11-02_9331.mp4',
+      'https://cdn.example.org/media/lesson-42?sig=abc',
+    ]) {
+      expect(isLessonVideoFile(Uri.parse(url)), isTrue, reason: url);
+    }
+    for (final url in [
+      'http://kazan.firdavsiya.com/videos/lessons/32/a.mp4',
       'blob:https://uz.do-kazankiu.ru/abc',
-      'https://evil.example/videos/a.mp4',
-      'http://uz.do-kazankiu.ru/videos/a.mp4',
-      'https://uz.do-kazankiu.ru/uploads/a.mp4',
+      'data:video/mp4;base64,AAAA',
+      'https:///no-host.mp4',
       'https://uz.do-kazankiu.ru/videos/a.m3u8',
+      'https://cdn.example.org/stream/manifest.mpd',
     ]) {
       expect(isLessonVideoFile(Uri.parse(url)), isFalse, reason: url);
     }
@@ -182,7 +189,7 @@ void main() {
 
     test('rejects URLs that are not lesson video files', () async {
       for (final url in [
-        'https://evil.example/videos/a.mp4',
+        'http://uz.do-kazankiu.ru/videos/a.mp4',
         'blob:https://uz.do-kazankiu.ru/abc',
       ]) {
         await expectLater(
