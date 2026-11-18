@@ -214,5 +214,6 @@
   "deleteAll": "Delete all",
   "deleteAllVideosQuestion": "Delete all downloaded videos from the phone?",
   "downloadFailed": "Could not start the download",
-  "videoNotDownloadable": "This video cannot be downloaded"
+  "videoNotDownloadable": "This video cannot be downloaded",
+  "courseNumber": "Course {id}"
 }

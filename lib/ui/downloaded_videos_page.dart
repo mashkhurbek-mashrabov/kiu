@@ -68,18 +68,28 @@ class DownloadedVideosPage extends StatelessWidget {
                   ],
                 ),
               )
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                children: [
-                  SettingsSection(
-                    title: strings.downloadedVideos,
-                    icon: Icons.download_for_offline_rounded,
-                    children: [
-                      for (final download in downloads.reversed)
-                        _row(context, strings, download),
-                    ],
-                  ),
-                ],
+            : ValueListenableBuilder<Map<String, String>>(
+                valueListenable: service.courseNames,
+                builder: (context, courseNames, _) => ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    for (final course in groupDownloadsByCourse(
+                      downloads,
+                      courseNames,
+                    ))
+                      SettingsSection(
+                        key: Key('downloaded-course-${course.courseId}'),
+                        title:
+                            course.courseName ??
+                            strings.courseNumber(course.courseId),
+                        icon: Icons.school_rounded,
+                        children: [
+                          for (final download in course.videos)
+                            _row(context, strings, download),
+                        ],
+                      ),
+                  ],
+                ),
               ),
       ),
     );

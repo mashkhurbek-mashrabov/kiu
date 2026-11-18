@@ -214,5 +214,6 @@
   "deleteAll": "Hammasini o‘chirish",
   "deleteAllVideosQuestion": "Barcha yuklab olingan videolar telefondan o‘chirilsinmi?",
   "downloadFailed": "Yuklab olishni boshlab bo‘lmadi",
-  "videoNotDownloadable": "Bu videoni yuklab olib bo‘lmaydi"
+  "videoNotDownloadable": "Bu videoni yuklab olib bo‘lmaydi",
+  "courseNumber": "Kurs {id}"
 }

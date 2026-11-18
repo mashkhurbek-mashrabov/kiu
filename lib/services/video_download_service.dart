@@ -343,11 +343,19 @@ class VideoDownloadService {
     VideoDownloadGateway? gateway,
   }) : _repository = repository,
        _gateway = gateway ?? AndroidVideoDownloadGateway(),
-       downloads = ValueNotifier(repository.loadVideoDownloads());
+       downloads = ValueNotifier(repository.loadVideoDownloads()),
+       courseNames = ValueNotifier(repository.loadCourseNames());
 
   final SettingsRepository _repository;
   final VideoDownloadGateway _gateway;
   final ValueNotifier<List<VideoDownload>> downloads;
+
+  /// Course names by id, learned from the "my courses" page; titles the
+  /// groups of the Downloaded videos list.
+  final ValueNotifier<Map<String, String>> courseNames;
+
+  /// Most course names kept; the oldest beyond it are dropped.
+  static const int maxCourseNames = 200;
   Timer? _poll;
   LocalVideoServer? _server;
 
@@ -466,6 +474,27 @@ class VideoDownloadService {
   }
 
   String? _pathFor(String key) => entryFor(key)?.path;
+
+  /// Merges course names read from the page. Page data, so only numeric ids
+  /// with a non-empty name are kept, each name capped at 200 characters.
+  Future<void> rememberCourseNames(Map<Object?, Object?> found) async {
+    final next = Map.of(courseNames.value);
+    for (final entry in found.entries) {
+      final id = entry.key;
+      final name = entry.value;
+      if (id is! String || !RegExp(r'^[1-9]\d*$').hasMatch(id)) continue;
+      if (name is! String || name.trim().isEmpty) continue;
+      final trimmed = name.trim();
+      next.remove(id);
+      next[id] = trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed;
+    }
+    while (next.length > maxCourseNames) {
+      next.remove(next.keys.first);
+    }
+    if (mapEquals(next, courseNames.value)) return;
+    courseNames.value = Map.unmodifiable(next);
+    await _repository.saveCourseNames(next);
+  }
 
   void dispose() {
     _poll?.cancel();

@@ -77,6 +77,84 @@ void main() {
     }
   });
 
+  group('compareNatural', () {
+    test('orders numbered titles by value, not text', () {
+      final titles = [
+        '10. Ўнинчи',
+        '2. Иккинчи',
+        '1. Биринчи',
+        '9. Тўққизинчи',
+      ];
+      titles.sort(compareNatural);
+      expect(titles, [
+        '1. Биринчи',
+        '2. Иккинчи',
+        '9. Тўққизинчи',
+        '10. Ўнинчи',
+      ]);
+    });
+
+    test('ignores case and treats a prefix as smaller', () {
+      expect(compareNatural('abc', 'ABD'), lessThan(0));
+      expect(compareNatural('Dars', 'Dars 2'), lessThan(0));
+      expect(compareNatural('06. a', '6. a'), 0);
+    });
+  });
+
+  group('groupDownloadsByCourse', () {
+    VideoDownload download(String key, String title) => VideoDownload(
+      key: key,
+      title: title,
+      lessonUrl: Uri.parse('https://uz.do-kazankiu.ru/uz/my-course/$key/video'),
+      downloadId: 1,
+      savedAt: DateTime(2026),
+    );
+
+    test('groups by course and sorts courses and lessons by name', () {
+      final groups = groupDownloadsByCourse(
+        [
+          download('32/650', '10. Ўнинчи'),
+          download('5/20', '1. Арбаъин'),
+          download('32/642', '06. Мақсад'),
+          download('77/1', 'Номсиз'),
+          download('32/621', '01. Аҳамияти'),
+        ],
+        {'32': 'Ақийдатут-Таҳовийя', '5': 'Арбаъин'},
+      );
+      expect(groups.map((g) => g.courseId), ['5', '32', '77']);
+      expect(groups[1].courseName, 'Ақийдатут-Таҳовийя');
+      expect(groups[1].videos.map((v) => v.title), [
+        '01. Аҳамияти',
+        '06. Мақсад',
+        '10. Ўнинчи',
+      ]);
+      // A course with no learned name still gets its group, last.
+      expect(groups.last.courseName, isNull);
+    });
+  });
+
+  group('loadCourseNames', () {
+    test('keeps numeric ids with names, drops the rest', () async {
+      final repository = await repositoryWith({
+        'kiu.courseNames': jsonEncode({
+          '32': ' Ақийдатут-Таҳовийя ',
+          'abc': 'bad id',
+          '0': 'zero id',
+          '5': '',
+          '6': 7,
+        }),
+      });
+      expect(repository.loadCourseNames(), {'32': 'Ақийдатут-Таҳовийя'});
+    });
+
+    test('unreadable values are an empty map', () async {
+      for (final raw in ['{not json', '[1]']) {
+        final repository = await repositoryWith({'kiu.courseNames': raw});
+        expect(repository.loadCourseNames(), isEmpty, reason: raw);
+      }
+    });
+  });
+
   group('loadVideoDownloads', () {
     test('unparsable JSON or the wrong shape is an empty list', () async {
       for (final raw in ['{not json', '{"a":1}', '42']) {
@@ -178,13 +256,12 @@ void main() {
   group('VideoDownloadService', () {
     late FakeVideoDownloadGateway gateway;
     late VideoDownloadService service;
+    late SettingsRepository repository;
 
     setUp(() async {
       gateway = FakeVideoDownloadGateway();
-      service = VideoDownloadService(
-        repository: await repositoryWith({}),
-        gateway: gateway,
-      );
+      repository = await repositoryWith({});
+      service = VideoDownloadService(repository: repository, gateway: gateway);
     });
 
     test('rejects URLs that are not lesson video files', () async {
@@ -287,6 +364,24 @@ void main() {
       await service.deleteAll();
       expect(service.downloads.value, isEmpty);
       expect(gateway.removed, [1, 2, 3]);
+    });
+
+    test('remembers valid course names and persists them', () async {
+      await service.rememberCourseNames({
+        '32': 'Ақийдатут-Таҳовийя',
+        '__proto__': 'x',
+        '5': '   ',
+        7: 'not a string id',
+        '9': 'x' * 300,
+      });
+      expect(service.courseNames.value.keys, ['32', '9']);
+      expect(service.courseNames.value['9'], hasLength(200));
+
+      final reloaded = VideoDownloadService(
+        repository: repository,
+        gateway: gateway,
+      );
+      expect(reloaded.courseNames.value['32'], 'Ақийдатут-Таҳовийя');
     });
 
     test('the index survives a restart', () async {

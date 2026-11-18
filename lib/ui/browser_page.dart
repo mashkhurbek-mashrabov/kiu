@@ -377,6 +377,7 @@ class _BrowserPageState extends State<BrowserPage>
       // Every logged-in page carries the same nav, so the level is read here
       // rather than on one specific route. Reports only when it finds a link.
       unawaited(_webView.runJavaScript(courseLevelScript()));
+      if (isCourseUri(uri)) unawaited(_rememberCourseNames());
       if (isRussianCourseVideoUri(uri)) {
         unawaited(_webView.runJavaScript(videoIframeFixScript()));
       }
@@ -2778,6 +2779,29 @@ class _BrowserPageState extends State<BrowserPage>
     await _webView.runJavaScript(localVideoSourceScript(url.toString()));
   }
 
+  /// Runs [script], which returns `JSON.stringify(object)`, in the main frame
+  /// and decodes it, or null when it fails or is not an object. Android hands
+  /// a JS string back still JSON-quoted; macOS may return the map itself.
+  Future<Map<Object?, Object?>?> _evaluateJsonMap(String script) async {
+    try {
+      final raw = await _webView.runJavaScriptReturningResult(script);
+      if (raw is Map) return raw;
+      var decoded = jsonDecode('$raw');
+      if (decoded is String) decoded = jsonDecode(decoded);
+      return decoded is Map ? decoded : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Learns course names from a "my courses" page for the downloads list.
+  Future<void> _rememberCourseNames() async {
+    final service = widget.videoDownloads;
+    if (service == null) return;
+    final names = await _evaluateJsonMap(courseNamesScript());
+    if (names != null) await service.rememberCourseNames(names);
+  }
+
   Future<void> _downloadCurrentVideo() async {
     final service = widget.videoDownloads;
     final lessonUrl = _currentUri;
@@ -2785,29 +2809,12 @@ class _BrowserPageState extends State<BrowserPage>
     if (service == null || key == null) return;
     Uri? videoUrl;
     var title = '';
-    try {
-      final raw = await _webView.runJavaScriptReturningResult(
-        videoSourceScript(),
-      );
-      Object? decoded;
-      if (raw is Map) {
-        decoded = raw;
-      } else {
-        try {
-          decoded = jsonDecode('$raw');
-          if (decoded is String) decoded = jsonDecode(decoded);
-        } catch (_) {
-          decoded = null;
-        }
-      }
-      if (decoded is Map) {
-        final src = decoded['src'];
-        final name = decoded['title'];
-        if (src is String) videoUrl = Uri.tryParse(src);
-        if (name is String) title = name.trim();
-      }
-    } on Exception {
-      videoUrl = null;
+    final decoded = await _evaluateJsonMap(videoSourceScript());
+    if (decoded != null) {
+      final src = decoded['src'];
+      final name = decoded['title'];
+      if (src is String) videoUrl = Uri.tryParse(src);
+      if (name is String) title = name.trim();
     }
     if (!mounted) return;
     if (videoUrl == null || !isLessonVideoFile(videoUrl)) {

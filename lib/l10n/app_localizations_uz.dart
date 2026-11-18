@@ -606,6 +606,11 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get videoNotDownloadable => 'Bu videoni yuklab olib bo‘lmaydi';
+
+  @override
+  String courseNumber(String id) {
+    return 'Kurs $id';
+  }
 }
 
 /// The translations for Uzbek, using the Cyrillic script (`uz_Cyrl`).
@@ -1209,4 +1214,9 @@ class AppLocalizationsUzCyrl extends AppLocalizationsUz {
 
   @override
   String get videoNotDownloadable => 'Бу видеони юклаб олиб бўлмайди';
+
+  @override
+  String courseNumber(String id) {
+    return 'Курс $id';
+  }
 }

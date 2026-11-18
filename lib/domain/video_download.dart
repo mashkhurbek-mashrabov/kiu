@@ -96,3 +96,63 @@ class VideoDownload {
     );
   }
 }
+
+/// The downloads of one course, for the grouped Downloaded videos list.
+typedef CourseDownloads = ({
+  String courseId,
+  String? courseName,
+  List<VideoDownload> videos,
+});
+
+/// Groups [downloads] by course and sorts courses and lessons by name.
+///
+/// [courseNames] maps a course id to the name the "my courses" page shows; a
+/// course missing from it keeps a null name and sorts after the named ones,
+/// by id. Names compare with [compareNatural], so "10. …" follows "9. …".
+List<CourseDownloads> groupDownloadsByCourse(
+  List<VideoDownload> downloads,
+  Map<String, String> courseNames,
+) {
+  final byCourse = <String, List<VideoDownload>>{};
+  for (final download in downloads) {
+    final courseId = download.key.split('/').first;
+    (byCourse[courseId] ??= []).add(download);
+  }
+  final groups = [
+    for (final entry in byCourse.entries)
+      (
+        courseId: entry.key,
+        courseName: courseNames[entry.key],
+        videos: entry.value..sort((a, b) => compareNatural(a.title, b.title)),
+      ),
+  ];
+  groups.sort((a, b) {
+    final aName = a.courseName;
+    final bName = b.courseName;
+    if (aName != null && bName != null) return compareNatural(aName, bName);
+    if (aName != null) return -1;
+    if (bName != null) return 1;
+    return compareNatural(a.courseId, b.courseId);
+  });
+  return groups;
+}
+
+final RegExp _naturalChunk = RegExp(r'\d+|\D+');
+
+/// Case-insensitive comparison that orders digit runs by value, so lesson
+/// titles numbered "2." and "10." sort as a person would read them.
+int compareNatural(String a, String b) {
+  final aChunks = _naturalChunk.allMatches(a.toLowerCase()).toList();
+  final bChunks = _naturalChunk.allMatches(b.toLowerCase()).toList();
+  for (var i = 0; i < aChunks.length && i < bChunks.length; i++) {
+    final x = aChunks[i][0]!;
+    final y = bChunks[i][0]!;
+    final xNumber = int.tryParse(x);
+    final yNumber = int.tryParse(y);
+    final order = xNumber != null && yNumber != null
+        ? xNumber.compareTo(yNumber)
+        : x.compareTo(y);
+    if (order != 0) return order;
+  }
+  return aChunks.length.compareTo(bChunks.length);
+}

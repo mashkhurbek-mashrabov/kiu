@@ -214,5 +214,6 @@
   "deleteAll": "Удалить все",
   "deleteAllVideosQuestion": "Удалить все скачанные видео с телефона?",
   "downloadFailed": "Не удалось начать скачивание",
-  "videoNotDownloadable": "Это видео нельзя скачать"
+  "videoNotDownloadable": "Это видео нельзя скачать",
+  "courseNumber": "Курс {id}"
 }

@@ -52,6 +52,35 @@ void main() {
     expect(find.byKey(const Key('delete-all-videos')), findsNothing);
   });
 
+  testWidgets('groups videos by course, sorted by name', (tester) async {
+    await addDownload('32/650', '10. Ўнинчи');
+    await addDownload('32/642', '2. Иккинчи');
+    await addDownload('5/20', 'Арбаъин 1');
+    await service.rememberCourseNames({'32': 'Ақийдатут-Таҳовийя'});
+    await pumpPage(tester);
+
+    final named = find.byKey(const Key('downloaded-course-32'));
+    final unnamed = find.byKey(const Key('downloaded-course-5'));
+    expect(
+      find.descendant(of: named, matching: find.text('АҚИЙДАТУТ-ТАҲОВИЙЯ')),
+      findsOneWidget,
+    );
+    // No name learned yet: the course id stands in.
+    expect(
+      find.descendant(of: unnamed, matching: find.text('COURSE 5')),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(named).dy,
+      lessThan(tester.getTopLeft(unnamed).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('2. Иккинчи')).dy,
+      lessThan(tester.getTopLeft(find.text('10. Ўнинчи')).dy),
+    );
+    service.dispose();
+  });
+
   testWidgets('deletes one video after confirming', (tester) async {
     await addDownload('5/20', 'Arbain 1');
     await addDownload('5/21', 'Arbain 2');
