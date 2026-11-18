@@ -48,6 +48,7 @@ class SettingsRepository {
   static const _activationReset = 'kiu.activationResetV2';
   static const _lastVideo = 'kiu.lastVideo';
   static const _videoDownloads = 'kiu.videoDownloads';
+  static const _courseNames = 'kiu.courseNames';
 
   AppSettings loadSettings() => AppSettings(
     playbackRate: _preferences.getDouble(_playbackRate) ?? 1,
@@ -362,6 +363,30 @@ class SettingsRepository {
         _videoDownloads,
         jsonEncode([for (final download in downloads) download.toJson()]),
       );
+
+  /// Course names learned from the "my courses" page, by course id. Tolerant:
+  /// anything that is not a numeric id mapped to a non-empty string is dropped.
+  Map<String, String> loadCourseNames() {
+    final raw = _preferences.get(_courseNames);
+    if (raw is! String) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return {
+        for (final entry in decoded.entries)
+          if (entry.key is String &&
+              RegExp(r'^[1-9]\d*$').hasMatch(entry.key as String) &&
+              entry.value is String &&
+              (entry.value as String).trim().isNotEmpty)
+            entry.key as String: (entry.value as String).trim(),
+      };
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  Future<void> saveCourseNames(Map<String, String> names) =>
+      _preferences.setString(_courseNames, jsonEncode(names));
 
   /// Whether the one-shot clearing of pre-2.1.0 activations has already run.
   ///

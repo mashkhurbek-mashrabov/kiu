@@ -605,4 +605,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoNotDownloadable => 'This video cannot be downloaded';
+
+  @override
+  String courseNumber(String id) {
+    return 'Course $id';
+  }
 }

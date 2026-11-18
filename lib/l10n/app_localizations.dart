@@ -1216,6 +1216,12 @@ abstract class AppLocalizations {
   /// In uz_Cyrl, this message translates to:
   /// **'Бу видеони юклаб олиб бўлмайди'**
   String get videoNotDownloadable;
+
+  /// No description provided for @courseNumber.
+  ///
+  /// In uz_Cyrl, this message translates to:
+  /// **'Курс {id}'**
+  String courseNumber(String id);
 }
 
 class _AppLocalizationsDelegate

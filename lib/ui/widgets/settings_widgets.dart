@@ -212,7 +212,7 @@ class SettingsSwitch extends StatelessWidget {
   final ValueChanged<bool>? onChanged;
 
   @override
-  Widget build(BuildContext context) => runsOnIOS
+  Widget build(BuildContext context) => runsOnApple
       ? CupertinoSwitch(
           value: value,
           onChanged: onChanged,

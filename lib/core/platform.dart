@@ -12,6 +12,12 @@ import 'package:flutter/foundation.dart';
 /// rather than stubbed behind gateways that could never succeed.
 bool get runsOnIOS => defaultTargetPlatform == TargetPlatform.iOS;
 
+/// Whether this build runs on macOS desktop.
+bool get runsOnMacOS => defaultTargetPlatform == TargetPlatform.macOS;
+
+/// Whether this build runs on an Apple platform (iOS or macOS).
+bool get runsOnApple => runsOnIOS || runsOnMacOS;
+
 /// The App Group the app and the iOS widget extension share. `home_widget`
 /// writes the widget payload into its `UserDefaults` suite, and the lesson-call
 /// alarms read their schedule from there too. Must match both

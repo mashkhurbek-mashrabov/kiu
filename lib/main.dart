@@ -108,13 +108,15 @@ Future<bool> _runBackgroundSync({bool force = false}) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   TimeZoneService.initialize();
-  await Workmanager().initialize(callbackDispatcher);
+  if (!runsOnMacOS) {
+    await Workmanager().initialize(callbackDispatcher);
+  }
   if (runsOnIOS) {
     // Where `home_widget` keeps the payload the WidgetKit extension reads.
     await HomeWidget.setAppGroupId(iosAppGroupId);
-  } else {
+  } else if (!runsOnMacOS) {
     // The iOS widget's buttons reopen the app instead, whose resume sync does
-    // what Android's background Sync callback does.
+    // what Android's background Sync callback does. macOS has no home widget.
     await HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
   }
 
@@ -122,13 +124,21 @@ Future<void> main() async {
   final repository = SettingsRepository(preferences);
   final notifications = LocalNotificationGateway();
   final homeRequests = ValueNotifier<int>(0);
+  final Uri? initialWidgetUri;
+  if (!runsOnMacOS) {
+    initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+  } else {
+    initialWidgetUri = null;
+  }
   final navigationRequests = ValueNotifier<Uri?>(
-    widgetLaunchTarget(await HomeWidget.initiallyLaunchedFromHomeWidget()),
+    widgetLaunchTarget(initialWidgetUri),
   );
-  HomeWidget.widgetClicked.listen((uri) {
-    final target = widgetLaunchTarget(uri);
-    if (target != null) navigationRequests.value = target;
-  });
+  if (!runsOnMacOS) {
+    HomeWidget.widgetClicked.listen((uri) {
+      final target = widgetLaunchTarget(uri);
+      if (target != null) navigationRequests.value = target;
+    });
+  }
   await notifications.initialize(onTap: (_) => homeRequests.value++);
   final fetcher = ScheduleFetcher(cookieProvider: AndroidCookieProvider());
   final lessonWidgets = HomeLessonWidgetGateway();
@@ -147,9 +157,8 @@ Future<void> main() async {
     reconciler: reconciler,
     notifications: notifications,
     lessonWidgets: lessonWidgets,
-    // iOS installs only come from the App Store or TestFlight, which deliver
-    // their own updates; an app may not download and install code itself.
-    updateChecker: runsOnIOS ? null : GitHubUpdateChecker(),
+    // Apple installs do not use the in-app APK updater.
+    updateChecker: runsOnApple ? null : GitHubUpdateChecker(),
   );
   await controller.initialize();
   runApp(
@@ -157,13 +166,19 @@ Future<void> main() async {
       controller: controller,
       homeRequests: homeRequests,
       navigationRequests: navigationRequests,
-      updateDownloader: runsOnIOS
+      updateDownloader: runsOnApple
           ? null
           : UpdateDownloader(installer: AndroidApkInstaller()),
-      // Rides Android's DownloadManager; iOS has no equivalent wired up.
+      // Android uses DownloadManager; macOS uses DesktopVideoDownloadGateway.
+      // iOS has no download gateway wired up yet.
       videoDownloads: runsOnIOS
           ? null
-          : VideoDownloadService(repository: repository),
+          : VideoDownloadService(
+              repository: repository,
+              gateway: runsOnMacOS
+                  ? DesktopVideoDownloadGateway()
+                  : AndroidVideoDownloadGateway(),
+            ),
     ),
   );
 }

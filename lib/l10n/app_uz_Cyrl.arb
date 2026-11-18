@@ -242,5 +242,13 @@
   "deleteAll": "Ҳаммасини ўчириш",
   "deleteAllVideosQuestion": "Барча юклаб олинган видеолар телефондан ўчирилсинми?",
   "downloadFailed": "Юклаб олишни бошлаб бўлмади",
-  "videoNotDownloadable": "Бу видеони юклаб олиб бўлмайди"
+  "videoNotDownloadable": "Бу видеони юклаб олиб бўлмайди",
+  "courseNumber": "Курс {id}",
+  "@courseNumber": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  }
 }

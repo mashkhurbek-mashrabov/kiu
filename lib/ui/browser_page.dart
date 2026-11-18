@@ -168,11 +168,12 @@ class _BrowserPageState extends State<BrowserPage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => unawaited(_offerOptionalUpdate()),
     );
-    // iOS asks on the very first open: none of its prompts (notifications,
-    // AlarmKit) depend on being signed in, and a student who never reaches
-    // the lessons page would otherwise never be asked. Android keeps asking
-    // from the first Home page, where its settings-screen trips make sense.
-    if (runsOnIOS) {
+    // Apple platforms ask on the very first open: none of their prompts
+    // (notifications, AlarmKit) depend on being signed in, and a student who
+    // never reaches the lessons page would otherwise never be asked. Android
+    // keeps asking from the first Home page, where its settings-screen trips
+    // make sense.
+    if (runsOnApple) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => unawaited(_maybeRunPermissionOnboarding()),
       );
@@ -183,8 +184,11 @@ class _BrowserPageState extends State<BrowserPage>
         : Uri.parse(_homeUrl);
     _currentUri = initialUri;
     _webView = WebViewController.fromPlatformCreationParams(_creationParams())
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(surfaceFor(_brightness))
+      ..setJavaScriptMode(JavaScriptMode.unrestricted);
+    if (!runsOnMacOS) {
+      _webView.setBackgroundColor(surfaceFor(_brightness));
+    }
+    _webView
       ..addJavaScriptChannel(
         'KiuBridge',
         onMessageReceived: _handleBridgeMessage,
@@ -346,31 +350,39 @@ class _BrowserPageState extends State<BrowserPage>
   Future<void> _pageFinished(String url) async {
     final uri = Uri.tryParse(url);
     _canBack = await _webView.canGoBack();
+    if (mounted) {
+      setState(() {
+        if (uri != null) _currentUri = uri;
+        _progress = 100;
+      });
+    }
     if (uri != null && isTrustedHttps(uri)) {
-      // Before the resume seek, which then lands on the local file: a
-      // downloaded lesson plays from the device and survives losing the
-      // internet. The page and its player stay the LMS's own.
-      await _applyLocalVideo(uri);
       // First, ahead of the other injections: each one is a round trip the
       // user would otherwise spend looking at a paused player.
       final resumeAt = _pendingResumeSeconds;
       _pendingResumeSeconds = null;
       if (resumeAt != null && isVideoLessonUri(uri)) {
-        await _webView.runJavaScript(resumeVideoScript(resumeAt));
+        unawaited(_webView.runJavaScript(resumeVideoScript(resumeAt)));
       }
-      await _applyPlaybackRate();
-      await _applySiteTheme();
-      await _webView.runJavaScript(
-        pullToRefreshScript(thresholdPx: _pullThreshold.round()),
-      );
+      unawaited(_applyLocalVideo(uri));
+      unawaited(_applyPlaybackRate());
+      unawaited(_applySiteTheme());
+      if (!runsOnMacOS) {
+        unawaited(
+          _webView.runJavaScript(
+            pullToRefreshScript(thresholdPx: _pullThreshold.round()),
+          ),
+        );
+      }
       // Every logged-in page carries the same nav, so the level is read here
       // rather than on one specific route. Reports only when it finds a link.
-      await _webView.runJavaScript(courseLevelScript());
+      unawaited(_webView.runJavaScript(courseLevelScript()));
+      if (isCourseUri(uri)) unawaited(_rememberCourseNames());
       if (isRussianCourseVideoUri(uri)) {
-        await _webView.runJavaScript(videoIframeFixScript());
+        unawaited(_webView.runJavaScript(videoIframeFixScript()));
       }
       if (isVideoLessonUri(uri)) {
-        await _webView.runJavaScript(videoProgressScript());
+        unawaited(_webView.runJavaScript(videoProgressScript()));
       }
       if (isHomeUri(uri)) {
         unawaited(_synchronize());
@@ -382,12 +394,6 @@ class _BrowserPageState extends State<BrowserPage>
           unawaited(_maybeExplainBackgroundAccess());
         }
       }
-    }
-    if (mounted) {
-      setState(() {
-        if (uri != null) _currentUri = uri;
-        _progress = 100;
-      });
     }
   }
 
@@ -403,7 +409,9 @@ class _BrowserPageState extends State<BrowserPage>
   /// dark-mode toggle when it disagrees with the app.
   Future<void> _applySiteTheme() async {
     final brightness = _brightness;
-    await _webView.setBackgroundColor(surfaceFor(brightness));
+    if (!runsOnMacOS) {
+      await _webView.setBackgroundColor(surfaceFor(brightness));
+    }
     if (!isTrustedHttps(_currentUri)) return;
     await _webView.runJavaScript(
       siteThemeScript(brightness == Brightness.dark),
@@ -580,16 +588,16 @@ class _BrowserPageState extends State<BrowserPage>
       explain: _explainPermission,
     );
     if (!mounted) return;
-    // On iOS calls are opt-in unless AlarmKit was granted, so only a call
-    // actually switched on is worth reporting -- a "missing permission" note
-    // would point at Android settings that do not exist there.
-    if (runsOnIOS && !widget.controller.settings.callsEnabled) return;
+    // On Apple platforms calls are opt-in unless AlarmKit was granted, so only
+    // a call actually switched on is worth reporting -- a "missing permission"
+    // note would point at Android settings that do not exist there.
+    if (runsOnApple && !widget.controller.settings.callsEnabled) return;
     // Only worth a message when calls were the thing at stake. Silence on the
     // happy path would leave the user wondering whether anything took.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          result.callsUsable || runsOnIOS
+          result.callsUsable || runsOnApple
               ? strings.callsEnabledAfterOnboarding
               : strings.callsDisabledMissingPermission,
         ),
@@ -650,7 +658,7 @@ class _BrowserPageState extends State<BrowserPage>
   }
 
   Future<void> _maybeExplainBackgroundAccess() async {
-    if (runsOnIOS ||
+    if (runsOnApple ||
         _backgroundPromptOpen ||
         !widget.controller.shouldShowBackgroundExplainer ||
         !mounted) {
@@ -1272,15 +1280,15 @@ class _BrowserPageState extends State<BrowserPage>
                 ),
               ),
               InfoHint(
-                message: runsOnIOS
+                message: runsOnApple
                     ? strings.themeSystemHelpIos
                     : strings.themeSystemHelp,
               ),
             ],
           ),
           const SizedBox(height: 10),
-          if (runsOnIOS)
-            // The system's own sliding control, as in iOS Settings.
+          if (runsOnApple)
+            // The system's own sliding control, as on Apple platforms.
             SizedBox(
               width: double.infinity,
               child: CupertinoSlidingSegmentedControl<ThemeMode>(
@@ -1814,9 +1822,9 @@ class _BrowserPageState extends State<BrowserPage>
                                   setSheetState(() {});
                                 },
                               ),
-                              // iOS can only play sounds bundled in the app,
+                              // Apple platforms can only play sounds bundled in the app,
                               // not pick a system sound by URI.
-                              if (!runsOnIOS)
+                              if (!runsOnApple)
                                 SettingsRow(
                                   key: const Key('notification-sound-settings'),
                                   icon: Icons.music_note_rounded,
@@ -1849,7 +1857,7 @@ class _BrowserPageState extends State<BrowserPage>
                           // has none of the Android permissions behind them.
                           if (widget.controller.lessonCallsAvailable)
                             _callsSection(settings, setSheetState),
-                          if (!runsOnIOS)
+                          if (!runsOnApple)
                             _permissionsSection(settings, setSheetState),
                         ],
                       ),
@@ -2148,9 +2156,9 @@ class _BrowserPageState extends State<BrowserPage>
             setSheetState(() {});
           },
         ),
-        // iOS rings with KIU's own tone (or the system alarm sound under
+        // Apple platforms ring with KIU's own tone (or the system alarm sound under
         // AlarmKit) and cannot play a system ringtone picked by URI.
-        if (!runsOnIOS) ...[
+        if (!runsOnApple) ...[
           SettingsRow(
             key: const Key('call-ringtone'),
             icon: Icons.music_note_rounded,
@@ -2359,7 +2367,7 @@ class _BrowserPageState extends State<BrowserPage>
             key: const Key('background-sync-switch'),
             icon: Icons.cloud_sync_rounded,
             title: strings.backgroundSync,
-            hint: runsOnIOS
+            hint: runsOnApple
                 ? strings.backgroundSyncHelpIos
                 : strings.backgroundSyncHelp,
             value: settings.backgroundSyncEnabled,
@@ -2435,8 +2443,8 @@ class _BrowserPageState extends State<BrowserPage>
         // update notifier so the row that *announces* an update is also the
         // one that downloads it -- a separate button below read as unrelated
         // to the line above it.
-        // App Store and TestFlight deliver iOS updates themselves.
-        if (!runsOnIOS)
+        // App Store, TestFlight, or macOS deliver non-APK updates.
+        if (!runsOnApple)
           ValueListenableBuilder<AppUpdate?>(
             valueListenable: widget.controller.availableUpdate,
             builder: (context, update, _) {
@@ -2771,6 +2779,29 @@ class _BrowserPageState extends State<BrowserPage>
     await _webView.runJavaScript(localVideoSourceScript(url.toString()));
   }
 
+  /// Runs [script], which returns `JSON.stringify(object)`, in the main frame
+  /// and decodes it, or null when it fails or is not an object. Android hands
+  /// a JS string back still JSON-quoted; macOS may return the map itself.
+  Future<Map<Object?, Object?>?> _evaluateJsonMap(String script) async {
+    try {
+      final raw = await _webView.runJavaScriptReturningResult(script);
+      if (raw is Map) return raw;
+      var decoded = jsonDecode('$raw');
+      if (decoded is String) decoded = jsonDecode(decoded);
+      return decoded is Map ? decoded : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Learns course names from a "my courses" page for the downloads list.
+  Future<void> _rememberCourseNames() async {
+    final service = widget.videoDownloads;
+    if (service == null) return;
+    final names = await _evaluateJsonMap(courseNamesScript());
+    if (names != null) await service.rememberCourseNames(names);
+  }
+
   Future<void> _downloadCurrentVideo() async {
     final service = widget.videoDownloads;
     final lessonUrl = _currentUri;
@@ -2778,21 +2809,12 @@ class _BrowserPageState extends State<BrowserPage>
     if (service == null || key == null) return;
     Uri? videoUrl;
     var title = '';
-    try {
-      final raw = await _webView.runJavaScriptReturningResult(
-        videoSourceScript(),
-      );
-      // Android hands a JS string back still JSON-quoted.
-      var decoded = jsonDecode('$raw');
-      if (decoded is String) decoded = jsonDecode(decoded);
-      if (decoded is Map) {
-        final src = decoded['src'];
-        final name = decoded['title'];
-        if (src is String) videoUrl = Uri.tryParse(src);
-        if (name is String) title = name.trim();
-      }
-    } on Exception {
-      videoUrl = null;
+    final decoded = await _evaluateJsonMap(videoSourceScript());
+    if (decoded != null) {
+      final src = decoded['src'];
+      final name = decoded['title'];
+      if (src is String) videoUrl = Uri.tryParse(src);
+      if (name is String) title = name.trim();
     }
     if (!mounted) return;
     if (videoUrl == null || !isLessonVideoFile(videoUrl)) {
@@ -3115,8 +3137,8 @@ class _BrowserPageState extends State<BrowserPage>
                   ),
               ],
             ),
-            // Google Play listings: Android apps an iPhone cannot install.
-            if (!runsOnIOS)
+            // Google Play listings: Android apps an Apple device cannot install.
+            if (!runsOnApple)
               SettingsSection(
                 title: strings.apps,
                 icon: Icons.apps_rounded,
@@ -3187,8 +3209,11 @@ class _BrowserPageState extends State<BrowserPage>
         var loading = true;
         void Function()? onPageFinished;
         final controller = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(surfaceFor(_brightness))
+          ..setJavaScriptMode(JavaScriptMode.unrestricted);
+        if (!runsOnMacOS) {
+          controller.setBackgroundColor(surfaceFor(_brightness));
+        }
+        controller
           ..setNavigationDelegate(
             NavigationDelegate(onPageFinished: (_) => onPageFinished?.call()),
           )
@@ -3466,8 +3491,11 @@ class _BrowserPageState extends State<BrowserPage>
                 top: 0,
                 child: LinearProgressIndicator(
                   key: const Key('page-progress'),
-                  minHeight: 2,
-                  value: _progress / 100,
+                  minHeight: runsOnMacOS ? 4 : 2.5,
+                  value: (_progress / 100).clamp(0.08, 1.0),
+                  color: brandGreen(Theme.of(context).brightness),
+                  backgroundColor: brandGreen(Theme.of(context).brightness)
+                      .withValues(alpha: 0.18),
                 ),
               ),
             if (!_inPip && !_pageFailed) ?_videoDownloadButton(),
@@ -3510,95 +3538,103 @@ class _BrowserPageState extends State<BrowserPage>
   /// the WebView scrolls under the glass.
   Widget _floatingNavBar() {
     return Positioned(
-      key: const Key('nav-bar'),
-      left: _navBarSideInset,
-      right: _navBarSideInset,
+      left: 0,
+      right: 0,
       // Clears the gesture bar without the large iOS-style float, as asked.
       bottom: MediaQuery.of(context).padding.bottom + _navBarBottomGap,
-      child: _navBarSurface(
-        // The tooltips each action carries resolve their text style from
-        // the nearest Material ancestor. Transparent so the glass behind
-        // still shows through -- nothing here paints ink any more.
-        child: Material(
-          type: MaterialType.transparency,
-          child: SizedBox(
-            height: _navBarHeight,
-            child: Stack(
-              children: [
-                _selectionCapsule(),
-                Row(
-                  children: [
-                    // Rounded variants throughout: Instagram's glyphs are
-                    // uniformly round-joined, so a boxy calendar or a
-                    // square-ended menu reads as a different icon set
-                    // sitting in the same bar.
-                    _navAction(
-                      key: const Key('nav-back'),
-                      icon: Icons.chevron_left_rounded,
-                      label: strings.back,
-                      enabled: _canBack,
-                      onTap: _goBack,
-                      // Swings left and springs back, echoing the
-                      // direction the page itself is about to move.
-                      animate: (glyph) => SlideTransition(
-                        position:
-                            Tween(
-                              begin: Offset.zero,
-                              end: const Offset(-0.35, 0),
-                            ).animate(
-                              CurvedAnimation(
-                                parent: _backNudge,
-                                curve: Curves.easeOutBack,
-                              ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: _navBarSideInset),
+          child: ConstrainedBox(
+            key: const Key('nav-bar'),
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: _navBarSurface(
+              // The tooltips each action carries resolve their text style from
+              // the nearest Material ancestor. Transparent so the glass behind
+              // still shows through -- nothing here paints ink any more.
+              child: Material(
+                type: MaterialType.transparency,
+                child: SizedBox(
+                  height: _navBarHeight,
+                  child: Stack(
+                    children: [
+                      _selectionCapsule(),
+                      Row(
+                        children: [
+                          // Rounded variants throughout: Instagram's glyphs are
+                          // uniformly round-joined, so a boxy calendar or a
+                          // square-ended menu reads as a different icon set
+                          // sitting in the same bar.
+                          _navAction(
+                            key: const Key('nav-back'),
+                            icon: Icons.chevron_left_rounded,
+                            label: strings.back,
+                            enabled: _canBack,
+                            onTap: _goBack,
+                            // Swings left and springs back, echoing the
+                            // direction the page itself is about to move.
+                            animate: (glyph) => SlideTransition(
+                              position:
+                                  Tween(
+                                    begin: Offset.zero,
+                                    end: const Offset(-0.35, 0),
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _backNudge,
+                                      curve: Curves.easeOutBack,
+                                    ),
+                                  ),
+                              child: glyph,
                             ),
-                        child: glyph,
+                          ),
+                          _navAction(
+                            key: const Key('nav-home'),
+                            icon: Icons.home_outlined,
+                            selectedIcon: Icons.home_rounded,
+                            label: strings.home,
+                            selected: isCourseUri(_currentUri),
+                            onTap: _goCourseHome,
+                          ),
+                          _navAction(
+                            key: const Key('nav-lessons'),
+                            selectedKey: const Key('lessons-selected'),
+                            // Outline is calendar_month, not calendar_today:
+                            // the latter is a bare empty square, which next to
+                            // the detailed filled state looked like a missing
+                            // glyph rather than the same icon unselected.
+                            icon: Icons.calendar_month_outlined,
+                            selectedIcon: Icons.calendar_month_rounded,
+                            label: strings.scheduledLessons,
+                            selected: isHomeUri(_currentUri),
+                            onTap: _goHome,
+                          ),
+                          _navAction(
+                            key: const Key('nav-refresh'),
+                            icon: Icons.refresh_rounded,
+                            label: strings.refresh,
+                            onTap: _reload,
+                            // One full turn, which is the action itself rather
+                            // than a generic tap acknowledgement.
+                            animate: (glyph) => RotationTransition(
+                              turns: CurvedAnimation(
+                                parent: _refreshSpin,
+                                curve: Curves.easeInOutCubic,
+                              ),
+                              child: glyph,
+                            ),
+                          ),
+                          _navAction(
+                            key: const Key('actions-menu'),
+                            icon: Icons.menu_rounded,
+                            label: strings.settings,
+                            onTap: _openActions,
+                          ),
+                        ],
                       ),
-                    ),
-                    _navAction(
-                      key: const Key('nav-home'),
-                      icon: Icons.home_outlined,
-                      selectedIcon: Icons.home_rounded,
-                      label: strings.home,
-                      selected: isCourseUri(_currentUri),
-                      onTap: _goCourseHome,
-                    ),
-                    _navAction(
-                      key: const Key('nav-lessons'),
-                      selectedKey: const Key('lessons-selected'),
-                      // Outline is calendar_month, not calendar_today:
-                      // the latter is a bare empty square, which next to
-                      // the detailed filled state looked like a missing
-                      // glyph rather than the same icon unselected.
-                      icon: Icons.calendar_month_outlined,
-                      selectedIcon: Icons.calendar_month_rounded,
-                      label: strings.scheduledLessons,
-                      selected: isHomeUri(_currentUri),
-                      onTap: _goHome,
-                    ),
-                    _navAction(
-                      key: const Key('nav-refresh'),
-                      icon: Icons.refresh_rounded,
-                      label: strings.refresh,
-                      onTap: _reload,
-                      // One full turn, which is the action itself rather
-                      // than a generic tap acknowledgement.
-                      animate: (glyph) => RotationTransition(
-                        turns: CurvedAnimation(
-                          parent: _refreshSpin,
-                          curve: Curves.easeInOutCubic,
-                        ),
-                        child: glyph,
-                      ),
-                    ),
-                    _navAction(
-                      key: const Key('actions-menu'),
-                      icon: Icons.menu_rounded,
-                      label: strings.settings,
-                      onTap: _openActions,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ),

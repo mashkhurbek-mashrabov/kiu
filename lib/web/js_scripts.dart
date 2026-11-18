@@ -482,3 +482,25 @@ String localVideoSourceScript(String url) {
 })();
 ''';
 }
+
+/// The course names on a "my courses" page, as a JSON string
+/// `{"<course id>": "<name>", ...}`.
+///
+/// Lesson pages carry no clean course name, so it is learned here: each course
+/// card's title link points at `<lang>/my-course/<course>/<lesson>/video`. The
+/// link also holds a lesson-count badge and the subject in `<small>`, which are
+/// dropped. Dart validates the result before storing it.
+String courseNamesScript() => '''
+(() => {
+  const names = {};
+  document.querySelectorAll('h3.title a[href]').forEach((link) => {
+    const id = link.pathname.split('/').filter(Boolean)[2];
+    if (!/^[1-9][0-9]*\$/.test(id || '')) return;
+    const copy = link.cloneNode(true);
+    copy.querySelectorAll('span, small, br').forEach((node) => node.remove());
+    const name = copy.textContent.replace(/[\\s()]+/g, ' ').trim();
+    if (name && !names[id]) names[id] = name.slice(0, 200);
+  });
+  return JSON.stringify(names);
+})();
+''';

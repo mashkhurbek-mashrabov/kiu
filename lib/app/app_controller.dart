@@ -32,26 +32,29 @@ class WorkManagerScheduler implements BackgroundScheduler {
   /// last sync, which foreground syncs keep fresh.
   static const _iosEarliestRefresh = Duration(minutes: 15);
 
-  static Future<void> scheduleNext() => runsOnIOS
-      // A BGAppRefreshTask, identified by the unique name, which is also the
-      // `BGTaskSchedulerPermittedIdentifiers` entry and the task name the
-      // callback dispatcher receives. A one-off would only run while the app
-      // is still alive in the background, which is exactly when it is not
-      // needed.
-      ? Workmanager().registerPeriodicTask(
-          backgroundTaskUniqueName,
-          backgroundTaskName,
-          frequency: _iosEarliestRefresh,
-          initialDelay: _iosEarliestRefresh,
-          constraints: Constraints(networkType: NetworkType.connected),
-        )
-      : Workmanager().registerOneOffTask(
-          backgroundTaskUniqueName,
-          backgroundTaskName,
-          initialDelay: _interval,
-          constraints: Constraints(networkType: NetworkType.connected),
-          existingWorkPolicy: ExistingWorkPolicy.update,
-        );
+  static Future<void> scheduleNext() {
+    if (runsOnMacOS) return Future.value();
+    return runsOnIOS
+        // A BGAppRefreshTask, identified by the unique name, which is also the
+        // `BGTaskSchedulerPermittedIdentifiers` entry and the task name the
+        // callback dispatcher receives. A one-off would only run while the app
+        // is still alive in the background, which is exactly when it is not
+        // needed.
+        ? Workmanager().registerPeriodicTask(
+            backgroundTaskUniqueName,
+            backgroundTaskName,
+            frequency: _iosEarliestRefresh,
+            initialDelay: _iosEarliestRefresh,
+            constraints: Constraints(networkType: NetworkType.connected),
+          )
+        : Workmanager().registerOneOffTask(
+            backgroundTaskUniqueName,
+            backgroundTaskName,
+            initialDelay: _interval,
+            constraints: Constraints(networkType: NetworkType.connected),
+            existingWorkPolicy: ExistingWorkPolicy.update,
+          );
+  }
 
   @override
   Future<void> setEnabled(bool enabled) async {
@@ -170,7 +173,7 @@ class AppController extends ChangeNotifier {
 
   /// Whether this device can ring lesson calls at all. Always on Android; on
   /// iOS only with AlarmKit (iOS 26+), asked once in [initialize].
-  bool lessonCallsAvailable = !runsOnIOS;
+  bool lessonCallsAvailable = !runsOnApple;
 
   List<Lesson> get scheduledLessons => _repository.loadLessons();
 

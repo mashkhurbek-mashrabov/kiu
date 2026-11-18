@@ -37,6 +37,7 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     AppSettings settings, {
     DateTime? lastSuccessfulSync,
   }) async {
+    if (runsOnMacOS) return;
     final payload = buildLessonWidgetPayload(lessons, settings, _timeZones);
     final now = DateTime.now();
     final callPayload = buildLessonCallPayload(
@@ -82,6 +83,7 @@ class HomeLessonWidgetGateway implements LessonWidgetGateway {
     ScheduleSyncStatus status,
     AppSettings settings,
   ) async {
+    if (runsOnMacOS) return;
     final key = switch (status) {
       ScheduleSyncStatus.syncing => 'syncing',
       ScheduleSyncStatus.signInRequired => 'signIn',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -65,6 +66,272 @@ class AndroidVideoDownloadGateway implements VideoDownloadGateway {
       platformChannel.invokeMethod<void>('removeVideoDownloads', {'ids': ids});
 }
 
+/// A Dart-native video download gateway for desktop platforms.
+/// Downloads files directly using [HttpClient] and saves them to the application's
+/// video directory, providing real-time download status and offline file tracking.
+class DesktopVideoDownloadGateway implements VideoDownloadGateway {
+  DesktopVideoDownloadGateway({
+    Directory? baseDirectory,
+    HttpClient Function()? clientFactory,
+  }) : _baseDir = baseDirectory ?? _defaultVideoDirectory(),
+       _clientFactory = clientFactory ?? HttpClient.new {
+    _loadIndex();
+  }
+
+  static Directory _defaultVideoDirectory() {
+    final home = Platform.environment['HOME'];
+    final path = home != null && home.isNotEmpty
+        ? '$home/Library/Application Support/com.mashkhurbek.kiu/videos'
+        : '${Directory.systemTemp.path}/kiu_videos';
+    final dir = Directory(path);
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+    return dir;
+  }
+
+  final Directory _baseDir;
+  final HttpClient Function() _clientFactory;
+  final Map<int, _DesktopTask> _tasks = {};
+  final Map<int, String> _index = {};
+  int _nextId = 1;
+
+  void _loadIndex() {
+    try {
+      final indexFile = File('${_baseDir.path}/index.json');
+      if (indexFile.existsSync()) {
+        final content = jsonDecode(indexFile.readAsStringSync());
+        if (content is Map) {
+          for (final entry in content.entries) {
+            final id = int.tryParse(entry.key.toString());
+            final path = entry.value?.toString();
+            if (id != null && path != null) {
+              _index[id] = path;
+              if (id >= _nextId) {
+                _nextId = id + 1;
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Index recovery is non-critical.
+    }
+  }
+
+  void _saveIndex() {
+    try {
+      final indexFile = File('${_baseDir.path}/index.json');
+      indexFile.writeAsStringSync(
+        jsonEncode(_index.map((k, v) => MapEntry(k.toString(), v))),
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Future<int> enqueue({
+    required Uri url,
+    required String fileName,
+    required String title,
+  }) async {
+    final id = _nextId++;
+    if (!_baseDir.existsSync()) {
+      _baseDir.createSync(recursive: true);
+    }
+    final targetFile = File('${_baseDir.path}/$fileName');
+    final partFile = File('${targetFile.path}.part');
+
+    if (targetFile.existsSync() && targetFile.lengthSync() > 0) {
+      final len = targetFile.lengthSync();
+      _index[id] = targetFile.path;
+      _saveIndex();
+      final task =
+          _DesktopTask(
+              id: id,
+              url: url,
+              targetFile: targetFile,
+              partFile: partFile,
+            )
+            ..status = 'done'
+            ..downloaded = len
+            ..total = len;
+      _tasks[id] = task;
+      return id;
+    }
+
+    final task = _DesktopTask(
+      id: id,
+      url: url,
+      targetFile: targetFile,
+      partFile: partFile,
+    );
+    _tasks[id] = task;
+    _index[id] = targetFile.path;
+    _saveIndex();
+
+    unawaited(_executeDownload(task));
+    return id;
+  }
+
+  Future<void> _executeDownload(_DesktopTask task) async {
+    HttpClient? client;
+    try {
+      client = _clientFactory();
+      final req = await client.getUrl(task.url);
+      task.request = req;
+      final res = await req.close();
+      if (res.statusCode != HttpStatus.ok &&
+          res.statusCode != HttpStatus.partialContent) {
+        task.status = 'failed';
+        return;
+      }
+      task.total = res.contentLength > 0 ? res.contentLength : 0;
+      if (task.partFile.existsSync()) {
+        try {
+          task.partFile.deleteSync();
+        } catch (_) {}
+      }
+      final sink = task.partFile.openWrite();
+      task.sink = sink;
+
+      final completer = Completer<void>();
+      task.subscription = res.listen(
+        (chunk) {
+          task.downloaded += chunk.length;
+          sink.add(chunk);
+        },
+        onError: (_) {
+          task.status = 'failed';
+          if (!completer.isCompleted) completer.complete();
+        },
+        onDone: () async {
+          try {
+            await sink.flush();
+            await sink.close();
+            task.sink = null;
+            if (task.partFile.existsSync()) {
+              if (task.targetFile.existsSync()) {
+                task.targetFile.deleteSync();
+              }
+              task.partFile.renameSync(task.targetFile.path);
+              task.status = 'done';
+              task.total = task.targetFile.lengthSync();
+              task.downloaded = task.total;
+            } else {
+              task.status = 'failed';
+            }
+          } catch (_) {
+            task.status = 'failed';
+          }
+          if (!completer.isCompleted) completer.complete();
+        },
+        cancelOnError: true,
+      );
+
+      await completer.future;
+    } catch (_) {
+      task.status = 'failed';
+    } finally {
+      client?.close(force: true);
+      _saveIndex();
+    }
+  }
+
+  @override
+  Future<List<NativeDownloadStatus>> query(List<int> ids) async {
+    final results = <NativeDownloadStatus>[];
+    for (final id in ids) {
+      final task = _tasks[id];
+      if (task != null) {
+        results.add((
+          id: id,
+          status: task.status,
+          downloaded: task.downloaded,
+          total: task.total,
+          path: task.status == 'done' ? task.targetFile.path : null,
+        ));
+      } else {
+        final path = _index[id];
+        if (path != null && File(path).existsSync()) {
+          final file = File(path);
+          final len = file.lengthSync();
+          results.add((
+            id: id,
+            status: 'done',
+            downloaded: len,
+            total: len,
+            path: path,
+          ));
+        }
+      }
+    }
+    return results;
+  }
+
+  @override
+  Future<void> remove(List<int> ids) async {
+    for (final id in ids) {
+      final task = _tasks.remove(id);
+      if (task != null) {
+        task.cancel();
+        if (task.targetFile.existsSync()) {
+          try {
+            task.targetFile.deleteSync();
+          } catch (_) {}
+        }
+      }
+      final path = _index.remove(id);
+      if (path != null) {
+        final file = File(path);
+        if (file.existsSync()) {
+          try {
+            file.deleteSync();
+          } catch (_) {}
+        }
+      }
+    }
+    _saveIndex();
+  }
+}
+
+class _DesktopTask {
+  _DesktopTask({
+    required this.id,
+    required this.url,
+    required this.targetFile,
+    required this.partFile,
+  });
+
+  final int id;
+  final Uri url;
+  final File targetFile;
+  final File partFile;
+
+  int downloaded = 0;
+  int total = 0;
+  String status = 'running';
+  HttpClientRequest? request;
+  StreamSubscription<List<int>>? subscription;
+  IOSink? sink;
+
+  void cancel() {
+    status = 'failed';
+    subscription?.cancel();
+    subscription = null;
+    request?.abort();
+    request = null;
+    try {
+      sink?.close();
+    } catch (_) {}
+    sink = null;
+    if (partFile.existsSync()) {
+      try {
+        partFile.deleteSync();
+      } catch (_) {}
+    }
+  }
+}
+
 /// Downloads lesson videos for offline viewing and serves the finished files
 /// to the WebView over loopback, so the LMS's own player plays them.
 ///
@@ -76,11 +343,19 @@ class VideoDownloadService {
     VideoDownloadGateway? gateway,
   }) : _repository = repository,
        _gateway = gateway ?? AndroidVideoDownloadGateway(),
-       downloads = ValueNotifier(repository.loadVideoDownloads());
+       downloads = ValueNotifier(repository.loadVideoDownloads()),
+       courseNames = ValueNotifier(repository.loadCourseNames());
 
   final SettingsRepository _repository;
   final VideoDownloadGateway _gateway;
   final ValueNotifier<List<VideoDownload>> downloads;
+
+  /// Course names by id, learned from the "my courses" page; titles the
+  /// groups of the Downloaded videos list.
+  final ValueNotifier<Map<String, String>> courseNames;
+
+  /// Most course names kept; the oldest beyond it are dropped.
+  static const int maxCourseNames = 200;
   Timer? _poll;
   LocalVideoServer? _server;
 
@@ -93,7 +368,7 @@ class VideoDownloadService {
 
   /// Starts a download, or does nothing if [key] already has one.
   ///
-  /// Throws [ArgumentError] for a URL that is not a lesson MP4 on the LMS host.
+  /// Throws [ArgumentError] for a URL that is not a lesson MP4 (see `isLessonVideoFile`).
   /// No cookies are sent: the files are static and public, so nothing of the
   /// session ever reaches the download manager.
   Future<void> start({
@@ -199,6 +474,27 @@ class VideoDownloadService {
   }
 
   String? _pathFor(String key) => entryFor(key)?.path;
+
+  /// Merges course names read from the page. Page data, so only numeric ids
+  /// with a non-empty name are kept, each name capped at 200 characters.
+  Future<void> rememberCourseNames(Map<Object?, Object?> found) async {
+    final next = Map.of(courseNames.value);
+    for (final entry in found.entries) {
+      final id = entry.key;
+      final name = entry.value;
+      if (id is! String || !RegExp(r'^[1-9]\d*$').hasMatch(id)) continue;
+      if (name is! String || name.trim().isEmpty) continue;
+      final trimmed = name.trim();
+      next.remove(id);
+      next[id] = trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed;
+    }
+    while (next.length > maxCourseNames) {
+      next.remove(next.keys.first);
+    }
+    if (mapEquals(next, courseNames.value)) return;
+    courseNames.value = Map.unmodifiable(next);
+    await _repository.saveCourseNames(next);
+  }
 
   void dispose() {
     _poll?.cancel();
