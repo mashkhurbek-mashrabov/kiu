@@ -922,8 +922,9 @@ class _BrowserPageState extends State<BrowserPage>
     _markCompleter = Completer<Map<String, dynamic>>();
     try {
       await _webView.runJavaScript(markWatchedScript(requestId));
+      // One ping per 30 s of video, ~0.2 s each: a 2-hour lesson is ~50 s.
       final result = await _markCompleter!.future.timeout(
-        const Duration(seconds: 25),
+        const Duration(seconds: 120),
       );
       if (!mounted) return;
       if (result['ok'] == true) {

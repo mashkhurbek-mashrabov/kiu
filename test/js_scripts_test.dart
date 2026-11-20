@@ -39,12 +39,25 @@ void main() {
     expect(script, contains("getElementById(id)"));
   });
 
-  test('mark watched script carries both LMS events and token support', () {
+  test('mark watched script follows the LMS segment-progress protocol', () {
     final script = markWatchedScript('request-1');
-    expect(script, contains('lessonVideoIsEnded'));
-    expect(script, contains('lessonVideoIsPlaying'));
-    expect(script, contains('time_spent: 9999'));
-    expect(script, contains('playback_token'));
+    // Claim the playback session before any ping, release it afterwards.
+    expect(script, contains("method: 'changeLessonVideoChecked'"));
+    expect(script, contains("method: 'releaseLessonVideoSession'"));
+    expect(script, contains("method: 'lessonVideoIsEnded'"));
+    // Watch time goes in capped pings with ranges, until the server says done.
+    expect(script, contains("method: 'lessonVideoIsPlaying'"));
+    expect(script, contains('time_spent: step, ranges'));
+    expect(script, contains('const step = $markWatchedPingSeconds;'));
+    expect(script, contains('r.progress.done === true'));
+    expect(script, contains('maxPings'));
+    // The token is the page's `playbackToken`, with the sessionStorage copy as
+    // fallback; the old `playback_token` global no longer exists.
+    expect(script, contains("typeof playbackToken === 'string'"));
+    expect(script, contains("'lesson_playback_token_' + lesson_id"));
+    expect(script, contains('playback_token: token'));
+    expect(script, isNot(contains('time_spent: 9999')));
+    expect(script, contains('lesson_video_progress'));
     expect(script, contains('request-1'));
   });
 
