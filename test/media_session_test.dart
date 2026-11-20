@@ -10,6 +10,8 @@ import 'package:kiu/services/media_session_service.dart';
 import 'package:kiu/services/reminder_reconciler.dart';
 import 'package:kiu/services/schedule_fetcher.dart';
 import 'package:kiu/services/schedule_sync_service.dart';
+import 'package:kiu/services/video_download_service.dart';
+import 'package:kiu/web/js_scripts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -53,6 +55,8 @@ void main() {
     navigateTo = null;
     finishPage = null;
     postToBridge = null;
+    javaScriptResult = null;
+    evaluatedScripts.clear();
     calls.clear();
     messenger.setMockMethodCallHandler(mediaChannel, (call) async {
       calls.add(call);
@@ -62,11 +66,16 @@ void main() {
 
   tearDown(() => messenger.setMockMethodCallHandler(mediaChannel, null));
 
-  Future<void> mountOn(WidgetTester tester, String url) async {
+  Future<void> mountOn(
+    WidgetTester tester,
+    String url, {
+    VideoDownloadService? videoDownloads,
+  }) async {
     await tester.pumpWidget(
       KiuApp(
         controller: await controller(),
         homeRequests: ValueNotifier<int>(0),
+        videoDownloads: videoDownloads,
       ),
     );
     await tester.pumpAndSettle();
@@ -94,9 +103,16 @@ void main() {
       calls.lastWhere((c) => c.method == 'update').arguments
           as Map<Object?, Object?>;
 
-  testWidgets('videoState reaches the session with the WebView title', (
+  /// Answers the lesson-title script as Android does: a JSON-quoted string.
+  void lessonNameIs(String name) => javaScriptResult = (script) =>
+      script == lessonTitleScript()
+      ? jsonEncode(jsonEncode({'title': name}))
+      : null;
+
+  testWidgets('videoState reaches the session with the lesson name', (
     tester,
   ) async {
+    lessonNameIs('3-dars: Harflar');
     await mountOn(tester, videoUrl);
     await post(tester, {
       'type': 'videoState',
@@ -112,8 +128,9 @@ void main() {
     expect(update['position'], 12.5);
     expect(update['duration'], 600.0);
     expect(update['speed'], 1.5);
-    // Dart's own title, never the payload's.
-    expect(update['title'], fakePageTitle);
+    // Read from the main frame, never the payload's, and not the page title.
+    expect(update['title'], '3-dars: Harflar');
+    expect(update['subtitle'], 'KIU');
     for (final key in const [
       'channelName',
       'playLabel',
@@ -124,6 +141,58 @@ void main() {
     ]) {
       expect(update[key], isA<String>().having((s) => s, key, isNotEmpty));
     }
+  });
+
+  testWidgets('the page title stands in when the lesson name is missing', (
+    tester,
+  ) async {
+    await mountOn(tester, videoUrl);
+    await post(tester, {'type': 'videoState', 'playing': true, 'seconds': 1});
+    expect(lastUpdate()['title'], fakePageTitle);
+
+    // A miss is not remembered: the next update asks again.
+    lessonNameIs('3-dars: Harflar');
+    await post(tester, {'type': 'videoState', 'playing': false, 'seconds': 2});
+    expect(lastUpdate()['title'], '3-dars: Harflar');
+  });
+
+  testWidgets('the lesson name is read once per page', (tester) async {
+    lessonNameIs('3-dars: Harflar');
+    await mountOn(tester, videoUrl);
+    for (final playing in [true, false, true]) {
+      await post(tester, {
+        'type': 'videoState',
+        'playing': playing,
+        'seconds': 1,
+      });
+    }
+    expect(
+      evaluatedScripts.where((s) => s == lessonTitleScript()),
+      hasLength(1),
+    );
+
+    // A new page reads its own name.
+    lessonNameIs('4-dars: Unlilar');
+    const next = 'https://uz.do-kazankiu.ru/uz/my-course/25/610/video';
+    navigateTo!(next);
+    finishPage!(next);
+    await tester.pumpAndSettle();
+    await post(tester, {'type': 'videoState', 'playing': true, 'seconds': 1});
+    expect(lastUpdate()['title'], '4-dars: Unlilar');
+  });
+
+  testWidgets('the course name is the subtitle', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'kiu.courseNames': jsonEncode({'25': 'Arab tili grammatikasi'}),
+    });
+    final downloads = VideoDownloadService(
+      repository: SettingsRepository(await SharedPreferences.getInstance()),
+      gateway: FakeVideoDownloadGateway(),
+    );
+    await mountOn(tester, videoUrl, videoDownloads: downloads);
+    await post(tester, {'type': 'videoState', 'playing': true, 'seconds': 1});
+
+    expect(lastUpdate()['subtitle'], 'Arab tili grammatikasi');
   });
 
   testWidgets('malformed state and non-video pages are ignored', (

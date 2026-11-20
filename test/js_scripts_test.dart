@@ -90,6 +90,18 @@ void main() {
     expect(mediaCommandScript('"); alert(1); ("'), contains(r'\"'));
   });
 
+  test('lesson name comes from the course contents, not the page title', () {
+    for (final script in [lessonTitleScript(), videoSourceScript()]) {
+      expect(script, contains('.panel-title1 a[href]'));
+      expect(script, contains("querySelector('h4')"));
+      // Whitespace collapsed by a real JS regex, not a stray escape.
+      expect(script, contains(r'/\s+/g'));
+      expect(script, contains('.slice(0, 200)'));
+    }
+    expect(lessonTitleScript(), contains('JSON.stringify({title:'));
+    expect(videoSourceScript(), contains('JSON.stringify({src, title:'));
+  });
+
   test('pip layout script toggles one class and one stylesheet', () {
     final on = pipLayoutScript(true);
     expect(on, contains('const on = true'));

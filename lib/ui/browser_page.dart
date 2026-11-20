@@ -133,6 +133,11 @@ class _BrowserPageState extends State<BrowserPage>
   /// navigation away knows to clear it (and a page with no video never calls).
   bool _mediaActive = false;
 
+  /// The lesson name shown by the media session, read once per lesson page
+  /// ([_mediaTitleUri]) rather than on every play, pause and seek.
+  String? _mediaTitle;
+  Uri? _mediaTitleUri;
+
   /// Keys of finished downloads, so a download that completes while its
   /// lesson is open can switch the player to the local file right away.
   Set<String> _doneDownloads = const {};
@@ -333,6 +338,8 @@ class _BrowserPageState extends State<BrowserPage>
       _mediaActive = false;
       unawaited(_invokeMedia('clear'));
     }
+    _mediaTitle = null;
+    _mediaTitleUri = null;
     setState(() {
       if (uri != null) _currentUri = uri;
       _pageFailed = false;
@@ -746,7 +753,7 @@ class _BrowserPageState extends State<BrowserPage>
 
   /// Mirrors the page's play state into the native media session. Like
   /// `videoProgress`, only a video lesson under Dart's own URL counts, and the
-  /// title is read from the WebView, never taken from the payload.
+  /// title is read from the main frame, never taken from the payload.
   void _handleVideoState(Map<String, dynamic> message) {
     final playing = message['playing'];
     final seconds = message['seconds'];
@@ -773,12 +780,16 @@ class _BrowserPageState extends State<BrowserPage>
     required double duration,
     required double rate,
   }) async {
-    final title = await _webView.getTitle();
-    if (!mounted || !isVideoLessonUri(_currentUri)) return;
+    final uri = _currentUri;
+    final title = await _lessonTitle(uri);
+    if (!mounted || _currentUri != uri || !isVideoLessonUri(uri)) return;
     _mediaActive = true;
+    final courseId = uri.pathSegments.where((s) => s.isNotEmpty).elementAt(2);
     await _invokeMedia('update', {
       'playing': playing,
-      'title': title ?? '',
+      'title': title,
+      // A car shows it on the line under the lesson name.
+      'subtitle': widget.videoDownloads?.courseNames.value[courseId] ?? 'KIU',
       'position': seconds,
       'duration': duration,
       'speed': rate,
@@ -789,6 +800,22 @@ class _BrowserPageState extends State<BrowserPage>
       'forwardLabel': strings.mediaForward,
       'closeLabel': strings.close,
     });
+  }
+
+  /// The open lesson's name, from the course contents on the page; the page
+  /// `<title>` is the same site name on every lesson and only a fallback.
+  Future<String> _lessonTitle(Uri uri) async {
+    if (_mediaTitleUri == uri && _mediaTitle != null) return _mediaTitle!;
+    final decoded = await _evaluateJsonMap(lessonTitleScript());
+    final name = decoded?['title'];
+    final title = name is String ? name.trim() : '';
+    // Only the real name is kept: a miss is asked again on the next update.
+    if (title.isEmpty) return (await _webView.getTitle())?.trim() ?? '';
+    if (_currentUri == uri) {
+      _mediaTitle = title;
+      _mediaTitleUri = uri;
+    }
+    return title;
   }
 
   /// Best effort: a media session that cannot be reached must never break the
