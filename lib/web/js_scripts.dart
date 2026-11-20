@@ -394,6 +394,19 @@ String resumeVideoScript(double seconds) {
 ''';
 }
 
+/// Seconds of watch time the LMS credits per `lessonVideoIsPlaying` ping; it
+/// silently clamps anything larger to this.
+const markWatchedPingSeconds = 30;
+
+/// Marks the open lesson's video as watched, the way the LMS's own player
+/// (`course.js`) reports it: claim the playback session, then send watch-time
+/// pings until the server says the lesson is done.
+///
+/// The server counts cumulative `time_spent` against the video duration and
+/// caps each ping at [markWatchedPingSeconds], so one big ping is not enough.
+/// Pings are bounded by the duration so a server that never says "done"
+/// cannot loop forever. The session is released afterwards so the video can
+/// still be played on another device.
 String markWatchedScript(String requestId) {
   final encodedRequestId = jsonEncode(requestId);
   return '''
@@ -405,24 +418,49 @@ String markWatchedScript(String requestId) {
   try {
     if (typeof window.jQuery === 'undefined') return send(false, 'jquery_missing');
     if (typeof lesson_id === 'undefined') return send(false, 'lesson_id_missing');
-    if (!document.querySelector('video')) return send(false, 'video_missing');
-    const data = (method, extra = {}) => {
-      const result = {method, lesson_id: lesson_id, ...extra};
-      if (typeof playback_token !== 'undefined' && playback_token) {
-        result.playback_token = playback_token;
-      }
-      return result;
-    };
+    const video = document.querySelector('#video_player, video');
+    if (!video) return send(false, 'video_missing');
+    let token = typeof playbackToken === 'string' ? playbackToken : '';
+    if (!token) {
+      try { token = sessionStorage.getItem('lesson_playback_token_' + lesson_id) || ''; } catch (e) {}
+    }
+    if (!token) return send(false, 'token_missing');
+    const known = typeof lesson_video_progress !== 'undefined' && lesson_video_progress
+      ? Number(lesson_video_progress.duration) : NaN;
+    const duration = Math.floor(known > 0 ? known : video.duration);
+    if (!(duration > 0)) return send(false, 'duration_missing');
+    const step = $markWatchedPingSeconds;
+    const maxPings = Math.ceil(duration / step) + 5;
+    const base = {lesson_id: lesson_id, playback_token: token};
     const post = (body) => new Promise((resolve, reject) => {
       window.jQuery.post('/api', body, resolve).fail((xhr) => reject(
         new Error('HTTP ' + (xhr.status || 'error'))
       ));
     });
-    Promise.all([
-      post(data('lessonVideoIsEnded')),
-      post(data('lessonVideoIsPlaying', {time_spent: 9999})),
-    ]).then((values) => send(true, 'completed', values))
-      .catch((error) => send(false, 'request_failed', {message: error.message}));
+    const release = () => post({method: 'releaseLessonVideoSession', ...base}).catch(() => {});
+    const finished = (r) => r && (r.status === true || (r.progress && r.progress.done === true));
+    (async () => {
+      const claim = await post({method: 'changeLessonVideoChecked', ...base});
+      if (claim && claim.session_invalid === true) return send(false, 'session_blocked');
+      const ranges = JSON.stringify([[0, duration]]);
+      let playing = null;
+      for (let i = 0; i < maxPings; i++) {
+        playing = await post({method: 'lessonVideoIsPlaying', ...base, time_spent: step, ranges});
+        if (playing && playing.session_invalid === true) return send(false, 'session_blocked');
+        if (!playing || playing.ok === false) {
+          await release();
+          return send(false, 'rejected', playing && playing.progress);
+        }
+        if (finished(playing)) break;
+      }
+      await post({method: 'lessonVideoIsEnded', ...base}).catch(() => {});
+      await release();
+      if (finished(playing)) return send(true, 'completed', playing.progress);
+      send(false, 'not_counted', playing && playing.progress);
+    })().catch((error) => {
+      release();
+      send(false, 'request_failed', {message: error.message});
+    });
   } catch (error) {
     send(false, 'exception', {message: String(error)});
   }
