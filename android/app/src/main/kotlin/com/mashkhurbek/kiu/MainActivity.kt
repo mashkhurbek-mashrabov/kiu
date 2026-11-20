@@ -235,6 +235,7 @@ class MainActivity : FlutterActivity() {
         LessonPlaybackService.state = LessonPlaybackService.State(
             playing = playing,
             title = call.argument<String>("title").orEmpty(),
+            subtitle = call.argument<String>("subtitle") ?: "KIU",
             positionMs = ((call.argument<Double>("position") ?: 0.0) * 1000).toLong(),
             durationMs = ((call.argument<Double>("duration") ?: 0.0) * 1000).toLong(),
             speed = (call.argument<Double>("speed") ?: 1.0).toFloat(),
@@ -368,9 +369,11 @@ class MainActivity : FlutterActivity() {
             // "visible", so by now the WebView may know it is hidden, and
             // Chromium does not start media in a hidden page. Waiting for the
             // page to report "playing" first is a deadlock -- it never does.
+            // Unconditional: the decor view's own visibility says nothing about
+            // what the WebView was last told, and a repeat is harmless.
             if (action == "play") {
                 videoPlaying = true
-                if (window.decorView.windowVisibility != View.VISIBLE) keepWebViewsVisible()
+                keepWebViewsVisible()
             }
             mediaChannel?.invokeMethod("command", action)
         }

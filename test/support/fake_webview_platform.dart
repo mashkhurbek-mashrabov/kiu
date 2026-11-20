@@ -35,6 +35,13 @@ int goBackCount = 0;
 /// What the fake reports as the page `<title>`.
 const String fakePageTitle = 'Lesson 7: Tajweed';
 
+/// Answers `runJavaScriptReturningResult`; null makes it throw, as the
+/// platform does for a script that fails. Tests clear it in setUp.
+Object? Function(String script)? javaScriptResult;
+
+/// Scripts evaluated for a result, newest last. Tests clear it in setUp.
+final List<String> evaluatedScripts = <String>[];
+
 class FakeWebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewController createPlatformWebViewController(
@@ -79,6 +86,14 @@ class _FakeController extends PlatformWebViewController {
   @override
   Future<void> runJavaScript(String javaScript) async =>
       injectedScripts.add(javaScript);
+
+  @override
+  Future<Object> runJavaScriptReturningResult(String javaScript) async {
+    evaluatedScripts.add(javaScript);
+    final result = javaScriptResult?.call(javaScript);
+    if (result == null) throw StateError('no result for script');
+    return result;
+  }
 
   @override
   Future<void> reload() async => reloadCount++;

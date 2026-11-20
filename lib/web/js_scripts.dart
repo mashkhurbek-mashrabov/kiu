@@ -430,29 +430,47 @@ String markWatchedScript(String requestId) {
 ''';
 }
 
+/// JS expression for the open lesson's name.
+///
+/// The page `<title>` is the same generic site name on every lesson, so the
+/// name comes from the course-contents link that points at this lesson, then
+/// the course heading. Capped at 200 characters.
+const _lessonTitleJs = r'''
+(() => {
+  const lesson = location.pathname.split('/').filter(Boolean).slice(2, 4).join('/');
+  const clean = (node) => (node?.textContent || '').replace(/\s+/g, ' ').trim();
+  const link = [...document.querySelectorAll('.panel-title1 a[href]')]
+    .find((a) => a.pathname.includes('/' + lesson + '/'));
+  return (clean(link) || clean(document.querySelector('h4')) || document.title)
+    .slice(0, 200);
+})()''';
+
+/// The open lesson's name, as a JSON string `{"title": ...}`, for the system
+/// media session (notification, lockscreen, car).
+///
+/// Run with `runJavaScriptReturningResult`, which evaluates in the main frame
+/// only: the name is never taken from a bridge message, which the Rutube frame
+/// could also send.
+String lessonTitleScript() =>
+    '(() => JSON.stringify({title: $_lessonTitleJs}))();';
+
 /// The lesson video's file URL and the lesson's name, as a JSON string
 /// `{"src": ..., "title": ...}`.
 ///
 /// The source is the native player's `currentSrc`, or its first `<source>`
-/// before the player has picked one. The page `<title>` is the same generic
-/// site name on every lesson, so the name comes from the course-contents link
-/// that points at this lesson, then the course heading.
+/// before the player has picked one. The name is [lessonTitleScript]'s.
 ///
 /// Run with `runJavaScriptReturningResult`, which evaluates in the main frame
 /// only: the URL is never taken from a bridge message, which the Rutube frame
 /// could also send. Dart still validates it with `isLessonVideoFile`.
-String videoSourceScript() => '''
+String videoSourceScript() =>
+    '''
 (() => {
   const video = document.querySelector('#video_player, video');
   const src = video
     ? video.currentSrc || video.querySelector('source')?.src || ''
     : '';
-  const lesson = location.pathname.split('/').filter(Boolean).slice(2, 4).join('/');
-  const clean = (node) => (node?.textContent || '').replace(/\\s+/g, ' ').trim();
-  const link = [...document.querySelectorAll('.panel-title1 a[href]')]
-    .find((a) => a.pathname.includes('/' + lesson + '/'));
-  const title = clean(link) || clean(document.querySelector('h4')) || document.title;
-  return JSON.stringify({src, title: title.slice(0, 200)});
+  return JSON.stringify({src, title: $_lessonTitleJs});
 })();
 ''';
 

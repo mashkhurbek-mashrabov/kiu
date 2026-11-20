@@ -15,6 +15,7 @@ import android.media.session.PlaybackState
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.SystemClock
 
 /**
@@ -32,16 +33,26 @@ import android.os.SystemClock
  * from the background (a car's "play" arriving while the app is hidden) is
  * blocked on Android 12+. Only "Close", leaving the video page, or the
  * activity being destroyed ends it.
+ *
+ * A paused lesson holds no wake lock: Chromium only takes one while media
+ * plays. A "play" from the lockscreen or a car with the screen off must cross
+ * session -> Dart -> WebView -> renderer, and the device can suspend halfway,
+ * so the video never starts. [play] holds a short wake lock across that trip;
+ * [render] drops it once the page reports playing.
  */
 class LessonPlaybackService : Service() {
     private var session: MediaSession? = null
     private var foreground = false
+    private lateinit var resumeWakeLock: PowerManager.WakeLock
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+        resumeWakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "kiu:lesson-resume")
+            .apply { setReferenceCounted(false) }
         session = MediaSession(this, "KIU lesson").apply {
             @Suppress("DEPRECATION")
             setFlags(
@@ -49,7 +60,7 @@ class LessonPlaybackService : Service() {
                     MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS,
             )
             setCallback(object : MediaSession.Callback() {
-                override fun onPlay() = send("play")
+                override fun onPlay() = play()
                 override fun onPause() = send("pause")
                 override fun onRewind() = send("rewind")
                 override fun onFastForward() = send("forward")
@@ -72,7 +83,7 @@ class LessonPlaybackService : Service() {
                 close()
                 return START_NOT_STICKY
             }
-            ACTION_PLAY -> send("play")
+            ACTION_PLAY -> play()
             ACTION_PAUSE -> send("pause")
             ACTION_REWIND -> send("rewind")
             ACTION_FORWARD -> send("forward")
@@ -83,9 +94,20 @@ class LessonPlaybackService : Service() {
 
     override fun onDestroy() {
         if (instance === this) instance = null
+        releaseResumeWakeLock()
         session?.release()
         session = null
         super.onDestroy()
+    }
+
+    /** Keeps the CPU awake until the page reports playing, or [RESUME_WAKE_MS] passes. */
+    private fun play() {
+        resumeWakeLock.acquire(RESUME_WAKE_MS)
+        send("play")
+    }
+
+    private fun releaseResumeWakeLock() {
+        if (resumeWakeLock.isHeld) resumeWakeLock.release()
     }
 
     /** Stops the video, then everything native: the notification, the session, the service. */
@@ -94,6 +116,7 @@ class LessonPlaybackService : Service() {
         // must not find (and re-post the notification of) a closing service.
         instance = null
         state = null
+        releaseResumeWakeLock()
         send("pause")
         stopSelf()
     }
@@ -106,13 +129,17 @@ class LessonPlaybackService : Service() {
             stopSelf()
             return
         }
-        session.setMetadata(
-            MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_TITLE, current.title)
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, "KIU")
-                .putLong(MediaMetadata.METADATA_KEY_DURATION, current.durationMs)
-                .build(),
-        )
+        // Chromium holds its own wake lock while the video plays.
+        if (current.playing) releaseResumeWakeLock()
+        // A car shows the title on its first line and the artist on its second.
+        val metadata = MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_TITLE, current.title)
+            .putString(MediaMetadata.METADATA_KEY_ARTIST, current.subtitle)
+        // An unknown duration is left out: some head units draw a 0 as a dead bar.
+        if (current.durationMs > 0) {
+            metadata.putLong(MediaMetadata.METADATA_KEY_DURATION, current.durationMs)
+        }
+        session.setMetadata(metadata.build())
         // Position + speed + timestamp lets the system extrapolate the progress
         // bar, so Dart only reports state changes, never a per-second tick.
         session.setPlaybackState(
@@ -188,6 +215,7 @@ class LessonPlaybackService : Service() {
         return builder
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(current.title)
+            .setContentText(current.subtitle)
             .setContentIntent(open)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setShowWhen(false)
@@ -236,6 +264,7 @@ class LessonPlaybackService : Service() {
     data class State(
         val playing: Boolean,
         val title: String,
+        val subtitle: String,
         val positionMs: Long,
         val durationMs: Long,
         val speed: Float,
@@ -245,6 +274,7 @@ class LessonPlaybackService : Service() {
     companion object {
         private const val CHANNEL_ID = "kiu_lesson_playback"
         private const val NOTIFICATION_ID = 7301
+        private const val RESUME_WAKE_MS = 15_000L
         private const val ACTION_PLAY = "com.mashkhurbek.kiu.action.MEDIA_PLAY"
         private const val ACTION_PAUSE = "com.mashkhurbek.kiu.action.MEDIA_PAUSE"
         private const val ACTION_REWIND = "com.mashkhurbek.kiu.action.MEDIA_REWIND"
